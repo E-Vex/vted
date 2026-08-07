@@ -4,6 +4,12 @@
 
 struct termios old_terminal_settings;
 
+void KillApp(const char *syscall_name)
+{
+    perror(syscall_name);
+    exit(EXIT_FAILURE);
+}
+
 void SaveTerminalCurrentSettings(void)
 {
 
@@ -13,8 +19,7 @@ void SaveTerminalCurrentSettings(void)
 
     if (tcgetattr_return == -1)
     {
-        perror("tcgetattr");
-        exit(EXIT_FAILURE);
+        KillApp("tcgetattr");
     }
 }
 
@@ -49,8 +54,7 @@ void EnableTerminalRawMode(void)
 
     if (tcsetattr_return == -1)
     {
-        perror("tcsetattr");
-        exit(EXIT_FAILURE);
+        KillApp("tcsetattr");
     }
 
     /*========================================*
