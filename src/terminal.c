@@ -2,12 +2,14 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-void SaveTerminalCurrentSettings(struct termios *old_terminal_settings)
+struct termios old_terminal_settings;
+
+void SaveTerminalCurrentSettings()
 {
 
     int tcgetattr_return;
 
-    tcgetattr_return = tcgetattr(STDIN_FILENO, old_terminal_settings); /* tcgetattr() returns value: 0 on success, -1 on error (with errno set). */
+    tcgetattr_return = tcgetattr(STDIN_FILENO, &old_terminal_settings); /* tcgetattr() returns value: 0 on success, -1 on error (with errno set). */
 
     if (tcgetattr_return == -1)
     {
