@@ -59,10 +59,3 @@ void EnableTerminalRawMode()
      *  IN   ->   vted/docs/terminal-modes.md *
      *========================================*/
 }
-
-int main()
-{
-    struct termios old_terminal_settings;
-
-    return 0;
-}
