@@ -4,7 +4,7 @@
 
 struct termios old_terminal_settings;
 
-void SaveTerminalCurrentSettings()
+void SaveTerminalCurrentSettings(void)
 {
 
     int tcgetattr_return;
@@ -18,7 +18,7 @@ void SaveTerminalCurrentSettings()
     }
 }
 
-void EnableTerminalRawMode()
+void EnableTerminalRawMode(void)
 {
 
     struct termios raw_terminal_settings = old_terminal_settings;
