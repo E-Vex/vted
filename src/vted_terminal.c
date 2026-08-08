@@ -1,8 +1,10 @@
+/*===============================*/
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-
+/*===============================*/
 #include "vted_terminal.h"
+/*===============================*/
 
 struct termios old_terminal_settings;
 
