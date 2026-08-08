@@ -2,6 +2,7 @@
 #include <stdio.h>
 /*===============================*/
 #include "vted_terminal.h"
+#include "vted_keyboard.h"
 /*===============================*/
 
 int main()
@@ -10,13 +11,12 @@ int main()
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
 
-    char c_in;
     while (1)
     {
-        scanf("%c", &c_in);
-        if (c_in == '0')
+        char c_in = ReadKeyPress();
+        if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
-            return 1;
+            return 0;
         }
     }
 
