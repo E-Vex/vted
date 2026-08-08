@@ -4,6 +4,8 @@
 
 #include "vted_terminal.h"
 
+struct termios old_terminal_settings;
+
 void KillApp(const char *syscall_name)
 {
     perror(syscall_name);
