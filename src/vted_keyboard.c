@@ -12,7 +12,7 @@
 | Hex:     0x1B |
 | Octal:   033  |
 ================*/
-char ReadRawByte()
+int ReadRawByte()
 {
     char user_input;
     char read_return;
@@ -27,7 +27,7 @@ char ReadRawByte()
 
     return user_input;
 }
-char ParseArrowKey()
+int ParseArrowKey()
 {
     /*=================================================
     | An arrow key is not a single-byte character.    |
@@ -67,7 +67,7 @@ char ParseArrowKey()
     return '\x1B';
 }
 
-char ReadKeyPress()
+int ReadKeyPress()
 {
     char user_input = ReadRawByte();
 

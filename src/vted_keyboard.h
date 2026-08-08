@@ -18,6 +18,6 @@ typedef enum
 
 } EditorKey;
 
-char ReadKeyPress(void);
+int ReadKeyPress(void);
 
 #endif
