@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-struct termios old_terminal_settings;
+#include "vted_terminal.h"
 
 void KillApp(const char *syscall_name)
 {
