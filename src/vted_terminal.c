@@ -25,6 +25,8 @@ void SaveTerminalCurrentSettings(void)
     {
         KillApp("tcgetattr");
     }
+
+    atexit(DisableTerminalRawMode);
 }
 
 void EnableTerminalRawMode(void)
