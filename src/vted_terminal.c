@@ -75,3 +75,15 @@ void EnableTerminalRawMode(void)
      *  IN   ->   vted/docs/terminal-modes.md *
      *========================================*/
 }
+
+void DisableTerminalRawMode(void)
+{
+    int tcsetattr_return;
+
+    tcsetattr_return = tcsetattr(STDIN_FILENO, TCSAFLUSH, &old_terminal_settings);
+
+    if (tcsetattr_return == -1)
+    {
+        KillApp("tcsetattr");
+    }
+}
