@@ -5,7 +5,8 @@ CFLAGS = -Wall -Wextra -std=c11 -I.
 SRC = \
 	src/vted_terminal.c \
 	src/vted.c \
-	src/vted_keyboard.c 
+	src/vted_keyboard.c \
+	src/vted_screen.c
 
 TARGET = vted
 
