@@ -10,6 +10,9 @@ struct termios old_terminal_settings;
 
 void KillApp(const char *syscall_name)
 {
+    write(STDOUT_FILENO, "\x1b[2J", 4); /*clear screen when killapp*/
+    write(STDOUT_FILENO, "\x1b[H", 3);
+
     perror(syscall_name);
     exit(EXIT_FAILURE);
 }
@@ -58,9 +61,9 @@ void EnableTerminalRawMode(void)
     raw_terminal_settings.c_lflag &= ~ISIG;   // ==> disable signal generationse
     // raw_terminal_settings.c_lflag &= ~ECHONL;
 
-    /*enable polling mode*/
-    raw_terminal_settings.c_cc[VMIN] = 1;  // ==>  read() returns as soon as 1 char is available
-    raw_terminal_settings.c_cc[VTIME] = 0; // ==> no timeout
+    /* read with timeout */
+    raw_terminal_settings.c_cc[VMIN] = 0;  // ==> read() does not require any character If input is available, it returns immediately Otherwise, it waits for VTIME and may return 0.
+    raw_terminal_settings.c_cc[VTIME] = 1; // ==> 0.1 second timeout (100 ms)
 
     /* apply changes */
     int tcsetattr_return;
