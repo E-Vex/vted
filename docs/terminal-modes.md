@@ -23,8 +23,8 @@ TERMINAL MODES AND THE TERMIOS API                               vted docs
 THE TERMINAL DRIVER
 -------------------
 
-    before any thing you should understand what the terminlal
-    dirver is.
+    Before anything else, you should understand what 
+    the terminal driver is.
     When you type in a terminal, you are not sending keystrokes
     directly to your program. The kernel intercepts each key press
     and runs it through a layer called the terminal driver before
