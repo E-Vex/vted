@@ -10,6 +10,10 @@ SRC = \
 
 TARGET = vted
 
+# Version & build date
+VERSION = 0.1
+DATE := $(shell date +%Y-%-m-%-d)
+
 # Colors
 RESET  = \033[0m
 BOLD   = \033[1m
@@ -22,6 +26,14 @@ CYAN   = \033[36m
 WHITE  = \033[37m
 GRAY   = \033[90m
 
+# Brown gradient (256-color) — dark to light
+BR1 = \033[38;5;58m
+BR2 = \033[38;5;94m
+BR3 = \033[38;5;130m
+BR4 = \033[38;5;136m
+BR5 = \033[38;5;172m
+BR6 = \033[38;5;178m
+
 .PHONY: all banner cleanc
 
 all: banner
@@ -33,14 +45,14 @@ all: banner
 
 banner:
 	@printf "\n"
-	@printf "$(CYAN)$(BOLD)"
-	@printf "██╗   ██╗████████╗███████╗██████╗ \n"
-	@printf "██║   ██║╚══██╔══╝██╔════╝██╔══██╗\n"
-	@printf "██║   ██║   ██║   █████╗  ██║  ██║\n"
-	@printf "╚██╗ ██╔╝   ██║   ██╔══╝  ██║  ██║\n"
-	@printf " ╚████╔╝    ██║   ███████╗██████╔╝\n"
-	@printf "  ╚═══╝     ╚═╝   ╚══════╝╚═════╝"
-	@printf "$(RESET)  $(GRAY)Makefile v1.0$(RESET)\n"
+	@printf "$(BOLD)"
+	@printf "$(BR1)██╗   ██╗████████╗███████╗██████╗ \n"
+	@printf "$(BR2)██║   ██║╚══██╔══╝██╔════╝██╔══██╗\n"
+	@printf "$(BR3)██║   ██║   ██║   █████╗  ██║  ██║\n"
+	@printf "$(BR4)╚██╗ ██╔╝   ██║   ██╔══╝  ██║  ██║\n"
+	@printf "$(BR5) ╚████╔╝    ██║   ███████╗██████╔╝\n"
+	@printf "$(BR6)  ╚═══╝     ╚═╝   ╚══════╝╚═════╝"
+	@printf "$(RESET)  $(GRAY)v$(VERSION) - $(DATE)$(RESET)\n"
 	@printf "\n"
 
 	@printf "$(YELLOW)PLATFORM     $(GRAY)|$(RESET) Linux\n"
