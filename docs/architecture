@@ -1,0 +1,47 @@
+            
+            THIS IS THE PROJECT LIFECYCLE.
+             THE PROJECT IS CURRENTLY UNDER DEVELOPMENT,
+            AND THIS IS NOT THE FINAL ARCHITECTURE.
+               
+               
+               
+                 PROGRAM START                               vted docs                    
+                       │
+                       ▼
+          SaveTerminalCurrentSettings()
+                       │
+                       ├── tcgetattr()
+                       │       │
+                       │       ▼
+                       │   old_terminal_settings
+                       │
+                       └── atexit(RestoreTerminalSettings)
+                       │
+                       ▼
+             EnableTerminalRawMode()
+                       │
+                       ▼
+                terminal = raw
+                       │
+                       ▼
+                   Editor runs
+                       │
+                 ┌─────┴─────┐
+                 │           │
+              keyboard      screen
+                 │           │
+                 └─────┬─────┘
+                       │
+                       ▼
+                  program exit
+                       │
+                       ▼
+          RestoreTerminalSettings()
+                       │
+                       ▼
+              original terminal
+                       │
+                       ▼
+                      END
+
+by E-Vex                      
