@@ -15,6 +15,6 @@ void SaveTerminalCurrentSettings(void);
 
 void EnableTerminalRawMode(void);
 
-void DisableTerminalRawMode(void);
+void RestoreTerminalSettings(void);
 
 #endif

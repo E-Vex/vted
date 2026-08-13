@@ -29,7 +29,7 @@ void SaveTerminalCurrentSettings(void)
         KillApp("tcgetattr");
     }
 
-    atexit(DisableTerminalRawMode);
+    atexit(RestoreTerminalSettings);
 }
 
 void EnableTerminalRawMode(void)
@@ -81,7 +81,7 @@ void EnableTerminalRawMode(void)
      *========================================*/
 }
 
-void DisableTerminalRawMode(void)
+void RestoreTerminalSettings(void)
 {
     int tcsetattr_return;
 
