@@ -11,7 +11,7 @@ int GetWindowSize(int *rows, int *cols)
 {
     struct winsize window_size;
 
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &window_size) == -1 || window_size.ws_col == 0)
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &window_size) == -1 || window_size.ws_col == 0 || window_size.ws_row == 0)
     {
         return -1;
     }
