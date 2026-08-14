@@ -1,5 +1,7 @@
 /*===============================*/
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
@@ -12,20 +14,38 @@
 | Hex:     0x1B |
 | Octal:   033  |
 ================*/
-int ReadRawByte()
+
+#define NO_KEY 0
+
+void SetNonBlockingInput(void)
+{
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+}
+
+int ReadRawByte(void)
 {
     char user_input;
-    char read_return;
 
-    while ((read_return = read(STDIN_FILENO, &user_input, 1)) != 1)
+    ssize_t read_return = read(STDIN_FILENO, &user_input, 1);
+
+    if (read_return == 1)
     {
-        if (read_return == -1)
+        return (unsigned char)user_input;
+        /* (unsigned char) ensures bytes above 127 stay
+         positive (0 to 255) and aren't misread as -1 */
+    }
+    else if (read_return == -1)
+    {
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
-            KillApp("read");
+            return NO_KEY;
         }
+        KillApp("read");
     }
 
-    return user_input;
+    return NO_KEY;
 }
 int ParseArrowKey()
 {
