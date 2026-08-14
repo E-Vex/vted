@@ -23,6 +23,9 @@ int GetWindowSize(int *rows, int *cols)
 
 void InitVtedEditor(void)
 {
+    /*this function here to update the
+    vted_editor_config struct values*/
+
     int GetWindowSize_return;
 
     GetWindowSize_return = GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols);
