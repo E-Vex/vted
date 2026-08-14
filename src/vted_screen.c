@@ -63,3 +63,8 @@ void EnterToAlternateScreenBuffer(void)
 {
     write(STDOUT_FILENO, "\x1b[?1049h", 8);
 }
+
+void ExitAlternateScreenBuffer(void)
+{
+    write(STDOUT_FILENO, "\x1b[?1049l", 8);
+}

@@ -20,7 +20,7 @@ int main()
         char c_in = ReadKeyPress();
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
-            write(STDOUT_FILENO, "\x1b[?1049l", 8);
+            ExitAlternateScreenBuffer();
             return 0;
         }
 

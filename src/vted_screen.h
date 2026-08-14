@@ -14,5 +14,6 @@ void InitVtedEditor(void);
 void RefreshScreen(void);
 void ClearScreen(void);
 void EnterToAlternateScreenBuffer(void);
+void ExitAlternateScreenBuffer(void);
 
 #endif
