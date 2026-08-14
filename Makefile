@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -Wall -Wextra -std=c11 -I.
+CFLAGS = -Wall -Wextra -Wconversion -std=c11 -I.
 
 SRC = \
 	src/vted_terminal.c \
