@@ -13,5 +13,6 @@ int GetWindowSize(int *rows, int *cols);
 void InitVtedEditor(void);
 void RefreshScreen(void);
 void ClearScreen(void);
+void EnterToAlternateScreenBuffer(void);
 
 #endif

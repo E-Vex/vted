@@ -48,8 +48,6 @@ static void DrawRows(void)
 
 void RefreshScreen(void)
 {
-    ClearScreen();
-
     DrawRows();
 
     write(STDOUT_FILENO, "\x1b[H", 3); /* cursor back to top-left */
@@ -59,4 +57,9 @@ void ClearScreen(void)
 {
     write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
+}
+
+void EnterToAlternateScreenBuffer(void)
+{
+    write(STDOUT_FILENO, "\x1b[?1049h", 8);
 }

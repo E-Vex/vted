@@ -13,13 +13,14 @@ int main()
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     InitVtedEditor();
+    EnterToAlternateScreenBuffer();
 
     while (1)
     {
         char c_in = ReadKeyPress();
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
-            ClearScreen();
+            write(STDOUT_FILENO, "\x1b[?1049l", 8);
             return 0;
         }
 
