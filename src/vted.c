@@ -12,7 +12,6 @@ int main()
 
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
-    InitVtedEditor();
     EnterToAlternateScreenBuffer();
 
     while (1)
@@ -24,6 +23,7 @@ int main()
             return 0;
         }
 
+        InitVtedEditor();
         RefreshScreen();
     }
 
