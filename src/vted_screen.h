@@ -12,5 +12,6 @@ extern vted_editor_Config_t vted_editor_config;
 int GetWindowSize(int *rows, int *cols);
 void InitVtedEditor(void);
 void RefreshScreen(void);
+void ClearScreen(void);
 
 #endif

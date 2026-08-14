@@ -8,7 +8,7 @@
 
 int main()
 {
-    write(STDOUT_FILENO, "\x1b[2J", 4);
+    ClearScreen();
 
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
@@ -19,7 +19,7 @@ int main()
         char c_in = ReadKeyPress();
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
-            write(STDOUT_FILENO, "\x1b[2J", 4);
+            ClearScreen();
             return 0;
         }
 
