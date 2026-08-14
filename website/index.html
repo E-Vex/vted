@@ -1,0 +1,151 @@
+<!--
+888888          888888     888     8888888888888Y88b   d88P 
+888888          888888     888     888888        Y88b d88P  
+888888          888888     888     888888         Y88o88P   
+888888          888888     Y88b   d88P8888888      Y888P    
+888888          888888      Y88b d88P 888          d888b    
+888888          888888       Y88o88P  888         d88888b   
+YY8888bb      dd8888PP        Y888P   888        d88P Y88b  
+YY8888bb      dd8888PP         Y8P    8888888888d88P   Y88b 
+  YY8888bb  dd8888PP       8888888888888888888888888888b.   
+  YY8888bb  dd8888PP           888    888       888  "Y88b  
+    YY8888oo8888PP             888    888       888    888  
+    YY8888oo8888PP             888    8888888   888    888  
+      YY888888PP               888    888       888    888  
+      YY888888PP               888    888       888    888  
+        YY88PP                 888    888       888  .d88P  
+        YY88PP                 888    88888888888888888P">
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- TODO: replace with vted's real one-line description -->
+<title>vted — Text Editor Homepage</title>
+<meta name="description" content="TODO: one-line description of vted." />
+
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+<!-- Terminal-flavored monospace face. Falls back to the system's own
+       monospace stack (see css/variables.css) if this can't load. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+<!-- Stylesheets load in cascade order: tokens, then reset, then
+       structure, then components, then breakpoints. -->
+<link rel="stylesheet" href="css/variables.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/layout.css" />
+<link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/responsive.css" />
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- ============================= TOP BAR ============================= -->
+    <header class="topbar">
+      <!-- TODO: wire up the real current version number -->
+      <span class="topbar__left">Latest version: <strong>0.1.0</strong></span>
+
+      <span class="topbar__center">
+        <!-- TODO: point this at the project's real canonical URL -->
+        <a class="topbar__link" href="#">The vted homepage</a>
+      </span>
+
+      <!-- TODO: keep this in sync with the last real content update -->
+      <span class="topbar__right">Modified: 2026 August 14</span>
+    </header>
+
+    <!-- ============================= HERO ================================ -->
+    <main class="hero">
+      <!-- Custom decorative wordmark, supplied directly (not FIGlet-
+           generated like the earlier version). Source of truth kept
+           separately at assets/ascii/logo.txt — edit there and paste
+           back in if the wordmark ever changes. -->
+      <pre class="hero__logo" aria-label="vted">
+888888          888888     888     8888888888888Y88b   d88P 
+888888          888888     888     888888        Y88b d88P  
+888888          888888     888     888888         Y88o88P   
+888888          888888     Y88b   d88P8888888      Y888P    
+888888          888888      Y88b d88P 888          d888b    
+888888          888888       Y88o88P  888         d88888b   
+YY8888bb      dd8888PP        Y888P   888        d88P Y88b  
+YY8888bb      dd8888PP         Y8P    8888888888d88P   Y88b 
+  YY8888bb  dd8888PP       8888888888888888888888888888b.   
+  YY8888bb  dd8888PP           888    888       888  "Y88b  
+    YY8888oo8888PP             888    888       888    888  
+    YY8888oo8888PP             888    8888888   888    888  
+      YY888888PP               888    888       888    888  
+      YY888888PP               888    888       888    888  
+        YY88PP                 888    888       888  .d88P  
+        YY88PP                 888    88888888888888888P"   </pre>
+
+      <p class="hero__tagline">vted Text Editor</p>
+    </main>
+
+    <hr class="divider" />
+
+    <!-- =========================== FOOTER NAV ============================ -->
+    <footer class="site-footer">
+      <nav class="nav-groups" aria-label="Site sections">
+
+        <!-- TODO: replace hrefs (and letters, if they collide) with real
+             destinations once the project's pages exist. -->
+        <ul class="nav-group">
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">G</span>
+            <a class="nav-group__link" href="#">Get vted</a>
+          </li>
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">D</span>
+            <a class="nav-group__link" href="#">Documentation</a>
+          </li>
+        </ul>
+
+        <ul class="nav-group">
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">N</span>
+            <a class="nav-group__link" href="#">News</a>
+          </li>
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">H</span>
+            <a class="nav-group__link" href="#">History</a>
+          </li>
+        </ul>
+
+        <ul class="nav-group">
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">W</span>
+            <a class="nav-group__link" href="#">Who</a>
+          </li>
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">S</span>
+            <a class="nav-group__link" href="#">Screenshots</a>
+          </li>
+        </ul>
+
+        <ul class="nav-group">
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">R</span>
+            <a class="nav-group__link" href="#">Repository</a>
+          </li>
+          <li class="nav-group__item">
+            <span class="nav-group__key" aria-hidden="true">C</span>
+            <a class="nav-group__link" href="#">Contact</a>
+          </li>
+        </ul>
+      </nav>
+
+      <p class="footer-meta">vted &copy; <span data-year>2026</span></p>
+    </footer>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

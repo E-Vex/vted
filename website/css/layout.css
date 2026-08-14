@@ -1,0 +1,83 @@
+/**
+888888          888888     888     8888888888888Y88b   d88P 
+888888          888888     888     888888        Y88b d88P  
+888888          888888     888     888888         Y88o88P   
+888888          888888     Y88b   d88P8888888      Y888P    
+888888          888888      Y88b d88P 888          d888b    
+888888          888888       Y88o88P  888         d88888b   
+YY8888bb      dd8888PP        Y888P   888        d88P Y88b  
+YY8888bb      dd8888PP         Y8P    8888888888d88P   Y88b 
+  YY8888bb  dd8888PP       8888888888888888888888888888b.   
+  YY8888bb  dd8888PP           888    888       888  "Y88b  
+    YY8888oo8888PP             888    888       888    888  
+    YY8888oo8888PP             888    8888888   888    888  
+      YY888888PP               888    888       888    888  
+      YY888888PP               888    888       888    888  
+        YY88PP                 888    888       888  .d88P  
+        YY88PP                 888    88888888888888888P"
+
+ * layout.css
+ * -----------------------------------------------------------------------
+ * Page-level structure: how the major regions (top bar, main, footer nav)
+ * are arranged. Visual styling of what's *inside* those regions lives in
+ * components.css — this file only answers "where does it sit".
+ * ----------------------------------------------------------------------- */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ---- Top bar ------------------------------------------------------------
+   Three-column strip: version (left) · project link (center) · date (right)
+   exactly like the nano homepage masthead. */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--topbar-height);
+  padding: 0.125rem var(--space-3);
+}
+
+.topbar__center {
+  flex: 1;
+  text-align: center;
+}
+
+/* ---- Main / hero ---------------------------------------------------------
+   Holds the ASCII logotype + tagline. Anchored near the top rather than
+   vertically centered in the remaining space — matches the reference
+   page, where the logo sits high and the extra room falls below it. */
+.hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-3) var(--space-6);
+  text-align: center;
+}
+
+/* ---- Footer navigation -----------------------------------------------
+   Grid of link groups, matching the four-column footer on nano's site.
+   Wraps to fewer columns on narrow viewports (see responsive.css). */
+.site-footer {
+  padding: var(--space-4) var(--space-3) var(--space-5);
+}
+
+.nav-groups {
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.footer-meta {
+  max-width: var(--content-max-width);
+  margin: var(--space-5) auto 0;
+  text-align: center;
+}

@@ -1,0 +1,157 @@
+/**
+888888          888888     888     8888888888888Y88b   d88P 
+888888          888888     888     888888        Y88b d88P  
+888888          888888     888     888888         Y88o88P   
+888888          888888     Y88b   d88P8888888      Y888P    
+888888          888888      Y88b d88P 888          d888b    
+888888          888888       Y88o88P  888         d88888b   
+YY8888bb      dd8888PP        Y888P   888        d88P Y88b  
+YY8888bb      dd8888PP         Y8P    8888888888d88P   Y88b 
+  YY8888bb  dd8888PP       8888888888888888888888888888b.   
+  YY8888bb  dd8888PP           888    888       888  "Y88b  
+    YY8888oo8888PP             888    888       888    888  
+    YY8888oo8888PP             888    8888888   888    888  
+      YY888888PP               888    888       888    888  
+      YY888888PP               888    888       888    888  
+        YY88PP                 888    888       888  .d88P  
+        YY88PP                 888    88888888888888888P"
+
+ * components.css
+ * -----------------------------------------------------------------------
+ * Visual styling for each self-contained piece of UI. Every selector here
+ * should map to one component; if a component grows complex enough to
+ * need its own file, split it out and @import it from main.css.
+ * ----------------------------------------------------------------------- */
+
+/* ---- Top bar --------------------------------------------------------- */
+.topbar {
+  background: var(--gradient-accent);
+  color: var(--color-on-accent);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.topbar__link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.topbar__link:hover,
+.topbar__link:focus-visible {
+  color: var(--color-text);
+}
+
+/* ---- Hero / ASCII logo ------------------------------------------------- */
+.hero__logo {
+  /* Solid fallback color first, in case background-clip: text isn't
+     supported — the logo must never disappear. */
+  color: var(--color-accent);
+  font-size: clamp(0.5rem, 1.6vw, 1rem);
+  line-height: 1.15;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* setting overflow-x alone makes browsers treat
+                          overflow-y as "auto" too, which was drawing a
+                          phantom vertical scrollbar next to the logo */
+  max-width: 100%;
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .hero__logo {
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+.hero__tagline {
+  color: var(--color-text);
+  font-size: var(--fs-md);
+}
+
+/* Blinking terminal cursor after the tagline — a small nod to the fact
+   that vted is a terminal application. Pure CSS, respects
+   prefers-reduced-motion via the global rule in base.css. */
+.hero__tagline::after {
+  content: '_';
+  display: inline-block;
+  margin-inline-start: 2px;
+  color: var(--color-accent);
+  animation: caret-blink 1s steps(1) infinite;
+}
+
+@keyframes caret-blink {
+
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- Divider ------------------------------------------------------------
+   A soft horizontal rule, brighter in the center and fading at the edges
+   — matches the light gray fade line under the logo in the reference. */
+.divider {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: linear-gradient(to right,
+      transparent,
+      var(--color-divider) 15%,
+      var(--color-divider) 85%,
+      transparent);
+}
+
+/* ---- Footer nav groups --------------------------------------------------
+   Each group is a small stack of links; each link is prefixed with a
+   filled "key badge" (single accelerator letter), echoing nano's own
+   footer and the shortcut-driven language of a terminal editor. */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nav-group__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nav-group__key {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  background: var(--gradient-accent);
+  color: var(--color-key-fg);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.nav-group__link {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
+}
+
+.nav-group__link:hover,
+.nav-group__link:focus-visible {
+  color: var(--color-text);
+}
+
+/* ---- Footer meta --------------------------------------------------------*/
+.footer-meta {
+  color: var(--color-text-dim);
+  font-size: var(--fs-xs);
+}

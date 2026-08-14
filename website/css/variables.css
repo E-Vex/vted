@@ -1,0 +1,96 @@
+/**
+888888          888888     888     8888888888888Y88b   d88P 
+888888          888888     888     888888        Y88b d88P  
+888888          888888     888     888888         Y88o88P   
+888888          888888     Y88b   d88P8888888      Y888P    
+888888          888888      Y88b d88P 888          d888b    
+888888          888888       Y88o88P  888         d88888b   
+YY8888bb      dd8888PP        Y888P   888        d88P Y88b  
+YY8888bb      dd8888PP         Y8P    8888888888d88P   Y88b 
+  YY8888bb  dd8888PP       8888888888888888888888888888b.   
+  YY8888bb  dd8888PP           888    888       888  "Y88b  
+    YY8888oo8888PP             888    888       888    888  
+    YY8888oo8888PP             888    8888888   888    888  
+      YY888888PP               888    888       888    888  
+      YY888888PP               888    888       888    888  
+        YY88PP                 888    888       888  .d88P  
+        YY88PP                 888    88888888888888888P"
+
+ * variables.css
+ * -----------------------------------------------------------------------
+ * Design tokens for the vted homepage.
+ *
+ * Layout and type were modeled on the nano-editor.org homepage; the
+ * color palette is a warm brown gradient (swapped in from nano's original
+ * flat magenta) — see --gradient-accent below.
+ * Change values here — every other file consumes these variables only,
+ * nothing else in the project hardcodes a color or a font.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  /* ---- Color: base ---------------------------------------------------- */
+  --color-bg: #14100c;
+  /* page background (warm near-black)     */
+  --color-bg-raised: #1d1712;
+  /* slightly lifted panels, if ever needed */
+
+  /* ---- Color: brown accent (swapped from the original nano magenta) ---- */
+  --color-accent: #C9975B;
+  /* warm tan — links, eyebrow, caret text */
+  --color-accent-light: #EAD1A0;
+  /* brightest gradient stop / link hover  */
+  --color-accent-mid: #BD8449;
+  /* mid gradient stop                     */
+  --color-accent-deep: #7A5029;
+  /* darkest gradient stop / dark edge     */
+  --color-accent-strong: var(--color-accent-mid);
+  /* solid fallback        */
+  --color-on-accent: #2A1B0E;
+  /* dark text sitting on the gradient     */
+  --color-key-fg: #2A1B0E;
+  /* letter inside the footer key badges   */
+
+  /* A left-to-right "sheen" — deeper brown at both edges, warm gold at
+     center — used anywhere the old flat magenta fill used to sit (top
+     bar, key badges, ASCII logo). Kept light enough throughout that the
+     brown never reads as near-black. */
+  --gradient-accent: linear-gradient(90deg,
+      var(--color-accent-deep) 0%,
+      var(--color-accent-mid) 35%,
+      var(--color-accent-light) 50%,
+      var(--color-accent-mid) 65%,
+      var(--color-accent-deep) 100%);
+
+  /* ---- Color: text ------------------------------------------------------ */
+  --color-text: #E8E2DA;
+  /* primary body / footer text            */
+  --color-text-dim: #8a8078;
+  /* secondary / meta text                 */
+  --color-divider: #a89376;
+  /* horizontal rule under the logo        */
+
+  /* ---- Typography -------------------------------------------------------*/
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'SFMono-Regular',
+    Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-md: 1.125rem;
+  --fs-lg: 1.5rem;
+
+  /* ---- Spacing scale ---------------------------------------------------*/
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+
+  /* ---- Layout ------------------------------------------------------------*/
+  --content-max-width: 1200px;
+  --topbar-height: 1.5rem;
+
+  /* ---- Motion ------------------------------------------------------------*/
+  --transition-fast: 120ms ease;
+}
