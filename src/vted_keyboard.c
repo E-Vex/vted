@@ -25,15 +25,14 @@ void SetNonBlockingInput(void)
 
 int ReadRawByte(void)
 {
-    char user_input;
-
+    unsigned char user_input;
+    /* (unsigned char) ensures bytes above 127 stay
+    positive (0 to 255) and aren't misread as -1 */
     ssize_t read_return = read(STDIN_FILENO, &user_input, 1);
 
     if (read_return == 1)
     {
-        return (unsigned char)user_input;
-        /* (unsigned char) ensures bytes above 127 stay
-         positive (0 to 255) and aren't misread as -1 */
+        return user_input;
     }
     else if (read_return == -1)
     {
@@ -89,7 +88,7 @@ int ParseArrowKey()
 
 int ReadKeyPress()
 {
-    char user_input = ReadRawByte();
+    int user_input = ReadRawByte();
 
     if (user_input == ESC)
     {

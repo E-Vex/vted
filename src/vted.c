@@ -16,7 +16,7 @@ int main()
 
     while (1)
     {
-        char c_in = ReadKeyPress();
+        int c_in = ReadKeyPress();
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
             ExitAlternateScreenBuffer();
