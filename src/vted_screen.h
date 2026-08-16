@@ -3,6 +3,8 @@
 
 typedef struct
 {
+    int cursor_x;
+    int cursor_y;
     int screen_rows;
     int screen_cols;
 } vted_editor_Config_t;
@@ -15,5 +17,7 @@ void RefreshScreen(void);
 void ClearScreen(void);
 void EnterToAlternateScreenBuffer(void);
 void ExitAlternateScreenBuffer(void);
+void RefreshWindowSize(void);
+void MoveCursor(int key);
 
 #endif

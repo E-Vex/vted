@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <string.h>
 
 #include "vted_terminal.h"
+#include "vted_keyboard.h"
 #include "vted_screen.h"
 
 vted_editor_Config_t vted_editor_config;
@@ -23,19 +25,20 @@ int GetWindowSize(int *rows, int *cols)
 
 void InitVtedEditor(void)
 {
-    /*this function here to update the
-    vted_editor_config struct values*/
+    /* Initialize the cursor position */
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
 
-    int GetWindowSize_return;
-
-    GetWindowSize_return = GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols);
-
-    if (GetWindowSize_return == -1)
+    if (GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols) == -1)
     {
         KillApp("GetWindowSize");
     }
 }
-
+void RefreshWindowSize(void)
+{
+    if (GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols) == -1)
+        KillApp("GetWindowSize");
+}
 static void DrawRows(void)
 {
     int row;
@@ -48,26 +51,44 @@ static void DrawRows(void)
         }
     }
 }
-
 void RefreshScreen(void)
 {
     DrawRows();
 
     write(STDOUT_FILENO, "\x1b[H", 3); /* cursor back to top-left */
 }
-
 void ClearScreen(void)
 {
     write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
 }
-
 void EnterToAlternateScreenBuffer(void)
 {
     write(STDOUT_FILENO, "\x1b[?1049h", 8);
 }
-
 void ExitAlternateScreenBuffer(void)
 {
     write(STDOUT_FILENO, "\x1b[?1049l", 8);
+}
+void MoveCursor(int key)
+{
+    switch (key)
+    {
+    case ArrowLeft:
+        if (vted_editor_config.cursor_x > 0)
+            vted_editor_config.cursor_x--;
+        break;
+    case ArrowRight:
+        if (vted_editor_config.cursor_x < vted_editor_config.screen_cols - 1)
+            vted_editor_config.cursor_x++;
+        break;
+    case ArrowUp:
+        if (vted_editor_config.cursor_y > 0)
+            vted_editor_config.cursor_y--;
+        break;
+    case ArrowDown:
+        if (vted_editor_config.cursor_y < vted_editor_config.screen_rows - 1)
+            vted_editor_config.cursor_y++;
+        break;
+    }
 }

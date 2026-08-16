@@ -9,10 +9,10 @@
 int main()
 {
     ClearScreen();
-
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     EnterToAlternateScreenBuffer();
+    InitVtedEditor();
 
     while (1)
     {
@@ -23,7 +23,12 @@ int main()
             return 0;
         }
 
-        InitVtedEditor();
+        if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight)
+        {
+            MoveCursor(c_in);
+        }
+
+        RefreshWindowSize();
         RefreshScreen();
     }
 
