@@ -22,7 +22,6 @@ void SetNonBlockingInput(void)
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
 }
-
 int ReadRawByte(void)
 {
     unsigned char user_input;
@@ -85,7 +84,6 @@ int ParseArrowKey()
     }
     return '\x1B';
 }
-
 int ReadKeyPress()
 {
     int user_input = ReadRawByte();

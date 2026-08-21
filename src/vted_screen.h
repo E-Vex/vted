@@ -3,10 +3,10 @@
 
 typedef struct
 {
-    int cursor_x;
-    int cursor_y;
-    int screen_rows;
-    int screen_cols;
+  int cursor_x;
+  int cursor_y;
+  int screen_rows;
+  int screen_cols;
 } vted_editor_Config_t;
 
 extern vted_editor_Config_t vted_editor_config;
