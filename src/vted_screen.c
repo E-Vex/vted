@@ -55,9 +55,19 @@ static void DrawRows(void)
 }
 void RefreshScreen(void)
 {
+    char cursor_position_buffer[32];
+
     DrawRows();
 
-    write(STDOUT_FILENO, "\x1b[H", 3); /* cursor back to top-left */
+    /* display the cursor position on terminal screen */
+
+    /* cursor_x/y + 1 here because the terminal starts from 1,1 not 0,0 */
+    snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
+             vted_editor_config.cursor_y + 1, vted_editor_config.cursor_x + 1);
+
+    /* ANSI escape sequences must be written directly to the terminal,
+     bypassing any output buffering, so the cursor moves immediately */
+    write(STDOUT_FILENO, cursor_position_buffer, strlen(cursor_position_buffer));
 }
 void EnterToAlternateScreenBuffer(void)
 {
@@ -69,6 +79,7 @@ void ExitAlternateScreenBuffer(void)
 }
 void MoveCursor(int key)
 {
+    /* moving the cursor logically */
     switch (key)
     {
     case ArrowLeft:
