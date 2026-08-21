@@ -8,7 +8,6 @@
 
 int main()
 {
-    ClearScreen();
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     EnterToAlternateScreenBuffer();
