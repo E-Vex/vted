@@ -1,11 +1,13 @@
+/*===============================*/
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <string.h>
-
+/*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
 #include "vted_screen.h"
+/*===============================*/
 
 vted_editor_Config_t vted_editor_config;
 
