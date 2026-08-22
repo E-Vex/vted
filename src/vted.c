@@ -26,8 +26,6 @@ int main()
         {
             MoveCursor(c_in);
         }
-
-        RefreshWindowSize();
         RefreshScreen();
     }
 

@@ -24,23 +24,24 @@ int GetWindowSize(int *rows, int *cols)
     *rows = window_size.ws_row;
     return 0;
 }
-
-void InitVtedEditor(void)
+int RefreshWindowSize(void)
 {
-    /* Initialize the cursor position */
-    vted_editor_config.cursor_x = 0;
-    vted_editor_config.cursor_y = 0;
+    int pre_cols = vted_editor_config.screen_cols;
+    int pre_rows = vted_editor_config.screen_rows;
 
     if (GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols) == -1)
     {
-        KillApp("GetWindowSize");
+        return -1;
     }
+
+    if (pre_cols != vted_editor_config.screen_cols || pre_rows != vted_editor_config.screen_rows)
+    {
+        return 0; /* no changed */
+    }
+
+    return 1; /* window size changed */
 }
-void RefreshWindowSize(void)
-{
-    if (GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols) == -1)
-        KillApp("GetWindowSize");
-}
+
 static void DrawRows(void)
 {
     int row;
@@ -53,22 +54,6 @@ static void DrawRows(void)
         }
     }
 }
-void RefreshScreen(void)
-{
-    char cursor_position_buffer[32];
-
-    DrawRows();
-
-    /* display the cursor position on terminal screen */
-
-    /* cursor_x/y + 1 here because the terminal starts from 1,1 not 0,0 */
-    snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
-             vted_editor_config.cursor_y + 1, vted_editor_config.cursor_x + 1);
-
-    /* ANSI escape sequences must be written directly to the terminal,
-     bypassing any output buffering, so the cursor moves immediately */
-    write(STDOUT_FILENO, cursor_position_buffer, strlen(cursor_position_buffer));
-}
 void EnterToAlternateScreenBuffer(void)
 {
     write(STDOUT_FILENO, "\x1b[?1049h", 8);
@@ -77,6 +62,7 @@ void ExitAlternateScreenBuffer(void)
 {
     write(STDOUT_FILENO, "\x1b[?1049l", 8);
 }
+
 void MoveCursor(int key)
 {
     /* moving the cursor logically */
@@ -99,4 +85,42 @@ void MoveCursor(int key)
             vted_editor_config.cursor_y++;
         break;
     }
+}
+
+void RefreshScreen(void)
+{
+    char cursor_position_buffer[32];
+
+    int RefreshWindowSize_return = RefreshWindowSize();
+    if (RefreshWindowSize_return == -1)
+    {
+        KillApp("GetWindowSize");
+    }
+    if (RefreshWindowSize_return == 1)
+    {
+        DrawRows();
+    }
+
+    /* display the cursor position on terminal screen */
+
+    /* cursor_x/y + 1 here because the terminal starts from 1,1 not 0,0 */
+    snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
+             vted_editor_config.cursor_y + 1, vted_editor_config.cursor_x + 1);
+
+    /* ANSI escape sequences must be written directly to the terminal,
+     bypassing any output buffering, so the cursor moves immediately */
+    write(STDOUT_FILENO, cursor_position_buffer, strlen(cursor_position_buffer));
+}
+void InitVtedEditor(void)
+{
+    /* Initialize the cursor position */
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
+
+    if (GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols) == -1)
+    {
+        KillApp("GetWindowSize");
+    }
+
+    DrawRows();
 }
