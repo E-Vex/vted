@@ -3,8 +3,8 @@
 
 typedef struct
 {
-  int cursor_x;
-  int cursor_y;
+  int cursor_x, cursor_y;
+
   int screen_rows;
   int screen_cols;
 } vted_editor_Config_t;
