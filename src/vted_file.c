@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/types.h>
 /*===============================*/
 #include "vted_terminal.h"
@@ -17,7 +18,17 @@ int OpenFile(const char *filename)
 
     if (file == NULL)
     {
-        return -1;
+        if (errno != ENOENT)
+        {
+            return -1;
+        }
+
+        /* a path that does not exist yet is a new file: start with an
+           empty buffer that remembers the name, so Ctrl-S creates it */
+        free(vted_buffer.filename);
+        vted_buffer.filename = strdup(filename);
+
+        return vted_buffer.filename == NULL ? -1 : 0;
     }
 
     /* remember which file this buffer belongs to */
