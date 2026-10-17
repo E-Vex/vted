@@ -89,6 +89,8 @@ man vted        # the full manual
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
 | Delete          | delete the character under the cursor            |
+| Ctrl-K          | delete the whole line under the cursor           |
+| Ctrl-D          | duplicate the line under the cursor              |
 | typing          | insert at the cursor                             |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-G          | go to a line number (ESC cancels)                |
@@ -105,6 +107,7 @@ man vted        # the full manual
   is a run of letters, digits and underscores, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
+- Delete the whole line with Ctrl-K, duplicate it with Ctrl-D
 - Auto-indent: Enter starts the new line with the indent of the current one
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
   (CJK, emoji) and combining characters take the right number of cells
