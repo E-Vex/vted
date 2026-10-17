@@ -114,6 +114,8 @@ man vted        # the full manual
 - Status bar with filename, line count, modified marker and cursor position
 - Message bar for status and warnings
 - Incremental search (Ctrl-F) with match highlighting
+- Go to a line with Ctrl-G; a number past the end lands on the last line
+- Saving an unnamed buffer asks for a file name and keeps the buffer unnamed\n  if the file cannot be written
 - Quit protection: unsaved changes require repeated Ctrl-Q
 
 ## Documentation
