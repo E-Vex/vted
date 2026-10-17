@@ -135,18 +135,19 @@ void RefreshScreen(void)
     char cursor_position_buffer[32];
     int cursor_position_len;
 
-    int RefreshWindowSize_return = RefreshWindowSize();
-    if (RefreshWindowSize_return == -1)
+    if (RefreshWindowSize() == -1)
     {
         KillApp("GetWindowSize");
     }
-    if (RefreshWindowSize_return == 1)
-    {
-        /* home the cursor to the top-left before repainting rows,
-           otherwise rows start wherever the cursor happens to be */
-        AppendToBuffer(&ab, "\x1b[H", 3);
-        DrawRows(&ab);
-    }
+
+    /* hide the cursor while the frame is repainted, otherwise it
+       visibly jumps around between the old and the new position */
+    AppendToBuffer(&ab, "\x1b[?25l", 6);
+
+    /* home the cursor to the top-left, every row repaints from there */
+    AppendToBuffer(&ab, "\x1b[H", 3);
+
+    DrawRows(&ab);
 
     /* display the cursor position on terminal screen */
 
@@ -159,6 +160,8 @@ void RefreshScreen(void)
         AppendToBuffer(&ab, cursor_position_buffer, cursor_position_len);
     }
 
+    AppendToBuffer(&ab, "\x1b[?25h", 6); /* show the cursor again */
+
     /* the whole frame goes out with one write() to avoid flicker */
     write(STDOUT_FILENO, ab.data, (size_t)ab.len);
 
@@ -166,8 +169,6 @@ void RefreshScreen(void)
 }
 void InitVtedEditor(void)
 {
-    append_buffer_t ab = ABUF_INIT;
-
     /* Initialize the cursor position */
     vted_editor_config.cursor_x = 0;
     vted_editor_config.cursor_y = 0;
@@ -177,10 +178,5 @@ void InitVtedEditor(void)
         KillApp("GetWindowSize");
     }
 
-    /* initial paint of the empty editor */
-    AppendToBuffer(&ab, "\x1b[H", 3);
-    DrawRows(&ab);
-    write(STDOUT_FILENO, ab.data, (size_t)ab.len);
-
-    FreeAppendBuffer(&ab);
+    /* the first RefreshScreen() call from the main loop paints the frame */
 }
