@@ -148,11 +148,70 @@ static void DrawRows(append_buffer_t *ab)
 
         AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
 
-        if (row < vted_editor_config.screen_rows - 1)
+        AppendToBuffer(ab, "\r\n", 2);
+    }
+}
+
+static void DrawStatusBar(append_buffer_t *ab)
+{
+    /* inverted video makes the bar stand out from the text */
+    AppendToBuffer(ab, "\x1b[7m", 4);
+
+    char status[80];
+    int status_len = snprintf(status, sizeof(status), " %.20s - %d lines %s",
+                              vted_buffer.filename != NULL ? vted_buffer.filename : "[No Name]",
+                              vted_buffer.num_rows,
+                              vted_buffer.dirty != 0 ? "-- MODIFIED --" : "");
+
+    if (status_len < 0)
+    {
+        status_len = 0;
+    }
+    if (status_len > (int)sizeof(status))
+    {
+        status_len = (int)sizeof(status);
+    }
+    if (status_len > vted_editor_config.screen_cols)
+    {
+        status_len = vted_editor_config.screen_cols;
+    }
+
+    AppendToBuffer(ab, status, status_len);
+
+    /* right side: current line out of the total, when text exists */
+    if (vted_buffer.num_rows > 0)
+    {
+        char right_status[32];
+        int right_len = snprintf(right_status, sizeof(right_status), "%d/%d",
+                                 vted_editor_config.cursor_y + 1, vted_buffer.num_rows);
+
+        if (right_len < 0)
         {
-            AppendToBuffer(ab, "\r\n", 2);
+            right_len = 0;
+        }
+
+        int padding = vted_editor_config.screen_cols - status_len - right_len;
+
+        while (padding-- > 0)
+        {
+            AppendToBuffer(ab, " ", 1);
+        }
+
+        AppendToBuffer(ab, right_status, right_len);
+    }
+    else
+    {
+        /* pad the inverted bar to the full width */
+        int padding = vted_editor_config.screen_cols - status_len;
+
+        while (padding-- > 0)
+        {
+            AppendToBuffer(ab, " ", 1);
         }
     }
+
+    AppendToBuffer(ab, "\x1b[m", 3); /* reset colors */
+    AppendToBuffer(ab, "\r\n", 2);
 }
 void EnterToAlternateScreenBuffer(void)
 {
@@ -206,6 +265,8 @@ void RefreshScreen(void)
     AppendToBuffer(&ab, "\x1b[H", 3);
 
     DrawRows(&ab);
+
+    DrawStatusBar(&ab);
 
     /* display the cursor position on terminal screen */
 
