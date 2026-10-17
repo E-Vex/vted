@@ -9,6 +9,10 @@
 
 struct termios old_terminal_settings;
 
+/* set once old_terminal_settings holds a real snapshot; KillApp must
+   never apply the zeroed struct it would otherwise find there */
+static int terminal_settings_saved = 0;
+
 void KillApp(const char *syscall_name)
 {
     int saved_errno = errno; /* the writes below must not clobber it */
@@ -17,6 +21,14 @@ void KillApp(const char *syscall_name)
        inside it vanishes on exit and the shell would resume there.
        Harmless when the alternate screen was never entered */
     write(STDOUT_FILENO, "\x1b[?1049l", 8);
+
+    /* back to cooked mode so the message ends in a proper CR LF; the
+       call is made directly, RestoreTerminalSettings() reports its own
+       failures through KillApp() and would recurse from here */
+    if (terminal_settings_saved)
+    {
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &old_terminal_settings);
+    }
 
     errno = saved_errno;
     perror(syscall_name);
@@ -34,6 +46,8 @@ void SaveTerminalCurrentSettings(void)
     {
         KillApp("tcgetattr");
     }
+
+    terminal_settings_saved = 1;
 
     atexit(RestoreTerminalSettings);
 }
