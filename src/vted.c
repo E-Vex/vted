@@ -142,24 +142,6 @@ static void EditorDelChar(void)
     vted_buffer.dirty = 1;
 }
 
-static void EditorSave(void)
-{
-    if (vted_buffer.filename == NULL)
-    {
-        SetStatusMessage("No filename, nothing to save");
-        return;
-    }
-
-    if (SaveFile() == -1)
-    {
-        SetStatusMessage("Save failed: %s", strerror(errno));
-        return;
-    }
-
-    vted_buffer.dirty = 0;
-    SetStatusMessage("Saved %s", vted_buffer.filename);
-}
-
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
 #define PROMPT_MAX 1024
 
@@ -284,6 +266,44 @@ static void EditorGoToLine(void)
 
         vted_editor_config.row_offset = offset;
     }
+}
+
+static void EditorSave(void)
+{
+    int named_here = 0;
+
+    if (vted_buffer.filename == NULL)
+    {
+        /* an unnamed buffer asks where to go; the buffer takes the
+           name only when the file could actually be written */
+        char *name = EditorPrompt("Save as: ");
+
+        if (name == NULL)
+        {
+            SetStatusMessage("Save cancelled");
+            return;
+        }
+
+        vted_buffer.filename = name;
+        named_here = 1;
+    }
+
+    if (SaveFile() == -1)
+    {
+        int saved_errno = errno;
+
+        if (named_here)
+        {
+            free(vted_buffer.filename);
+            vted_buffer.filename = NULL;
+        }
+
+        SetStatusMessage("Save failed: %s", strerror(saved_errno));
+        return;
+    }
+
+    vted_buffer.dirty = 0;
+    SetStatusMessage("Saved %s", vted_buffer.filename);
 }
 
 /* pressing Ctrl-Q this many times in a row overrides unsaved changes */
