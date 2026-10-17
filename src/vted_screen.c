@@ -608,7 +608,7 @@ void InitVtedEditor(void)
         KillApp("GetWindowSize");
     }
 
-    SetStatusMessage("HELP: Ctrl-Q = quit");
+    SetStatusMessage("HELP: Ctrl-S save | Ctrl-F find | Ctrl-G go to line | Ctrl-Q quit");
 
     /* the first RefreshScreen() call from the main loop paints the frame */
 }
