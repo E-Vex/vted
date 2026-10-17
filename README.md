@@ -108,6 +108,9 @@ man vted        # the full manual
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D
+- Line endings are preserved: LF, CRLF, CR and mixed files save back
+  byte for byte, files without a trailing newline keep having none, and
+  new lines take the ending of the line they came from
 - Auto-indent: Enter starts the new line with the indent of the current one
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
   (CJK, emoji) and combining characters take the right number of cells
@@ -145,8 +148,7 @@ man vted        # the full manual
 
 vted is under active development. Planned next:
 
-- Line operations (delete, duplicate)
-- Line ending preservation and atomic saves
+- Atomic saves (write to a temporary file, rename into place)
 - Undo/redo
 - Syntax highlighting and line numbers
 
