@@ -61,6 +61,15 @@ int RowRxToCx(const vted_row_t *row, int rx);
    no more than the first limit bytes; the indent a new line copies */
 int RowIndentLength(const vted_row_t *row, int limit);
 
+/* word movement: a word is a run of characters of one class (see
+   Utf8CharClass), so "foo_bar" is one word and "->" is another.
+   RowWordRight gives the byte index of the start of the next word,
+   RowWordLeft the start of the word before cx. Both stay inside the
+   row: they return its end or its start when there is no further
+   word, and the caller decides whether to wrap to another line */
+int RowWordRight(const vted_row_t *row, int cx);
+int RowWordLeft(const vted_row_t *row, int cx);
+
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);
 

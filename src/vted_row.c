@@ -218,6 +218,85 @@ int RowIndentLength(const vted_row_t *row, int limit)
     return length;
 }
 
+static Utf8Class RowClassAt(const vted_row_t *row, int at)
+{
+    int code_point;
+
+    Utf8Decode(&row->chars[at], row->size - at, &code_point);
+    return Utf8CharClass(code_point);
+}
+
+int RowWordRight(const vted_row_t *row, int cx)
+{
+    int at = cx;
+
+    if (at >= row->size)
+    {
+        return row->size;
+    }
+
+    /* leave the run the cursor is in (a blank is not a run: the
+       blanks are skipped below) */
+    Utf8Class run = RowClassAt(row, at);
+
+    if (run != Utf8ClassBlank)
+    {
+        while (at < row->size && RowClassAt(row, at) == run)
+        {
+            at = Utf8NextBoundary(row->chars, row->size, at);
+        }
+    }
+
+    /* then the blanks up to the start of the next word */
+    while (at < row->size && RowClassAt(row, at) == Utf8ClassBlank)
+    {
+        at = Utf8NextBoundary(row->chars, row->size, at);
+    }
+
+    return at;
+}
+
+int RowWordLeft(const vted_row_t *row, int cx)
+{
+    int at = cx;
+    int prev;
+
+    /* the blanks left of the cursor first */
+    while (at > 0)
+    {
+        prev = Utf8PrevBoundary(row->chars, at);
+
+        if (RowClassAt(row, prev) != Utf8ClassBlank)
+        {
+            break;
+        }
+
+        at = prev;
+    }
+
+    if (at == 0)
+    {
+        return 0;
+    }
+
+    /* then back over the run before them, to its first character */
+    Utf8Class run = RowClassAt(row, Utf8PrevBoundary(row->chars, at));
+
+    while (at > 0)
+    {
+        prev = Utf8PrevBoundary(row->chars, at);
+
+        if (RowClassAt(row, prev) != run)
+        {
+            break;
+        }
+
+        at = prev;
+    }
+
+    return at;
+}
+
 void FreeRow(vted_row_t *row)
 {
     free(row->chars);
