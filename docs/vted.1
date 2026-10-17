@@ -101,6 +101,11 @@ Line endings are kept as found: LF, CRLF, CR and mixed files save
 back unchanged, byte for byte, and a file without a trailing newline
 keeps having none. Lines created while editing take the ending of the
 line they were made from.
+.PP
+Saving is atomic: the text is written to a temporary file next to the
+target and renamed over it, so a save that fails leaves the original
+untouched. The file's permissions are kept; a newly created file gets
+the usual ones.
 .SH SEE ALSO
 .BR vim (1),
 .BR nano (1)
