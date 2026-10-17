@@ -358,9 +358,20 @@ int main(int argc, char *argv[])
             else if (c_in == DeleteKey)
             {
                 /* Delete removes the character at the cursor: stepping
-                   right first turns it into a delete-left operation */
+                   right first turns it into a delete-left operation.
+                   At the very end of the file the step does not move
+                   the cursor, and deleting then would remove the
+                   character on the left, so do nothing instead */
+                int before_x = vted_editor_config.cursor_x;
+                int before_y = vted_editor_config.cursor_y;
+
                 MoveCursor(ArrowRight);
-                EditorDelChar();
+
+                if (vted_editor_config.cursor_x != before_x ||
+                    vted_editor_config.cursor_y != before_y)
+                {
+                    EditorDelChar();
+                }
             }
             else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
             {
