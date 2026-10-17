@@ -37,7 +37,9 @@ int ReadRawByte(void)
     else if (read_return == -1)
     {
 
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        /* EINTR: a signal arrived while waiting, there is simply no
+           key yet and the caller will poll again */
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
         {
             return NO_KEY;
         }
