@@ -133,11 +133,12 @@ man vted        # the full manual
 
 vted is under active development. Planned next:
 
-- Tab key handling with tab stops
-- UTF-8 aware deletion (never split a multibyte sequence)
+- Auto-indent
 - Go-to-line and save-as prompts
-- Syntax highlighting
+- Word movement and line operations (delete, duplicate)
+- Line ending preservation and atomic saves
 - Undo/redo
+- Syntax highlighting and line numbers
 
 ## Contributing
 
