@@ -87,6 +87,24 @@ static void TestEmptyRow(void)
     CHECK_INT(RowRxToCx(&row, 7), 0);
 }
 
+static void TestIndentLength(void)
+{
+    vted_row_t row = MakeRow("  \tx  y");
+
+    CHECK_INT(RowIndentLength(&row, row.size), 3); /* two spaces and a tab */
+    CHECK_INT(RowIndentLength(&row, 2), 2);        /* capped by the limit */
+    CHECK_INT(RowIndentLength(&row, 0), 0);
+
+    row = MakeRow("code");
+    CHECK_INT(RowIndentLength(&row, row.size), 0);
+
+    row = MakeRow("    "); /* only blanks: the whole row */
+    CHECK_INT(RowIndentLength(&row, 99), 4);
+
+    row = MakeRow("");
+    CHECK_INT(RowIndentLength(&row, 99), 0);
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -95,6 +113,7 @@ int main(void)
     TestMultibyteAndControls();
     TestCombiningMarks();
     TestEmptyRow();
+    TestIndentLength();
 
     return TestSummary("row");
 }
