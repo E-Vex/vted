@@ -71,6 +71,11 @@ shown as
 in inverted video and bytes that are not valid UTF\-8 as U+FFFD.
 When moving up and down the cursor aims for the display column it
 started from, even across shorter lines.
+.PP
+Moving by words treats a run of letters, digits and underscores (in any
+script) as one word and a run of punctuation as another; blanks
+separate them. At the end or the start of a line a word move continues
+on the neighbouring line.
 .SH EXIT STATUS
 .B vted
 exits with status 0 after a normal quit. Fatal errors (a file that
