@@ -324,35 +324,38 @@ static void DrawStatusBar(append_buffer_t *ab)
     AppendToBuffer(ab, status, status_len);
 
     /* right side: current line out of the total, when text exists */
+    char right_status[32];
+    int right_len = 0;
+
     if (vted_buffer.num_rows > 0)
     {
-        char right_status[32];
-        int right_len = snprintf(right_status, sizeof(right_status), "%d/%d",
-                                 vted_editor_config.cursor_y + 1, vted_buffer.num_rows);
+        right_len = snprintf(right_status, sizeof(right_status), "%d/%d",
+                             vted_editor_config.cursor_y + 1, vted_buffer.num_rows);
 
         if (right_len < 0)
         {
             right_len = 0;
         }
-
-        int padding = vted_editor_config.screen_cols - status_len - right_len;
-
-        while (padding-- > 0)
-        {
-            AppendToBuffer(ab, " ", 1);
-        }
-
-        AppendToBuffer(ab, right_status, right_len);
     }
-    else
-    {
-        /* pad the inverted bar to the full width */
-        int padding = vted_editor_config.screen_cols - status_len;
 
-        while (padding-- > 0)
-        {
-            AppendToBuffer(ab, " ", 1);
-        }
+    /* on a narrow terminal the position does not fit beside the file
+       info: drawing it anyway would wrap the bar and scroll the screen */
+    if (status_len + right_len > vted_editor_config.screen_cols)
+    {
+        right_len = 0;
+    }
+
+    /* pad the inverted bar to the full width, position at the far end */
+    int padding = vted_editor_config.screen_cols - status_len - right_len;
+
+    while (padding-- > 0)
+    {
+        AppendToBuffer(ab, " ", 1);
+    }
+
+    if (right_len > 0)
+    {
+        AppendToBuffer(ab, right_status, right_len);
     }
 
     AppendToBuffer(ab, "\x1b[m", 3); /* reset colors */
