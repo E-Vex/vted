@@ -16,8 +16,10 @@ it loads it into an editable buffer; otherwise it starts with an empty
 buffer. Only the first operand is used; further arguments are ignored.
 .PP
 The bottom line of the screen is a status bar showing the file name,
-line count, a modified marker and the cursor position. The line above
-it is a message bar for status messages and warnings.
+line count, a modified marker and the cursor's line and display
+column ("Ln 5/120, Col 12"; narrow terminals show the line alone, then
+nothing). The line above it is a message bar for status messages and
+warnings.
 .SH KEYS
 .TP
 .B arrows
