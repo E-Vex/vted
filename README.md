@@ -101,7 +101,12 @@ man vted        # the full manual
 - Full cursor movement: arrows, Home, End, PageUp, PageDown
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
-- UTF-8 aware: multibyte characters can be typed and displayed
+- UTF-8 aware: the cursor and deletion move by whole characters, wide
+  (CJK, emoji) and combining characters take the right number of cells
+- Tabs expand to tab stops of 8; control characters show as `^X` and
+  invalid bytes as `�`, so nothing odd ever reaches your terminal
+- The cursor keeps its display column across short lines when moving
+  up and down
 - Status bar with filename, line count, modified marker and cursor position
 - Message bar for status and warnings
 - Incremental search (Ctrl-F) with match highlighting
