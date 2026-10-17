@@ -5,7 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_row.h"
@@ -162,6 +165,78 @@ static int WriteRows(FILE *file)
     return 0;
 }
 
+/* the path of a temporary file next to the target: rename is only
+   atomic within one file system, so it must be a sibling */
+static char *TempPathFor(const char *filename)
+{
+    size_t dir_len = 0;
+    const char *slash = strrchr(filename, '/');
+
+    if (slash != NULL)
+    {
+        dir_len = (size_t)(slash - filename) + 1; /* keep the slash */
+    }
+
+    char *path = malloc(dir_len + sizeof(".vtedXXXXXX"));
+
+    if (path == NULL)
+    {
+        return NULL;
+    }
+
+    memcpy(path, filename, dir_len);
+    memcpy(path + dir_len, ".vtedXXXXXX", sizeof(".vtedXXXXXX"));
+
+    return path;
+}
+
+/* best effort: sync the directory so the rename is on disk too */
+static void SyncParentDirectory(const char *filename)
+{
+    /* some file systems refuse to sync a directory, and that must
+       not fail a save that already succeeded */
+    const char *slash = strrchr(filename, '/');
+    char stack_dir[64];
+    char *dir;
+
+    if (slash == NULL)
+    {
+        dir = stack_dir;
+        strcpy(dir, ".");
+    }
+    else if (slash == filename)
+    {
+        dir = stack_dir;
+        strcpy(dir, "/");
+    }
+    else
+    {
+        size_t dir_len = (size_t)(slash - filename);
+        dir = malloc(dir_len + 1);
+
+        if (dir == NULL)
+        {
+            return;
+        }
+
+        memcpy(dir, filename, dir_len);
+        dir[dir_len] = '\0';
+    }
+
+    int fd = open(dir, O_RDONLY | O_DIRECTORY);
+
+    if (fd != -1)
+    {
+        fsync(fd);
+        close(fd);
+    }
+
+    if (dir != stack_dir)
+    {
+        free(dir);
+    }
+}
+
 int SaveFile(void)
 {
     if (vted_buffer.filename == NULL)
@@ -169,23 +244,91 @@ int SaveFile(void)
         return -1; /* unnamed buffer has nowhere to go */
     }
 
-    FILE *file = fopen(vted_buffer.filename, "w");
+    /* a save that fails halfway must not destroy the file it saves:
+       the rows go to a sibling temporary file first and the finished
+       result is renamed over the target, so the name always points
+       at either the whole old file or the whole new one */
+    char *temp_path = TempPathFor(vted_buffer.filename);
 
-    if (file == NULL)
+    if (temp_path == NULL)
     {
         return -1;
     }
 
-    if (WriteRows(file) == -1)
+    int fd = mkstemp(temp_path);
+
+    if (fd == -1)
     {
-        fclose(file);
+        free(temp_path);
         return -1;
+    }
+
+    FILE *file = fdopen(fd, "w");
+
+    if (file == NULL)
+    {
+        int saved_errno = errno;
+        close(fd);
+        unlink(temp_path);
+        free(temp_path);
+        errno = saved_errno;
+        return -1;
+    }
+
+    int ok = WriteRows(file) == -1 ? -1 : 0;
+
+    if (ok == 0 && fflush(file) != 0)
+    {
+        ok = -1;
+    }
+
+    /* the mode of the file being replaced, or the usual one for a
+       file created by the save */
+    if (ok == 0)
+    {
+        struct stat info;
+        mode_t mode;
+
+        if (stat(vted_buffer.filename, &info) == 0)
+        {
+            mode = info.st_mode & 07777;
+        }
+        else
+        {
+            mode_t mask = umask(0);
+            umask(mask);
+            mode = 0666 & ~mask;
+        }
+
+        if (fchmod(fd, mode) == -1)
+        {
+            ok = -1;
+        }
+    }
+
+    /* the data reaches the disk before the name changes */
+    if (ok == 0 && fsync(fd) == -1)
+    {
+        ok = -1;
     }
 
     if (fclose(file) != 0)
     {
+        ok = -1;
+    }
+
+    if (ok == -1 || rename(temp_path, vted_buffer.filename) == -1)
+    {
+        int saved_errno = errno;
+        unlink(temp_path);
+        free(temp_path);
+        errno = saved_errno;
         return -1;
     }
+
+    free(temp_path);
+
+    SyncParentDirectory(vted_buffer.filename);
 
     return 0;
 }
