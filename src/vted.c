@@ -17,7 +17,7 @@ static void EditorInsertChar(int c)
     /* typing on the phantom row past the end starts a new line */
     if (vted_editor_config.cursor_y == vted_buffer.num_rows)
     {
-        if (AppendRow("", 0) == -1)
+        if (AppendRow("", 0, VTED_EOL_LF) == -1)
         {
             KillApp("AppendRow");
         }
@@ -41,7 +41,7 @@ static void EditorInsertNewline(void)
     if (vted_editor_config.cursor_x == 0)
     {
         /* new empty line at the cursor */
-        if (InsertRow(vted_editor_config.cursor_y, "", 0) == -1)
+        if (InsertRow(vted_editor_config.cursor_y, "", 0, VTED_EOL_LF) == -1)
         {
             KillApp("InsertRow");
         }
@@ -67,7 +67,7 @@ static void EditorInsertNewline(void)
         memcpy(line + indent, &row->chars[vted_editor_config.cursor_x], (size_t)tail);
 
         /* split: the tail of the row becomes the start of a new row */
-        if (InsertRow(vted_editor_config.cursor_y + 1, line, indent + tail) == -1)
+        if (InsertRow(vted_editor_config.cursor_y + 1, line, indent + tail, VTED_EOL_LF) == -1)
         {
             KillApp("InsertRow");
         }
@@ -201,7 +201,7 @@ static void EditorDuplicateLine(void)
 
     vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
 
-    if (InsertRow(vted_editor_config.cursor_y + 1, row->chars, row->size) == -1)
+    if (InsertRow(vted_editor_config.cursor_y + 1, row->chars, row->size, row->eol) == -1)
     {
         KillApp("InsertRow");
     }

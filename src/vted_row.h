@@ -14,10 +14,19 @@
 /* a tab advances the text to the next multiple of this many cells */
 #define VTED_TAB_STOP 8
 
+/* how a row is terminated when the buffer is written back out */
+enum
+{
+    VTED_EOL_LF,  /* \n, the way Unix writes text */
+    VTED_EOL_CRLF, /* \r\n, the way Windows writes it */
+    VTED_EOL_CR   /* a lone \r, the way classic Mac OS did */
+};
+
 typedef struct
 {
     char *chars; /* heap buffer with the raw text of the row */
     int size;    /* number of bytes stored in chars */
+    int eol;     /* how this row ends (VTED_EOL_*), used on save */
 } vted_row_t;
 
 typedef struct
@@ -33,8 +42,8 @@ extern vted_buffer_t vted_buffer;
 
 void InitBuffer(void);
 
-int AppendRow(const char *chars, int size);
-int InsertRow(int at, const char *chars, int size);
+int AppendRow(const char *chars, int size, int eol);
+int InsertRow(int at, const char *chars, int size, int eol);
 void RemoveRow(int at);
 
 int RowInsertChar(vted_row_t *row, int at, int c);

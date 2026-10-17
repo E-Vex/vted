@@ -54,7 +54,7 @@ int OpenFile(const char *filename)
             line_len--;
         }
 
-        if (AppendRow(line, (int)line_len) == -1)
+        if (AppendRow(line, (int)line_len, VTED_EOL_LF) == -1)
         {
             free(line);
             fclose(file);

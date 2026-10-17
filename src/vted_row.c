@@ -34,7 +34,7 @@ static int RowAlloc(vted_row_t *row, const char *chars, int size)
     return 0;
 }
 
-int InsertRow(int at, const char *chars, int size)
+int InsertRow(int at, const char *chars, int size, int eol)
 {
     if (at < 0 || at > vted_buffer.num_rows)
     {
@@ -60,13 +60,15 @@ int InsertRow(int at, const char *chars, int size)
         return -1;
     }
 
+    vted_buffer.rows[at].eol = eol;
+
     vted_buffer.num_rows++;
     return 0;
 }
 
-int AppendRow(const char *chars, int size)
+int AppendRow(const char *chars, int size, int eol)
 {
-    return InsertRow(vted_buffer.num_rows, chars, size);
+    return InsertRow(vted_buffer.num_rows, chars, size, eol);
 }
 
 void RemoveRow(int at)
