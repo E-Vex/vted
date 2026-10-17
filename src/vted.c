@@ -135,6 +135,136 @@ static void EditorSave(void)
 /* pressing Ctrl-Q this many times in a row overrides unsaved changes */
 #define QUIT_CONFIRMATIONS 3
 
+static int FindMatch(const char *query, int start_row, int direction,
+                     int *match_row, int *match_col)
+{
+    /* scans every row exactly once, starting from start_row and
+       wrapping around in the given direction */
+    int row_count = vted_buffer.num_rows;
+    int counted;
+
+    if (row_count == 0 || query[0] == '\0')
+    {
+        return -1;
+    }
+
+    int current = start_row;
+
+    for (counted = 0; counted < row_count; counted++)
+    {
+        if (current < 0)
+        {
+            current = row_count - 1;
+        }
+        if (current >= row_count)
+        {
+            current = 0;
+        }
+
+        const char *hit = strstr(vted_buffer.rows[current].chars, query);
+
+        if (hit != NULL)
+        {
+            *match_row = current;
+            *match_col = (int)(hit - vted_buffer.rows[current].chars);
+            return 0;
+        }
+
+        current += direction;
+    }
+
+    return -1;
+}
+
+static void EditorFind(void)
+{
+    char query[64];
+    int query_len = 0;
+    int direction = 1; /* 1 forward, -1 backward */
+    int last_match_row = -1;
+
+    /* remember where we were, ESC puts everything back */
+    int saved_x = vted_editor_config.cursor_x;
+    int saved_y = vted_editor_config.cursor_y;
+    int saved_row_offset = vted_editor_config.row_offset;
+    int saved_col_offset = vted_editor_config.col_offset;
+
+    query[0] = '\0';
+
+    while (1)
+    {
+        SetStatusMessage("Find: %s (ESC cancel, Enter keep, arrows next/prev)", query);
+        RefreshScreen();
+
+        int c = ReadKeyPress();
+
+        if (c == 27) /* ESC: cancel and restore the previous position */
+        {
+            vted_editor_config.cursor_x = saved_x;
+            vted_editor_config.cursor_y = saved_y;
+            vted_editor_config.row_offset = saved_row_offset;
+            vted_editor_config.col_offset = saved_col_offset;
+            break;
+        }
+
+        if (c == '\r' || c == '\n') /* Enter: keep the current position */
+        {
+            break;
+        }
+
+        if (c == ArrowRight || c == ArrowDown)
+        {
+            direction = 1;
+        }
+        else if (c == ArrowLeft || c == ArrowUp)
+        {
+            direction = -1;
+        }
+        else if (c == 127) /* backspace edits the query */
+        {
+            if (query_len > 0)
+            {
+                query[--query_len] = '\0';
+                last_match_row = -1; /* restart from the cursor */
+            }
+        }
+        else if (c >= 32 && c <= 126 && query_len < 63)
+        {
+            query[query_len++] = (char)c;
+            query[query_len] = '\0';
+            last_match_row = -1; /* restart from the cursor */
+        }
+
+        /* (re)run the search: from the last match when jumping with
+           arrows, from the cursor when the query itself changed */
+        int search_start;
+        if (last_match_row >= 0)
+        {
+            search_start = last_match_row + direction;
+        }
+        else
+        {
+            search_start = vted_editor_config.cursor_y + (direction > 0 ? 0 : -1);
+        }
+
+        int match_row;
+        int match_col;
+
+        if (FindMatch(query, search_start, direction, &match_row, &match_col) == 0)
+        {
+            last_match_row = match_row;
+            vted_editor_config.cursor_y = match_row;
+            vted_editor_config.cursor_x = match_col;
+        }
+        else
+        {
+            last_match_row = -1;
+        }
+    }
+
+    SetStatusMessage("");
+}
+
 int main(int argc, char *argv[])
 {
     int quit_confirmations = QUIT_CONFIRMATIONS;
@@ -205,6 +335,11 @@ int main(int argc, char *argv[])
             {
                 /* Ctrl-S writes the buffer back to its file */
                 EditorSave();
+            }
+            else if (c_in == CTRL_KEY('f') || c_in == CTRL_KEY('F'))
+            {
+                /* Ctrl-F searches the buffer incrementally */
+                EditorFind();
             }
             else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
             {
