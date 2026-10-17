@@ -49,7 +49,12 @@ plain typing
 insert at the cursor (UTF\-8 aware)
 .TP
 .B Ctrl\-S
-save the buffer to its file
+save the buffer to its file; a buffer without a name asks for one first,
+ESC cancels
+.TP
+.B Ctrl\-G
+go to a line number; a number past the end goes to the last line, ESC
+cancels
 .TP
 .B Ctrl\-F
 incremental search: arrows jump between matches, Enter keeps the
