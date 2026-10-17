@@ -36,7 +36,7 @@ BR4 = \033[38;5;136m
 BR5 = \033[38;5;172m
 BR6 = \033[38;5;178m
 
-.PHONY: all banner cleanc
+.PHONY: all banner clean
 
 all: banner
 	@printf "$(GREEN)$(BOLD)Building VTED...$(RESET)\n\n"
