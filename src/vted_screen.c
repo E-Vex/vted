@@ -419,8 +419,11 @@ void ExitAlternateScreenBuffer(void)
 
 static void ClampCursorToRow(void)
 {
-    /* after a vertical move the cursor may sit past the end of the
-       new row, or on the phantom row past the last line of text */
+    /* after a vertical move the cursor lands on the character that
+       covers the preferred display column in the new row, or at its
+       end when the row is shorter. Aiming for the column and not the
+       byte index keeps tabs and wide characters from making the
+       cursor jump sideways */
     if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
     {
         /* one line past the end of the text: only column 0 exists,
@@ -430,11 +433,9 @@ static void ClampCursorToRow(void)
     }
 
     vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    int target = vted_editor_config.preferred_rx > 0 ? vted_editor_config.preferred_rx : 0;
 
-    if (vted_editor_config.cursor_x > row->size)
-    {
-        vted_editor_config.cursor_x = row->size;
-    }
+    vted_editor_config.cursor_x = RowRxToCx(row, target);
 }
 
 void MoveCursor(int key)
@@ -446,6 +447,16 @@ void MoveCursor(int key)
     if (vted_editor_config.cursor_y < vted_buffer.num_rows)
     {
         row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    }
+
+    /* the first vertical move of a run remembers the column it started
+       from; the main loop clears it again on any other key. Short rows
+       in between squeeze the cursor left, but it springs back to the
+       remembered column on the next longer row */
+    if ((key == ArrowUp || key == ArrowDown || key == PageUp || key == PageDown) &&
+        vted_editor_config.preferred_rx < 0)
+    {
+        vted_editor_config.preferred_rx = row != NULL ? RowCxToRx(row, vted_editor_config.cursor_x) : 0;
     }
 
     switch (key)
@@ -583,6 +594,7 @@ void InitVtedEditor(void)
     vted_editor_config.cursor_x = 0;
     vted_editor_config.cursor_y = 0;
     vted_editor_config.cursor_rx = 0;
+    vted_editor_config.preferred_rx = -1;
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
 

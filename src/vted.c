@@ -338,6 +338,13 @@ int main(int argc, char *argv[])
             /* any other key restarts the quit confirmation count */
             quit_confirmations = QUIT_CONFIRMATIONS;
 
+            /* only a run of vertical moves keeps aiming for the same
+               display column; every other key forgets it */
+            if (c_in != ArrowUp && c_in != ArrowDown && c_in != PageUp && c_in != PageDown)
+            {
+                vted_editor_config.preferred_rx = -1;
+            }
+
             /* one key, one action: the dispatch is a chain so special
                key codes are never mistaken for text bytes */
             if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||

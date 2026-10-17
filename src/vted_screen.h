@@ -5,6 +5,7 @@ typedef struct
 {
   int cursor_x, cursor_y; /* cursor_x is a byte index into the row */
   int cursor_rx;          /* the same spot as a display cell column, refreshed every frame */
+  int preferred_rx;       /* display column vertical moves aim for, -1 when unset */
 
   int screen_rows;
   int screen_cols;
