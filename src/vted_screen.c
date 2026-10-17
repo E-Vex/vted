@@ -13,6 +13,8 @@
 
 vted_editor_Config_t vted_editor_config;
 
+#define VTED_VERSION "0.1"
+
 /*==========================================================
 |                      Append Buffer                       |
 |                                                          |
@@ -108,7 +110,40 @@ static void DrawRows(append_buffer_t *ab)
         }
         else
         {
-            AppendToBuffer(ab, "~", 1);
+            /* empty buffer: show a welcome banner in the middle row */
+            if (row == vted_editor_config.screen_rows / 2)
+            {
+                char welcome[80];
+                int welcome_len = snprintf(welcome, sizeof(welcome),
+                                           "vted -- version %s", VTED_VERSION);
+                int padding = (vted_editor_config.screen_cols - welcome_len) / 2;
+
+                if (welcome_len < 0)
+                {
+                    welcome_len = 0;
+                }
+                if (welcome_len > (int)sizeof(welcome))
+                {
+                    welcome_len = (int)sizeof(welcome);
+                }
+
+                /* center the banner, one space after the tilde */
+                if (padding > 0)
+                {
+                    AppendToBuffer(ab, "~", 1);
+                    padding--;
+                }
+                while (padding-- > 0)
+                {
+                    AppendToBuffer(ab, " ", 1);
+                }
+
+                AppendToBuffer(ab, welcome, welcome_len);
+            }
+            else
+            {
+                AppendToBuffer(ab, "~", 1);
+            }
         }
 
         AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
