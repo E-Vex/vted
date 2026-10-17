@@ -55,3 +55,44 @@ int OpenFile(const char *filename)
     fclose(file);
     return 0;
 }
+
+int SaveFile(void)
+{
+    if (vted_buffer.filename == NULL)
+    {
+        return -1; /* unnamed buffer has nowhere to go */
+    }
+
+    FILE *file = fopen(vted_buffer.filename, "w");
+
+    if (file == NULL)
+    {
+        return -1;
+    }
+
+    int row_index;
+
+    for (row_index = 0; row_index < vted_buffer.num_rows; row_index++)
+    {
+        vted_row_t *row = &vted_buffer.rows[row_index];
+
+        if (fwrite(row->chars, 1, (size_t)row->size, file) != (size_t)row->size)
+        {
+            fclose(file);
+            return -1;
+        }
+
+        if (fputc('\n', file) == EOF)
+        {
+            fclose(file);
+            return -1;
+        }
+    }
+
+    if (fclose(file) != 0)
+    {
+        return -1;
+    }
+
+    return 0;
+}

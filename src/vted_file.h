@@ -9,5 +9,6 @@
 ==========================================================*/
 
 int OpenFile(const char *filename);
+int SaveFile(void);
 
 #endif

@@ -1,5 +1,7 @@
 /*===============================*/
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
@@ -112,6 +114,24 @@ static void EditorDelChar(void)
     vted_buffer.dirty = 1;
 }
 
+static void EditorSave(void)
+{
+    if (vted_buffer.filename == NULL)
+    {
+        SetStatusMessage("No filename, nothing to save");
+        return;
+    }
+
+    if (SaveFile() == -1)
+    {
+        SetStatusMessage("Save failed: %s", strerror(errno));
+        return;
+    }
+
+    vted_buffer.dirty = 0;
+    SetStatusMessage("Saved %s", vted_buffer.filename);
+}
+
 int main(int argc, char *argv[])
 {
     SaveTerminalCurrentSettings();
@@ -169,6 +189,12 @@ int main(int argc, char *argv[])
         {
             MoveCursor(ArrowRight);
             EditorDelChar();
+        }
+
+        /* Ctrl-S writes the buffer back to its file */
+        if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
+        {
+            EditorSave();
         }
 
         RefreshScreen();
