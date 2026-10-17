@@ -4,8 +4,8 @@ A small, fast terminal text editor for Linux: one C11 binary, no
 dependencies beyond the C standard library and POSIX. No curses, no
 autotools, no cmake — just `make`.
 
-[![build](https://github.com/E-VEx/vted/actions/workflows/build.yml/badge.svg)](https://github.com/E-VEx/vted/actions/workflows/build.yml)
-[![release](https://img.shields.io/github/v/release/E-VEx/vted?color=blue)](https://github.com/E-VEx/vted/releases)
+[![build](https://github.com/E-Vex/vted/actions/workflows/build.yml/badge.svg)](https://github.com/E-Vex/vted/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/E-Vex/vted?color=blue)](https://github.com/E-Vex/vted/releases)
 [![standard](https://img.shields.io/badge/standard-C11-28399b)](https://en.wikipedia.org/wiki/C11_(C_standard_revision))
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -18,7 +18,7 @@ autotools, no cmake — just `make`.
 ### From git (the usual way)
 
 ```sh
-git clone https://github.com/E-VEx/vted.git
+git clone https://github.com/E-Vex/vted.git
 cd vted
 make
 sudo make install
@@ -34,13 +34,13 @@ To try it before installing anything, just run `./vted` after `make`.
 ### From a release tarball
 
 ```sh
-curl -LO https://github.com/E-VEx/vted/archive/refs/tags/v0.1.0.tar.gz
+curl -LO https://github.com/E-Vex/vted/archive/refs/tags/v0.1.0.tar.gz
 tar xzf v0.1.0.tar.gz
 cd vted-0.1.0
 make && sudo make install
 ```
 
-See the [releases page](https://github.com/E-VEx/vted/releases) for all
+See the [releases page](https://github.com/E-Vex/vted/releases) for all
 versions.
 
 ### Without sudo
