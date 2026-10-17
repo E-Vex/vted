@@ -255,8 +255,9 @@ static void DrawRows(append_buffer_t *ab)
         }
         else
         {
-            /* empty buffer: show a welcome banner in the middle row */
-            if (row == vted_editor_config.screen_rows / 2)
+            /* empty buffer: show a welcome banner in the middle row;
+               a loaded file only gets the tildes below its text */
+            if (vted_buffer.num_rows == 0 && row == vted_editor_config.screen_rows / 2)
             {
                 char welcome[80];
                 int welcome_len = snprintf(welcome, sizeof(welcome),
