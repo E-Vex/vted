@@ -34,17 +34,37 @@ chunk as it arrives, which shows up as flicker.
 Row rendering
 -------------
 
-Every viewport row is drawn as a slice of its buffer row:
+Rows hold raw bytes, but a terminal shows cells. DrawRowText() walks
+a row one character at a time, lays each character out in cells and
+clips the result to the viewport cells [col_offset, col_offset +
+screen_cols). Long lines scroll horizontally instead of wrapping.
 
-- Text rows render the bytes [col_offset, col_offset + screen_cols),
-  clipped to the actual row length. Long lines scroll horizontally
-  instead of wrapping.
-- Rows past the end of the text render a tilde, except the middle row
-  of an empty buffer which carries the welcome banner.
-- Each row is followed by ESC[K, which erases from the cursor to the
-  end of the line, so shorter content leaves no residue behind.
-- The row holding the active search match renders in three segments
-  with the match itself wrapped in ESC[7m ... ESC[m (inverted video).
+How a character is laid out (RowCharWidth()):
+
+- A tab is blank space up to the next multiple of VTED_TAB_STOP (8)
+  cells, so its width depends on the cell where it starts.
+- A control character takes two cells and is drawn as ^X in inverted
+  video (DEL is ^?), so it can never act on the terminal.
+- A UTF-8 character takes the cells its code point needs: one, two
+  for East Asian wide characters and emoji, none for combining marks,
+  which ride on the cell before them.
+- A byte that is not valid UTF-8, or a C1 control, is drawn as the
+  replacement character (U+FFFD) in one cell.
+- A wide character cut by the left or right edge of the viewport is
+  replaced by blanks instead of showing half of it.
+
+The cursor keeps a byte index (cursor_x). Every frame UpdateScroll()
+converts it to the cell column it is drawn at (cursor_rx, via
+RowCxToRx()) and scrolls by that column. Vertical moves aim for the
+remembered display column (preferred_rx) and map it back to a byte
+index with RowRxToCx().
+
+Rows past the end of the text render a tilde, except the middle row
+of an empty buffer which carries the welcome banner (clipped to the
+terminal width). Each row is followed by ESC[K, which erases from
+the cursor to the end of the line, so shorter content leaves no
+residue behind. The row holding the active search match draws the
+match itself in inverted video (ESC[7m ... ESC[m).
 
 The bars
 --------
