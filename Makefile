@@ -9,6 +9,7 @@ SRC = \
 	src/vted_screen.c \
 	src/vted_row.c \
 	src/vted_edit.c \
+	src/vted_undo.c \
 	src/vted_file.c \
 	src/vted_utf8.c
 
