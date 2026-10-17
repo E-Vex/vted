@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
@@ -62,6 +63,21 @@ static int ReadSequenceByte(void)
     return byte;
 }
 
+/* xterm style modifier bits, sent as 1 + the bits in the last
+   parameter of a key sequence: ESC [ 1 ; 5 C is Ctrl-Right */
+#define MODIFIER_ALT 2
+#define MODIFIER_CTRL 4
+
+/* modifier bits of a CSI key, 0 for a plain key. Older terminals leave
+   out the leading 1 (ESC [ 5 C), so the last number counts either way */
+static int CsiModifierBits(const char *parameters)
+{
+    const char *last = strrchr(parameters, ';');
+    int code = atoi(last != NULL ? last + 1 : parameters);
+
+    return code >= 2 ? code - 1 : 0;
+}
+
 static int ParseCsiSequence(void)
 {
     /*=================================================
@@ -75,6 +91,7 @@ static int ParseCsiSequence(void)
     | their tail into the text as typed characters.   |
     |                                                 |
     |   ESC [ A-D          -> arrows                  |
+    |     C/D with Ctrl or Alt -> word moves          |
     |   ESC [ H / ESC [ F  -> Home / End              |
     |   ESC [ n ~          -> extended keys:          |
     |     1,7 = Home   3 = Delete   4,8 = End         |
@@ -120,9 +137,11 @@ static int ParseCsiSequence(void)
     case 'B':
         return ArrowDown;
     case 'C':
-        return ArrowRight;
+        /* Ctrl or Alt turns the arrow into a word move; Shift alone
+           stays a plain arrow */
+        return (CsiModifierBits(parameters) & (MODIFIER_CTRL | MODIFIER_ALT)) ? WordRight : ArrowRight;
     case 'D':
-        return ArrowLeft;
+        return (CsiModifierBits(parameters) & (MODIFIER_CTRL | MODIFIER_ALT)) ? WordLeft : ArrowLeft;
     case 'H':
         return HomeKey;
     case 'F':
