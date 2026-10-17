@@ -34,6 +34,7 @@ typedef struct
 
     int eol;      /* the row ending involved */
     int prev_eol; /* the ending a merge replaced */
+    int indent;   /* blanks auto-indent added to the new line */
 
     int undo_y, undo_x; /* the cursor to restore on undo */
     int redo_y, redo_x; /* the cursor to restore on redo */

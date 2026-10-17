@@ -7,23 +7,32 @@
 #include "vted_row.h"
 #include "vted_utf8.h"
 #include "vted_edit.h"
+#include "vted_undo.h"
 /*===============================*/
 
 void EditorInsertChar(int c)
 {
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    char byte = (char)c;
+    int row_created = 0;
+    int eol = VTED_EOL_LF;
+
     /* typing on the phantom row past the end starts a new line */
     if (vted_editor_config.cursor_y == vted_buffer.num_rows)
     {
         /* the new line ends the way the last real one does, so a
            CRLF file keeps growing CRLF lines at the bottom */
-        int eol = vted_buffer.num_rows > 0
-                      ? vted_buffer.rows[vted_buffer.num_rows - 1].eol
-                      : VTED_EOL_LF;
+        eol = vted_buffer.num_rows > 0
+                  ? vted_buffer.rows[vted_buffer.num_rows - 1].eol
+                  : VTED_EOL_LF;
 
         if (AppendRow("", 0, eol) == -1)
         {
             KillApp("AppendRow");
         }
+
+        row_created = 1;
     }
 
     vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
@@ -35,11 +44,31 @@ void EditorInsertChar(int c)
 
     vted_buffer.dirty = 1;
     vted_editor_config.cursor_x++;
+
+    /* undo sees the whole line when typing created it, and the
+       single byte when it did not */
+    UndoEntry entry = {
+        .kind = row_created ? UndoKindInsertRow : UndoKindInsertBytes,
+        .row = row_created ? vted_editor_config.cursor_y : before_y,
+        .cx = before_x,
+        .bytes = &byte,
+        .length = 1,
+        .eol = eol,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = vted_editor_config.cursor_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPush(&entry);
 }
 
 void EditorInsertNewline(void)
 {
     int indent = 0;
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    char *recorded = NULL; /* the line Enter built, indent and all */
+    int recorded_len = 0;
 
     /* the break Enter creates ends the new line, so it takes the
        ending of the row it is made from — the last real row when
@@ -91,17 +120,42 @@ void EditorInsertNewline(void)
         row = &vted_buffer.rows[vted_editor_config.cursor_y];
         row->size = vted_editor_config.cursor_x;
         row->chars[row->size] = '\0';
+
+        /* a replay must put the line back exactly as Enter built
+           it, indent and all — the split alone would lose them */
+        recorded = vted_buffer.rows[vted_editor_config.cursor_y + 1].chars;
+        recorded_len = indent + tail;
     }
 
     vted_buffer.dirty = 1;
     vted_editor_config.cursor_y++;
     vted_editor_config.cursor_x = indent;
+
+    /* Enter at column zero made a row appear; anywhere else it
+       split the row in two */
+    UndoEntry entry = {
+        .kind = before_x == 0 ? UndoKindInsertRow : UndoKindSplitRow,
+        .row = before_y,
+        .cx = before_x,
+        .bytes = recorded,
+        .length = recorded_len,
+        .eol = eol,
+        .indent = indent,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = vted_editor_config.cursor_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPush(&entry);
 }
 
 void EditorDelChar(void)
 {
     /* deletes the character left of the cursor, or merges the
        current line into the one above when at column zero */
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
 
     if (vted_editor_config.cursor_y == 0 && vted_editor_config.cursor_x == 0)
     {
@@ -121,6 +175,7 @@ void EditorDelChar(void)
 
         int prev_size = prev->size; /* cursor will land here after the merge */
         int eol = row->eol;         /* the lower line's ending survives */
+        int prev_eol = prev->eol;   /* the one the merge replaces */
 
         if (RowAppendString(prev, row->chars, row->size) == -1)
         {
@@ -135,6 +190,21 @@ void EditorDelChar(void)
 
         vted_editor_config.cursor_y--;
         vted_editor_config.cursor_x = prev_size;
+
+        vted_buffer.dirty = 1;
+
+        UndoEntry entry = {
+            .kind = UndoKindMergeRows,
+            .row = before_y - 1,
+            .cx = prev_size,
+            .eol = eol,
+            .prev_eol = prev_eol,
+            .undo_y = before_y,
+            .undo_x = 0,
+            .redo_y = vted_editor_config.cursor_y,
+            .redo_x = vted_editor_config.cursor_x,
+        };
+        UndoPush(&entry);
     }
     else
     {
@@ -144,6 +214,9 @@ void EditorDelChar(void)
            multibyte sequence is never left half deleted */
         int start = Utf8PrevBoundary(row->chars, vted_editor_config.cursor_x);
         int count = vted_editor_config.cursor_x - start;
+        char removed[4]; /* a UTF-8 character is at most four bytes */
+
+        memcpy(removed, &row->chars[start], (size_t)count);
 
         while (count-- > 0)
         {
@@ -154,14 +227,30 @@ void EditorDelChar(void)
         }
 
         vted_editor_config.cursor_x = start;
-    }
 
-    vted_buffer.dirty = 1;
+        vted_buffer.dirty = 1;
+
+        UndoEntry entry = {
+            .kind = UndoKindRemoveBytes,
+            .row = before_y,
+            .cx = start,
+            .bytes = removed,
+            .length = before_x - start,
+            .undo_y = before_y,
+            .undo_x = before_x,
+            .redo_y = vted_editor_config.cursor_y,
+            .redo_x = vted_editor_config.cursor_x,
+        };
+        UndoPush(&entry);
+    }
 }
 
 void EditorDeleteLine(void)
 {
     /* Ctrl-K removes the whole line under the cursor */
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
 
     if (vted_editor_config.cursor_y == vted_buffer.num_rows)
     {
@@ -180,30 +269,72 @@ void EditorDeleteLine(void)
             return; /* already empty: the buffer stays clean */
         }
 
+        /* the text is recorded before it is cleared away */
+        UndoEntry entry = {
+            .kind = UndoKindReplaceRow,
+            .row = 0,
+            .bytes = row->chars,
+            .length = row->size,
+            .undo_y = before_y,
+            .undo_x = before_x,
+            .redo_y = 0,
+            .redo_x = 0,
+        };
+        UndoPush(&entry);
+
         row->size = 0;
         row->chars[0] = '\0';
         vted_editor_config.cursor_x = 0;
+
+        vted_buffer.dirty = 1;
+        return;
     }
-    else
+
+    /* the text is held aside: the removal frees the row it lives in */
+    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    int length = row->size;
+    int eol = row->eol;
+    char *saved = malloc((size_t)(length > 0 ? length : 1));
+
+    if (saved == NULL)
     {
-        RemoveRow(vted_editor_config.cursor_y);
+        KillApp("malloc");
+    }
 
-        /* removing the last row lands the cursor on the new last
-           one; the column must also fit inside the row it lands on */
-        if (vted_editor_config.cursor_y == vted_buffer.num_rows)
-        {
-            vted_editor_config.cursor_y--;
-        }
+    memcpy(saved, row->chars, (size_t)length);
 
-        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    RemoveRow(vted_editor_config.cursor_y);
 
-        if (vted_editor_config.cursor_x > row->size)
-        {
-            vted_editor_config.cursor_x = row->size;
-        }
+    /* removing the last row lands the cursor on the new last
+       one; the column must also fit inside the row it lands on */
+    if (vted_editor_config.cursor_y == vted_buffer.num_rows)
+    {
+        vted_editor_config.cursor_y--;
+    }
+
+    row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+    if (vted_editor_config.cursor_x > row->size)
+    {
+        vted_editor_config.cursor_x = row->size;
     }
 
     vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindRemoveRow,
+        .row = before_y,
+        .bytes = saved,
+        .length = length,
+        .eol = eol,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = vted_editor_config.cursor_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPush(&entry);
+
+    free(saved);
 }
 
 void EditorDuplicateLine(void)
@@ -211,14 +342,22 @@ void EditorDuplicateLine(void)
     /* Ctrl-D copies the line under the cursor below itself and
        moves the cursor onto the copy */
 
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+
     if (vted_editor_config.cursor_y == vted_buffer.num_rows)
     {
         return; /* on the phantom row past the end: nothing to copy */
     }
 
+    /* InsertRow may move the rows array, so read through it only
+       before the call */
     vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    char *chars = row->chars;
+    int size = row->size;
+    int eol = row->eol;
 
-    if (InsertRow(vted_editor_config.cursor_y + 1, row->chars, row->size, row->eol) == -1)
+    if (InsertRow(vted_editor_config.cursor_y + 1, chars, size, eol) == -1)
     {
         KillApp("InsertRow");
     }
@@ -227,4 +366,17 @@ void EditorDuplicateLine(void)
        was; only the line changes */
     vted_editor_config.cursor_y++;
     vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindInsertRow,
+        .row = before_y + 1,
+        .bytes = chars,
+        .length = size,
+        .eol = eol,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = vted_editor_config.cursor_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPush(&entry);
 }

@@ -9,6 +9,7 @@
 #include "vted_screen.h"
 #include "vted_row.h"
 #include "vted_edit.h"
+#include "vted_undo.h"
 #include "vted_file.h"
 #include "vted_utf8.h"
 /*===============================*/
@@ -346,6 +347,9 @@ int main(int argc, char *argv[])
             KillApp("OpenFile");
         }
     }
+
+    /* whatever was edited before this file is unreachable now */
+    UndoReset();
 
     InitVtedEditor();
 

@@ -179,8 +179,21 @@ static void Apply(const UndoEntry *entry)
         TakeBytes(entry->row, entry->cx, entry->length);
         break;
     case UndoKindSplitRow:
-        SplitRowAt(entry->row, entry->cx, entry->eol);
+    {
+        /* the recorded line is the one Enter built, indent and all;
+           restoring it verbatim is what makes a replay exact */
+        if (InsertRow(entry->row + 1, entry->bytes != NULL ? entry->bytes : "",
+                      entry->length, entry->eol) == -1)
+        {
+            KillApp("InsertRow");
+        }
+
+        /* the original row keeps whatever sits left of the split */
+        vted_row_t *row = &vted_buffer.rows[entry->row];
+        row->size = entry->cx;
+        row->chars[entry->cx] = '\0';
         break;
+    }
     case UndoKindMergeRows:
         MergeRowIntoNext(entry->row);
         break;
@@ -216,8 +229,23 @@ static void Revert(const UndoEntry *entry)
         PlaceBytes(entry->row, entry->cx, entry->bytes, entry->length);
         break;
     case UndoKindSplitRow:
-        MergeRowIntoNext(entry->row);
+    {
+        /* the indent was added for the new line; merging back
+           must skip it so the original row returns exactly */
+        vted_row_t *upper = &vted_buffer.rows[entry->row];
+
+        if (entry->length > entry->indent)
+        {
+            if (RowAppendString(upper, entry->bytes + entry->indent,
+                                entry->length - entry->indent) == -1)
+            {
+                KillApp("RowAppendString");
+            }
+        }
+
+        RemoveRow(entry->row + 1);
         break;
+    }
     case UndoKindMergeRows:
     {
         /* the split puts back what the merge joined: the lower row

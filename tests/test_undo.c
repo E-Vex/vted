@@ -3,6 +3,7 @@
 #include "tests/vted_test.h"
 #include "src/vted_screen.h"
 #include "src/vted_row.h"
+#include "src/vted_edit.h"
 #include "src/vted_undo.h"
 /*===============================*/
 
@@ -93,6 +94,8 @@ static void TestSplitRow(void)
         .kind = UndoKindSplitRow,
         .row = 0,
         .cx = 2,
+        .bytes = "cd", /* the line the split made */
+        .length = 2,
         .eol = VTED_EOL_CRLF,
         .undo_y = 0,
         .undo_x = 2,
@@ -304,6 +307,225 @@ static void TestLimitDropsTheOldest(void)
     CHECK_INT(vted_buffer.num_rows, 10); /* the first ten rows stay */
 }
 
+/* the operations record entries as they work: each check below
+   drives the real editing calls and walks the history back and
+   forth through them */
+static void TestTypingRoundTrips(void)
+{
+    Begin("ab");
+    vted_editor_config.cursor_x = 1;
+
+    EditorInsertChar('X');
+    CHECK_STR(vted_buffer.rows[0].chars, "aXb");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aXb");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestTypingOnThePhantomRowRoundTrips(void)
+{
+    Begin(NULL);
+
+    EditorInsertChar('h');
+    EditorInsertChar('i');
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "hi");
+
+    CHECK_INT(EditorUndo(), 1); /* only the i goes */
+    CHECK_STR(vted_buffer.rows[0].chars, "h");
+
+    CHECK_INT(EditorUndo(), 1); /* the h took its row with it */
+    CHECK_INT(vted_buffer.num_rows, 0);
+
+    CHECK_INT(EditorRedo(), 1); /* the row comes back holding the h */
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "h");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "hi");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestEnterRoundTrips(void)
+{
+    Begin("ab");
+    vted_editor_config.cursor_x = 1; /* between the two characters */
+
+    EditorInsertNewline();
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_STR(vted_buffer.rows[1].chars, "b");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_STR(vted_buffer.rows[1].chars, "b");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestEnterKeepsIndentOnRedo(void)
+{
+    Begin("    code");
+    vted_editor_config.cursor_x = 8; /* at the end of the line */
+
+    EditorInsertNewline();
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "    "); /* the indent moved down */
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "    code");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "    code");
+    CHECK_STR(vted_buffer.rows[1].chars, "    "); /* survives the round trip */
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+}
+
+static void TestEnterAtColumnZeroRoundTrips(void)
+{
+    Begin("ab");
+
+    EditorInsertNewline(); /* an empty line appears above */
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "ab");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+    CHECK_STR(vted_buffer.rows[1].chars, "ab");
+}
+
+static void TestBackspaceMergeRoundTrips(void)
+{
+    Begin("ab");
+    AppendRow("cd", 2, VTED_EOL_LF);
+    vted_editor_config.cursor_y = 1;
+
+    EditorDelChar(); /* at column zero: merge */
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_STR(vted_buffer.rows[1].chars, "cd");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestMergeKeepsEndingsThroughUndo(void)
+{
+    Begin("ab");
+    vted_buffer.rows[0].eol = VTED_EOL_CRLF;
+    AppendRow("cd", 2, VTED_EOL_LF);
+    vted_editor_config.cursor_y = 1;
+
+    EditorDelChar();
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_LF); /* the lower one won */
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_CRLF); /* restored */
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_LF);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_LF);
+}
+
+static void TestDeleteLineRoundTrips(void)
+{
+    Begin("ab");
+    AppendRow("cd", 2, VTED_EOL_CRLF);
+    vted_editor_config.cursor_y = 1;
+
+    EditorDeleteLine();
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "cd");
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+}
+
+static void TestDeleteOnlyLineRoundTrips(void)
+{
+    Begin("abc");
+    vted_editor_config.cursor_x = 3;
+
+    EditorDeleteLine(); /* the only line is emptied, not removed */
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_INT(vted_buffer.rows[0].size, 0);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.rows[0].size, 0);
+}
+
+static void TestDuplicateRoundTrips(void)
+{
+    Begin("ab");
+    vted_editor_config.cursor_x = 2;
+
+    EditorDuplicateLine();
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "ab");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+}
+
+static void TestMultibyteDeleteRoundTrips(void)
+{
+    Begin("a\xC3\xA9" "b"); /* a, a two-byte e-acute, b */
+    vted_editor_config.cursor_x = 3; /* just past the e-acute */
+
+    EditorDelChar();
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a\xC3\xA9" "b");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -317,6 +539,17 @@ int main(void)
     TestNewChangeDropsRedo();
     TestResetDropsEverything();
     TestLimitDropsTheOldest();
+    TestTypingRoundTrips();
+    TestTypingOnThePhantomRowRoundTrips();
+    TestEnterRoundTrips();
+    TestEnterKeepsIndentOnRedo();
+    TestEnterAtColumnZeroRoundTrips();
+    TestBackspaceMergeRoundTrips();
+    TestMergeKeepsEndingsThroughUndo();
+    TestDeleteLineRoundTrips();
+    TestDeleteOnlyLineRoundTrips();
+    TestDuplicateRoundTrips();
+    TestMultibyteDeleteRoundTrips();
 
     return TestSummary("undo");
 }
