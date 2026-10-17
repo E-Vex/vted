@@ -1,0 +1,6 @@
+# build output
+vted
+
+# editor and tooling leftovers
+*.o
+*.d
