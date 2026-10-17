@@ -187,6 +187,12 @@ static int ParseSs3Sequence(void)
         return HomeKey;
     case 'F':
         return EndKey;
+
+    /* rxvt spells Ctrl-Right and Ctrl-Left with lower case letters */
+    case 'c':
+        return WordRight;
+    case 'd':
+        return WordLeft;
     }
 
     return NO_KEY;
