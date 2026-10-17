@@ -5,14 +5,24 @@
 #include "vted_keyboard.h"
 #include "vted_screen.h"
 #include "vted_row.h"
+#include "vted_file.h"
 /*===============================*/
 
-int main()
+int main(int argc, char *argv[])
 {
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     EnterToAlternateScreenBuffer();
     InitBuffer();
+
+    if (argc >= 2)
+    {
+        if (OpenFile(argv[1]) == -1)
+        {
+            KillApp("OpenFile");
+        }
+    }
+
     InitVtedEditor();
 
     while (1)
