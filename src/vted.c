@@ -307,6 +307,17 @@ int main(int argc, char *argv[])
     while (1)
     {
         int c_in = ReadKeyPress();
+
+        if (c_in == 0)
+        {
+            /* idle read timeout: nothing was typed, only keep the
+               screen fresh (resizes repaint here too). The quit
+               confirmation count must survive idle ticks, so they
+               never fall through to the key dispatch. */
+            RefreshScreen();
+            continue;
+        }
+
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
             if (vted_buffer.dirty != 0 && quit_confirmations > 0)
