@@ -15,7 +15,7 @@
 
 vted_editor_Config_t vted_editor_config;
 
-#define VTED_VERSION "0.1"
+#define VTED_VERSION "0.2.0"
 
 /*==========================================================
 |                      Append Buffer                       |

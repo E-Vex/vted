@@ -16,7 +16,7 @@ SRC = \
 TARGET = vted
 
 # Version & build date
-VERSION = 0.1.0
+VERSION = 0.2.0
 DATE := $(shell date +%Y-%-m-%-d)
 
 # Colors
