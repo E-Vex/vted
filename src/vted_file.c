@@ -44,17 +44,38 @@ int OpenFile(const char *filename)
     char *line = NULL;    /* getline() allocates and grows this buffer */
     size_t line_cap = 0;  /* current allocation size of line */
     ssize_t line_len;     /* bytes read by getline(), -1 at end of file */
+    int terminated = 1;   /* did the last line end with a terminator */
 
     while ((line_len = getline(&line, &line_cap, file)) != -1)
     {
-        /* strip the trailing newline; handle \r\n and lone \r
-           so files from other operating systems load cleanly */
-        while (line_len > 0 && (line[line_len - 1] == '\n' || line[line_len - 1] == '\r'))
+        /* take exactly one terminator off the end: \n, \r\n, or a
+           lone \r (which can only end the final line of a file,
+           as getline() splits on \n alone). A \r anywhere else
+           stays in the row and shows as ^M instead of being
+           silently dropped */
+        int eol = VTED_EOL_LF;
+
+        terminated = 0;
+
+        if (line_len > 0 && line[line_len - 1] == '\n')
         {
             line_len--;
+            terminated = 1;
+
+            if (line_len > 0 && line[line_len - 1] == '\r')
+            {
+                line_len--;
+                eol = VTED_EOL_CRLF;
+            }
+        }
+        else if (line_len > 0 && line[line_len - 1] == '\r')
+        {
+            line_len--;
+            terminated = 1;
+            eol = VTED_EOL_CR;
         }
 
-        if (AppendRow(line, (int)line_len, VTED_EOL_LF) == -1)
+        if (AppendRow(line, (int)line_len, eol) == -1)
         {
             free(line);
             fclose(file);
@@ -76,7 +97,36 @@ int OpenFile(const char *filename)
     }
 
     fclose(file);
+
+    vted_buffer.final_newline = terminated;
+
+    /* the unterminated last line has no ending of its own: it takes
+       the one above it, so splitting it later writes the file's own
+       convention rather than Unix's */
+    if (!terminated && vted_buffer.num_rows > 1)
+    {
+        vted_buffer.rows[vted_buffer.num_rows - 1].eol =
+            vted_buffer.rows[vted_buffer.num_rows - 2].eol;
+    }
+
     return 0;
+}
+
+/* the bytes that terminate a row on save */
+static const char *RowEnding(const vted_row_t *row, int *len)
+{
+    switch (row->eol)
+    {
+    case VTED_EOL_CRLF:
+        *len = 2;
+        return "\r\n";
+    case VTED_EOL_CR:
+        *len = 1;
+        return "\r";
+    default:
+        *len = 1;
+        return "\n";
+    }
 }
 
 int SaveFile(void)
@@ -105,7 +155,17 @@ int SaveFile(void)
             return -1;
         }
 
-        if (fputc('\n', file) == EOF)
+        /* the last row of a file without a trailing terminator keeps
+           having none; every other row ends its own way */
+        if (row_index == vted_buffer.num_rows - 1 && !vted_buffer.final_newline)
+        {
+            continue;
+        }
+
+        int ending_len;
+        const char *ending = RowEnding(row, &ending_len);
+
+        if (fwrite(ending, 1, (size_t)ending_len, file) != (size_t)ending_len)
         {
             fclose(file);
             return -1;

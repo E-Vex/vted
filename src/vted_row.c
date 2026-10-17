@@ -15,6 +15,7 @@ void InitBuffer(void)
     vted_buffer.num_rows = 0;
     vted_buffer.filename = NULL;
     vted_buffer.dirty = 0;
+    vted_buffer.final_newline = 1;
 }
 
 static int RowAlloc(vted_row_t *row, const char *chars, int size)

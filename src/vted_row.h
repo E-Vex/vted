@@ -36,6 +36,11 @@ typedef struct
 
     char *filename; /* path of the loaded file, NULL when unnamed */
     int dirty;      /* 1 when the buffer has unsaved changes */
+
+    /* 1 when the file ends with a line terminator; the last row's
+       ending is written out only then, so a file with no trailing
+       newline keeps having none */
+    int final_newline;
 } vted_buffer_t;
 
 extern vted_buffer_t vted_buffer;
