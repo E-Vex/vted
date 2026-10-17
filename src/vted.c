@@ -30,6 +30,40 @@ static void EditorInsertChar(int c)
     vted_editor_config.cursor_x++;
 }
 
+static void EditorInsertNewline(void)
+{
+    if (vted_editor_config.cursor_x == 0)
+    {
+        /* new empty line at the cursor */
+        if (InsertRow(vted_editor_config.cursor_y, "", 0) == -1)
+        {
+            KillApp("InsertRow");
+        }
+    }
+    else
+    {
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+        /* split: the tail of the row becomes the start of a new row */
+        if (InsertRow(vted_editor_config.cursor_y + 1,
+                      &row->chars[vted_editor_config.cursor_x],
+                      row->size - vted_editor_config.cursor_x) == -1)
+        {
+            KillApp("InsertRow");
+        }
+
+        /* the original row keeps the head; InsertRow may have moved
+           the rows array, so take a fresh pointer before shrinking */
+        row = &vted_buffer.rows[vted_editor_config.cursor_y];
+        row->size = vted_editor_config.cursor_x;
+        row->chars[row->size] = '\0';
+    }
+
+    vted_buffer.dirty = 1;
+    vted_editor_config.cursor_y++;
+    vted_editor_config.cursor_x = 0;
+}
+
 int main(int argc, char *argv[])
 {
     SaveTerminalCurrentSettings();
@@ -67,6 +101,12 @@ int main(int argc, char *argv[])
         if ((c_in >= 32 && c_in != 127) || c_in >= 128)
         {
             EditorInsertChar(c_in);
+        }
+
+        /* Enter splits the current line at the cursor */
+        if (c_in == '\r' || c_in == '\n')
+        {
+            EditorInsertNewline();
         }
 
         RefreshScreen();
