@@ -36,10 +36,10 @@ int RefreshWindowSize(void)
 
     if (pre_cols != vted_editor_config.screen_cols || pre_rows != vted_editor_config.screen_rows)
     {
-        return 0; /* no changed */
+        return 1; /* window size changed */
     }
 
-    return 1; /* window size changed */
+    return 0; /* no change */
 }
 
 static void DrawRows(void)
