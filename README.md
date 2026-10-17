@@ -124,7 +124,7 @@ man vted        # the full manual
 | `vted_terminal`   | raw mode, terminal save/restore, fatal exit |
 | `vted_keyboard`   | raw byte reading, escape sequence parsing   |
 | `vted_screen`     | viewport, scrolling, rendering, bars        |
-| `vted_row`        | the text buffer, row editing and cell layout |
+| `vted_row`        | text buffer, row editing and cell layout      |
 | `vted_utf8`       | UTF-8 decoding, boundaries and cell widths  |
 | `vted_file`       | loading and saving files                    |
 | `vted`            | the editor core: key dispatch and editing   |
