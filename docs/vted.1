@@ -1,0 +1,73 @@
+.TH VTED 1 "October 2026" "vted 0.1.0" "User Commands"
+.SH NAME
+vted \- vex terminal text editor
+.SH SYNOPSIS
+.B vted
+.RI [ file ]
+.SH DESCRIPTION
+.B vted
+is a small, fast terminal text editor for Linux written in C11 with no
+dependencies beyond the C standard library and POSIX.
+.PP
+It puts the terminal into raw mode, switches to the alternate screen
+buffer and restores every terminal setting on exit. Given a
+.IR file ,
+it loads it into an editable buffer; otherwise it starts with an empty
+buffer. Only the first operand is used; further arguments are ignored.
+.PP
+The bottom line of the screen is a status bar showing the file name,
+line count, a modified marker and the cursor position. The line above
+it is a message bar for status messages and warnings.
+.SH KEYS
+.TP
+.B arrows
+move the cursor, wrapping across line ends
+.TP
+.B Home / End
+jump to the start / end of the line
+.TP
+.B PageUp / PageDown
+move one viewport up / down
+.TP
+.B Enter
+split the line at the cursor
+.TP
+.B Backspace
+delete to the left, merge lines at column zero
+.TP
+.B Delete
+delete the character under the cursor
+.TP
+plain typing
+insert at the cursor (UTF\-8 aware)
+.TP
+.B Ctrl\-S
+save the buffer to its file
+.TP
+.B Ctrl\-F
+incremental search: arrows jump between matches, Enter keeps the
+cursor on the match, ESC restores the previous position
+.TP
+.B Ctrl\-Q
+quit; unsaved changes require three additional confirmations
+.SH EXIT STATUS
+.B vted
+exits with status 0 after a normal quit. Fatal errors (a file that
+cannot be opened, terminal setup failures) terminate the editor with
+an error message and a non\-zero status.
+.SH FILES
+The buffer is saved back to the
+.I file
+given on the command line; without one, Ctrl\-S reports that there is
+nothing to save yet.
+.SH SEE ALSO
+.BR vim (1),
+.BR nano (1)
+.PP
+Project documentation:
+.UR https://github.com/E\-Vex/vted
+.UE
+.SH AUTHORS
+E\-Vex <raiedaleve@gmail.com>
+.SH LICENSE
+MIT
