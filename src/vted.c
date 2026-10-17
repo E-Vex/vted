@@ -132,8 +132,13 @@ static void EditorSave(void)
     SetStatusMessage("Saved %s", vted_buffer.filename);
 }
 
+/* pressing Ctrl-Q this many times in a row overrides unsaved changes */
+#define QUIT_CONFIRMATIONS 3
+
 int main(int argc, char *argv[])
 {
+    int quit_confirmations = QUIT_CONFIRMATIONS;
+
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     EnterToAlternateScreenBuffer();
@@ -154,45 +159,59 @@ int main(int argc, char *argv[])
         int c_in = ReadKeyPress();
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
-            ExitAlternateScreenBuffer();
-            FreeBuffer();
-            return 0;
+            if (vted_buffer.dirty != 0 && quit_confirmations > 0)
+            {
+                SetStatusMessage("WARNING! Unsaved changes. Press Ctrl-Q %d more times to quit.",
+                                 quit_confirmations);
+                quit_confirmations--;
+            }
+            else
+            {
+                ExitAlternateScreenBuffer();
+                FreeBuffer();
+                return 0;
+            }
         }
+        else
+        {
+            /* any other key restarts the quit confirmation count */
+            quit_confirmations = QUIT_CONFIRMATIONS;
 
-        /* one key, one action: the dispatch is a chain so special
-           key codes are never mistaken for text bytes */
-        if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
-            c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey)
-        {
-            MoveCursor(c_in);
-        }
-        else if (c_in == '\r' || c_in == '\n')
-        {
-            /* Enter splits the current line at the cursor */
-            EditorInsertNewline();
-        }
-        else if (c_in == 127)
-        {
-            /* Backspace removes the character left of the cursor */
-            EditorDelChar();
-        }
-        else if (c_in == DeleteKey)
-        {
-            /* Delete removes the character at the cursor: stepping
-               right first turns it into a delete-left operation */
-            MoveCursor(ArrowRight);
-            EditorDelChar();
-        }
-        else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
-        {
-            /* Ctrl-S writes the buffer back to its file */
-            EditorSave();
-        }
-        else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
-        {
-            /* printable ASCII and UTF-8 bytes land in the text;
-               key codes at 1000 and above never reach this branch */
-            EditorInsertChar(c_in);
+            /* one key, one action: the dispatch is a chain so special
+               key codes are never mistaken for text bytes */
+            if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
+                c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey)
+            {
+                MoveCursor(c_in);
+            }
+            else if (c_in == '\r' || c_in == '\n')
+            {
+                /* Enter splits the current line at the cursor */
+                EditorInsertNewline();
+            }
+            else if (c_in == 127)
+            {
+                /* Backspace removes the character left of the cursor */
+                EditorDelChar();
+            }
+            else if (c_in == DeleteKey)
+            {
+                /* Delete removes the character at the cursor: stepping
+                   right first turns it into a delete-left operation */
+                MoveCursor(ArrowRight);
+                EditorDelChar();
+            }
+            else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
+            {
+                /* Ctrl-S writes the buffer back to its file */
+                EditorSave();
+            }
+            else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
+            {
+                /* printable ASCII and UTF-8 bytes land in the text;
+                   key codes at 1000 and above never reach this branch */
+                EditorInsertChar(c_in);
+            }
         }
 
         RefreshScreen();
