@@ -70,6 +70,12 @@ static void TestApplicationCursorKeys(void)
 
 static void TestCtrlAndAltArrowsMoveByWord(void)
 {
+    /* rxvt: ESC O c and ESC O d */
+    FeedInput("\x1bOc");
+    CHECK_INT(ReadKeyPress(), WordRight);
+    FeedInput("\x1bOd");
+    CHECK_INT(ReadKeyPress(), WordLeft);
+
     /* xterm: ESC [ 1 ; <1 + modifier bits> <letter> */
     FeedInput("\x1b[1;5C"); /* Ctrl-Right */
     CHECK_INT(ReadKeyPress(), WordRight);
