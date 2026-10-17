@@ -63,6 +63,18 @@ int OpenFile(const char *filename)
     }
 
     free(line);
+
+    /* getline() also returns -1 on a read error (a directory fails
+       with EISDIR): do not pass a half-read file off as the whole */
+    if (ferror(file))
+    {
+        int saved_errno = errno;
+
+        fclose(file);
+        errno = saved_errno;
+        return -1;
+    }
+
     fclose(file);
     return 0;
 }
