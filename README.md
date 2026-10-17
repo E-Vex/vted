@@ -90,6 +90,7 @@ man vted        # the full manual
 | Delete      | delete the character under the cursor          |
 | typing      | insert at the cursor                           |
 | Ctrl-S      | save the buffer to its file                    |
+| Ctrl-G      | go to a line number (ESC cancels)              |
 | Ctrl-F      | incremental search (arrows jump, ESC restores) |
 | Ctrl-Q      | quit (three extra presses when modified)       |
 
