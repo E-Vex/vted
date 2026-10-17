@@ -96,6 +96,11 @@ The buffer is saved back to the
 given on the command line. Without one, Ctrl\-S asks for a file name;
 the buffer takes that name only if the file could be written, and ESC
 cancels the save.
+.PP
+Line endings are kept as found: LF, CRLF, CR and mixed files save
+back unchanged, byte for byte, and a file without a trailing newline
+keeps having none. Lines created while editing take the ending of the
+line they were made from.
 .SH SEE ALSO
 .BR vim (1),
 .BR nano (1)
