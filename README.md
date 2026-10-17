@@ -154,7 +154,6 @@ man vted        # the full manual
 
 vted is under active development. Planned next:
 
-- Undo/redo
 - Syntax highlighting and line numbers
 
 ## Contributing
