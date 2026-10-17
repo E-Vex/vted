@@ -85,8 +85,9 @@ man vted        # the full manual
 | Home / End     | jump to start / end of line                   |
 | PageUp/Down    | move one viewport up / down                    |
 | Enter          | split the line at the cursor                  |
-| Backspace      | delete left, merge lines at column zero       |
-| Delete         | delete under the cursor                        |
+| Tab            | insert a tab, shown up to the next tab stop   |
+| Backspace      | delete the character on the left, merge lines |
+| Delete         | delete the character under the cursor          |
 | typing         | insert at the cursor                           |
 | Ctrl-S         | save the buffer to its file                    |
 | Ctrl-F         | incremental search (arrows jump, ESC restores) |
