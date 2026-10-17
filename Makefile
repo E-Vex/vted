@@ -36,7 +36,7 @@ BR4 = \033[38;5;136m
 BR5 = \033[38;5;172m
 BR6 = \033[38;5;178m
 
-.PHONY: all banner clean
+.PHONY: all banner clean install uninstall
 
 all: banner
 	@printf "$(GREEN)$(BOLD)Building VTED...$(RESET)\n\n"
@@ -69,3 +69,17 @@ clean:
 	@printf "$(YELLOW)Cleaning VTED...$(RESET)\n"
 	rm -f $(TARGET)
 	@printf "$(GREEN)✓ Clean complete.$(RESET)\n"
+# Install locations (override with: make PREFIX=$HOME/.local install)
+PREFIX ?= /usr/local
+BINDIR = $(PREFIX)/bin
+
+install: all
+	@printf "$(CYAN)Installing VTED...$(RESET)\n"
+	mkdir -p $(DESTDIR)$(BINDIR)
+	install -m 755 $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
+	@printf "$(GREEN)$(BOLD)✓ Installed$(RESET) -> $(DESTDIR)$(BINDIR)/$(TARGET)\n"
+
+uninstall:
+	@printf "$(YELLOW)Uninstalling VTED...$(RESET)\n"
+	rm -f $(DESTDIR)$(BINDIR)/$(TARGET)
+	@printf "$(GREEN)✓ Uninstalled.$(RESET)\n"
