@@ -261,7 +261,6 @@ static void DrawRows(append_buffer_t *ab)
                 char welcome[80];
                 int welcome_len = snprintf(welcome, sizeof(welcome),
                                            "vted -- version %s", VTED_VERSION);
-                int padding = (vted_editor_config.screen_cols - welcome_len) / 2;
 
                 if (welcome_len < 0)
                 {
@@ -271,6 +270,15 @@ static void DrawRows(append_buffer_t *ab)
                 {
                     welcome_len = (int)sizeof(welcome);
                 }
+
+                /* on a terminal narrower than the banner it would wrap
+                   onto the next row and scroll the whole screen */
+                if (welcome_len > vted_editor_config.screen_cols)
+                {
+                    welcome_len = vted_editor_config.screen_cols;
+                }
+
+                int padding = (vted_editor_config.screen_cols - welcome_len) / 2;
 
                 /* center the banner, one space after the tilde */
                 if (padding > 0)
