@@ -1,5 +1,6 @@
 /*===============================*/
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <string.h>
@@ -10,6 +11,44 @@
 /*===============================*/
 
 vted_editor_Config_t vted_editor_config;
+
+/*==========================================================
+|                      Append Buffer                       |
+|                                                          |
+| Collects a whole frame of output in one growable heap    |
+| buffer so it can be shipped to the terminal with a       |
+| single write() call. Writing many small chunks one at a  |
+| time makes the screen flicker, because the terminal      |
+| paints each chunk the moment it arrives.                 |
+==========================================================*/
+
+typedef struct
+{
+    char *data; /* heap buffer holding the bytes to write */
+    int len;    /* number of bytes currently stored */
+} append_buffer_t;
+
+#define ABUF_INIT {NULL, 0}
+
+static void AppendToBuffer(append_buffer_t *ab, const char *s, int len)
+{
+    char *new_data = realloc(ab->data, (size_t)(ab->len + len));
+
+    if (new_data == NULL)
+    {
+        KillApp("realloc");
+    }
+
+    /* append after the bytes already stored */
+    memcpy(&new_data[ab->len], s, (size_t)len);
+    ab->data = new_data;
+    ab->len += len;
+}
+
+static void FreeAppendBuffer(append_buffer_t *ab)
+{
+    free(ab->data);
+}
 
 int GetWindowSize(int *rows, int *cols)
 {
@@ -42,15 +81,18 @@ int RefreshWindowSize(void)
     return 0; /* no change */
 }
 
-static void DrawRows(void)
+static void DrawRows(append_buffer_t *ab)
 {
     int row;
+
     for (row = 0; row < vted_editor_config.screen_rows; row++)
     {
-        write(STDOUT_FILENO, "~", 1);
+        AppendToBuffer(ab, "~", 1);
+        AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
+
         if (row < vted_editor_config.screen_rows - 1)
         {
-            write(STDOUT_FILENO, "\r\n", 2);
+            AppendToBuffer(ab, "\r\n", 2);
         }
     }
 }
@@ -89,7 +131,9 @@ void MoveCursor(int key)
 
 void RefreshScreen(void)
 {
+    append_buffer_t ab = ABUF_INIT;
     char cursor_position_buffer[32];
+    int cursor_position_len;
 
     int RefreshWindowSize_return = RefreshWindowSize();
     if (RefreshWindowSize_return == -1)
@@ -98,21 +142,32 @@ void RefreshScreen(void)
     }
     if (RefreshWindowSize_return == 1)
     {
-        DrawRows();
+        /* home the cursor to the top-left before repainting rows,
+           otherwise rows start wherever the cursor happens to be */
+        AppendToBuffer(&ab, "\x1b[H", 3);
+        DrawRows(&ab);
     }
 
     /* display the cursor position on terminal screen */
 
     /* cursor_x/y + 1 here because the terminal starts from 1,1 not 0,0 */
-    snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
-             vted_editor_config.cursor_y + 1, vted_editor_config.cursor_x + 1);
+    cursor_position_len = snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
+                                   vted_editor_config.cursor_y + 1, vted_editor_config.cursor_x + 1);
 
-    /* ANSI escape sequences must be written directly to the terminal,
-     bypassing any output buffering, so the cursor moves immediately */
-    write(STDOUT_FILENO, cursor_position_buffer, strlen(cursor_position_buffer));
+    if (cursor_position_len > 0)
+    {
+        AppendToBuffer(&ab, cursor_position_buffer, cursor_position_len);
+    }
+
+    /* the whole frame goes out with one write() to avoid flicker */
+    write(STDOUT_FILENO, ab.data, (size_t)ab.len);
+
+    FreeAppendBuffer(&ab);
 }
 void InitVtedEditor(void)
 {
+    append_buffer_t ab = ABUF_INIT;
+
     /* Initialize the cursor position */
     vted_editor_config.cursor_x = 0;
     vted_editor_config.cursor_y = 0;
@@ -122,5 +177,10 @@ void InitVtedEditor(void)
         KillApp("GetWindowSize");
     }
 
-    DrawRows();
+    /* initial paint of the empty editor */
+    AppendToBuffer(&ab, "\x1b[H", 3);
+    DrawRows(&ab);
+    write(STDOUT_FILENO, ab.data, (size_t)ab.len);
+
+    FreeAppendBuffer(&ab);
 }
