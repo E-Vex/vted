@@ -28,6 +28,7 @@ sed -e "s/@VERSION@/$VERSION/g" \
 
 if ! rpmbuild --define "_topdir $TOP" \
               --define "debug_package %{nil}" \
+              --nodeps \
               -bb "$TOP/SPECS/vted.spec" > "$TOP/rpmbuild.log" 2>&1; then
   tail -n 40 "$TOP/rpmbuild.log" >&2
   die 'rpmbuild failed (log above)'
