@@ -262,12 +262,25 @@ static void EditorFind(void)
             last_match_row = match_row;
             vted_editor_config.cursor_y = match_row;
             vted_editor_config.cursor_x = match_col;
+
+            /* highlight the match on screen */
+            vted_editor_config.match_row = match_row;
+            vted_editor_config.match_col = match_col;
+            vted_editor_config.match_len = query_len;
         }
         else
         {
             last_match_row = -1;
+
+            /* no match for the current query: drop the highlight */
+            vted_editor_config.match_row = -1;
+            vted_editor_config.match_len = 0;
         }
     }
+
+    /* leaving the search clears the highlight */
+    vted_editor_config.match_row = -1;
+    vted_editor_config.match_len = 0;
 
     SetStatusMessage("");
 }

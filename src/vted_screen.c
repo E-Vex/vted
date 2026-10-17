@@ -111,6 +111,37 @@ static void UpdateScroll(void)
     }
 }
 
+static void AppendRowSegment(append_buffer_t *ab, vted_row_t *row, int from, int to)
+{
+    /* renders row bytes [from, to) clipped to both the row bounds
+       and the viewport window [col_offset, col_offset + screen_cols) */
+    int viewport_end = vted_editor_config.col_offset + vted_editor_config.screen_cols;
+
+    if (from < 0)
+    {
+        from = 0;
+    }
+    if (from < vted_editor_config.col_offset)
+    {
+        from = vted_editor_config.col_offset;
+    }
+    if (to > viewport_end)
+    {
+        to = viewport_end;
+    }
+    if (to > row->size)
+    {
+        to = row->size;
+    }
+
+    if (from >= to)
+    {
+        return;
+    }
+
+    AppendToBuffer(ab, &row->chars[from], to - from);
+}
+
 static void DrawRows(append_buffer_t *ab)
 {
     int row;
@@ -123,22 +154,22 @@ static void DrawRows(append_buffer_t *ab)
         {
             vted_row_t *text_row = &vted_buffer.rows[buffer_row];
 
-            /* render the slice of the row that is visible in the
-               viewport, columns past col_offset only */
-            int len = text_row->size - vted_editor_config.col_offset;
-
-            if (len < 0)
+            if (buffer_row == vted_editor_config.match_row && vted_editor_config.match_len > 0)
             {
-                len = 0;
+                /* active search match: draw the text around it, with
+                   the match itself shown in inverted video */
+                AppendRowSegment(ab, text_row, 0, vted_editor_config.match_col);
+                AppendToBuffer(ab, "\x1b[7m", 4);
+                AppendRowSegment(ab, text_row, vted_editor_config.match_col,
+                                 vted_editor_config.match_col + vted_editor_config.match_len);
+                AppendToBuffer(ab, "\x1b[m", 3);
+                AppendRowSegment(ab, text_row,
+                                 vted_editor_config.match_col + vted_editor_config.match_len,
+                                 text_row->size);
             }
-            if (len > vted_editor_config.screen_cols)
+            else
             {
-                len = vted_editor_config.screen_cols;
-            }
-
-            if (len > 0)
-            {
-                AppendToBuffer(ab, &text_row->chars[vted_editor_config.col_offset], len);
+                AppendRowSegment(ab, text_row, 0, text_row->size);
             }
         }
         else
@@ -448,6 +479,11 @@ void InitVtedEditor(void)
     vted_editor_config.cursor_y = 0;
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
+
+    /* no search match highlighted yet */
+    vted_editor_config.match_row = -1;
+    vted_editor_config.match_col = 0;
+    vted_editor_config.match_len = 0;
 
     if (RefreshWindowSize() == -1)
     {
