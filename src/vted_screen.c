@@ -8,6 +8,7 @@
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
 #include "vted_screen.h"
+#include "vted_row.h"
 /*===============================*/
 
 vted_editor_Config_t vted_editor_config;
@@ -87,7 +88,29 @@ static void DrawRows(append_buffer_t *ab)
 
     for (row = 0; row < vted_editor_config.screen_rows; row++)
     {
-        AppendToBuffer(ab, "~", 1);
+        if (row < vted_buffer.num_rows)
+        {
+            /* render the text row, clipped to the viewport width so
+               long lines wrap-free; full scrolling comes later */
+            vted_row_t *text_row = &vted_buffer.rows[row];
+
+            int len = text_row->size;
+
+            if (len > vted_editor_config.screen_cols)
+            {
+                len = vted_editor_config.screen_cols;
+            }
+
+            if (len > 0)
+            {
+                AppendToBuffer(ab, text_row->chars, len);
+            }
+        }
+        else
+        {
+            AppendToBuffer(ab, "~", 1);
+        }
+
         AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
 
         if (row < vted_editor_config.screen_rows - 1)
