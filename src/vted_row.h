@@ -57,6 +57,10 @@ int RowCxToRx(const vted_row_t *row, int cx);
    the row when rx lies past the text */
 int RowRxToCx(const vted_row_t *row, int rx);
 
+/* number of leading blanks (spaces and tabs) of the row, looking at
+   no more than the first limit bytes; the indent a new line copies */
+int RowIndentLength(const vted_row_t *row, int limit);
+
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);
 

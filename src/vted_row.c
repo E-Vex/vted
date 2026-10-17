@@ -205,6 +205,19 @@ int RowRxToCx(const vted_row_t *row, int rx)
     return row->size;
 }
 
+int RowIndentLength(const vted_row_t *row, int limit)
+{
+    int length = 0;
+
+    while (length < row->size && length < limit &&
+           (row->chars[length] == ' ' || row->chars[length] == '\t'))
+    {
+        length++;
+    }
+
+    return length;
+}
+
 void FreeRow(vted_row_t *row)
 {
     free(row->chars);
