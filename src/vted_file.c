@@ -129,20 +129,9 @@ static const char *RowEnding(const vted_row_t *row, int *len)
     }
 }
 
-int SaveFile(void)
+/* writes every row and its terminator, nothing else */
+static int WriteRows(FILE *file)
 {
-    if (vted_buffer.filename == NULL)
-    {
-        return -1; /* unnamed buffer has nowhere to go */
-    }
-
-    FILE *file = fopen(vted_buffer.filename, "w");
-
-    if (file == NULL)
-    {
-        return -1;
-    }
-
     int row_index;
 
     for (row_index = 0; row_index < vted_buffer.num_rows; row_index++)
@@ -151,7 +140,6 @@ int SaveFile(void)
 
         if (fwrite(row->chars, 1, (size_t)row->size, file) != (size_t)row->size)
         {
-            fclose(file);
             return -1;
         }
 
@@ -167,9 +155,31 @@ int SaveFile(void)
 
         if (fwrite(ending, 1, (size_t)ending_len, file) != (size_t)ending_len)
         {
-            fclose(file);
             return -1;
         }
+    }
+
+    return 0;
+}
+
+int SaveFile(void)
+{
+    if (vted_buffer.filename == NULL)
+    {
+        return -1; /* unnamed buffer has nowhere to go */
+    }
+
+    FILE *file = fopen(vted_buffer.filename, "w");
+
+    if (file == NULL)
+    {
+        return -1;
+    }
+
+    if (WriteRows(file) == -1)
+    {
+        fclose(file);
+        return -1;
     }
 
     if (fclose(file) != 0)
