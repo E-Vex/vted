@@ -453,7 +453,8 @@ void MoveCursor(int key)
     case ArrowLeft:
         if (vted_editor_config.cursor_x > 0)
         {
-            vted_editor_config.cursor_x--;
+            /* a whole character, never into the middle of a sequence */
+            vted_editor_config.cursor_x = Utf8PrevBoundary(row->chars, vted_editor_config.cursor_x);
         }
         else if (vted_editor_config.cursor_y > 0)
         {
@@ -468,7 +469,8 @@ void MoveCursor(int key)
         {
             if (vted_editor_config.cursor_x < row->size)
             {
-                vted_editor_config.cursor_x++;
+                vted_editor_config.cursor_x = Utf8NextBoundary(row->chars, row->size,
+                                                               vted_editor_config.cursor_x);
             }
             else if (vted_editor_config.cursor_y < vted_buffer.num_rows - 1)
             {
