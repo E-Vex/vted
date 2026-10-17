@@ -17,7 +17,13 @@ static void EditorInsertChar(int c)
     /* typing on the phantom row past the end starts a new line */
     if (vted_editor_config.cursor_y == vted_buffer.num_rows)
     {
-        if (AppendRow("", 0, VTED_EOL_LF) == -1)
+        /* the new line ends the way the last real one does, so a
+           CRLF file keeps growing CRLF lines at the bottom */
+        int eol = vted_buffer.num_rows > 0
+                      ? vted_buffer.rows[vted_buffer.num_rows - 1].eol
+                      : VTED_EOL_LF;
+
+        if (AppendRow("", 0, eol) == -1)
         {
             KillApp("AppendRow");
         }
@@ -38,10 +44,19 @@ static void EditorInsertNewline(void)
 {
     int indent = 0;
 
+    /* the break Enter creates ends the new line, so it takes the
+       ending of the row it is made from — the last real row when
+       the cursor sits on the phantom one: a CRLF file splits into
+       CRLF lines */
+    int source = vted_editor_config.cursor_y < vted_buffer.num_rows
+                     ? vted_editor_config.cursor_y
+                     : vted_buffer.num_rows - 1;
+    int eol = source >= 0 ? vted_buffer.rows[source].eol : VTED_EOL_LF;
+
     if (vted_editor_config.cursor_x == 0)
     {
         /* new empty line at the cursor */
-        if (InsertRow(vted_editor_config.cursor_y, "", 0, VTED_EOL_LF) == -1)
+        if (InsertRow(vted_editor_config.cursor_y, "", 0, eol) == -1)
         {
             KillApp("InsertRow");
         }
@@ -67,7 +82,7 @@ static void EditorInsertNewline(void)
         memcpy(line + indent, &row->chars[vted_editor_config.cursor_x], (size_t)tail);
 
         /* split: the tail of the row becomes the start of a new row */
-        if (InsertRow(vted_editor_config.cursor_y + 1, line, indent + tail, VTED_EOL_LF) == -1)
+        if (InsertRow(vted_editor_config.cursor_y + 1, line, indent + tail, eol) == -1)
         {
             KillApp("InsertRow");
         }
@@ -108,6 +123,7 @@ static void EditorDelChar(void)
         vted_row_t *prev = &vted_buffer.rows[vted_editor_config.cursor_y - 1];
 
         int prev_size = prev->size; /* cursor will land here after the merge */
+        int eol = row->eol;         /* the lower line's ending survives */
 
         if (RowAppendString(prev, row->chars, row->size) == -1)
         {
@@ -115,6 +131,10 @@ static void EditorDelChar(void)
         }
 
         RemoveRow(vted_editor_config.cursor_y);
+
+        /* the merged line is now terminated the way the line below
+           was, not the way the one above ended before the merge */
+        prev->eol = eol;
 
         vted_editor_config.cursor_y--;
         vted_editor_config.cursor_x = prev_size;
