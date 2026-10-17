@@ -8,6 +8,9 @@ typedef struct
   int screen_rows;
   int screen_cols;
 
+  int row_offset; /* first buffer row visible at the top of the viewport */
+  int col_offset; /* first column of a row visible at the left edge */
+
   char status_message[256]; /* most recent message shown in the message bar */
 } vted_editor_Config_t;
 

@@ -85,20 +85,52 @@ int RefreshWindowSize(void)
     return 0;
 }
 
+static void UpdateScroll(void)
+{
+    /* keep the cursor inside the viewport by moving the offsets;
+       the cursor itself keeps absolute buffer coordinates */
+
+    if (vted_editor_config.cursor_y < vted_editor_config.row_offset)
+    {
+        vted_editor_config.row_offset = vted_editor_config.cursor_y;
+    }
+
+    if (vted_editor_config.cursor_y >= vted_editor_config.row_offset + vted_editor_config.screen_rows)
+    {
+        vted_editor_config.row_offset = vted_editor_config.cursor_y - vted_editor_config.screen_rows + 1;
+    }
+
+    if (vted_editor_config.cursor_x < vted_editor_config.col_offset)
+    {
+        vted_editor_config.col_offset = vted_editor_config.cursor_x;
+    }
+
+    if (vted_editor_config.cursor_x >= vted_editor_config.col_offset + vted_editor_config.screen_cols)
+    {
+        vted_editor_config.col_offset = vted_editor_config.cursor_x - vted_editor_config.screen_cols + 1;
+    }
+}
+
 static void DrawRows(append_buffer_t *ab)
 {
     int row;
 
     for (row = 0; row < vted_editor_config.screen_rows; row++)
     {
-        if (row < vted_buffer.num_rows)
+        int buffer_row = row + vted_editor_config.row_offset;
+
+        if (buffer_row < vted_buffer.num_rows)
         {
-            /* render the text row, clipped to the viewport width so
-               long lines wrap-free; full scrolling comes later */
-            vted_row_t *text_row = &vted_buffer.rows[row];
+            vted_row_t *text_row = &vted_buffer.rows[buffer_row];
 
-            int len = text_row->size;
+            /* render the slice of the row that is visible in the
+               viewport, columns past col_offset only */
+            int len = text_row->size - vted_editor_config.col_offset;
 
+            if (len < 0)
+            {
+                len = 0;
+            }
             if (len > vted_editor_config.screen_cols)
             {
                 len = vted_editor_config.screen_cols;
@@ -106,7 +138,7 @@ static void DrawRows(append_buffer_t *ab)
 
             if (len > 0)
             {
-                AppendToBuffer(ab, text_row->chars, len);
+                AppendToBuffer(ab, &text_row->chars[vted_editor_config.col_offset], len);
             }
         }
         else
@@ -374,6 +406,8 @@ void RefreshScreen(void)
         KillApp("GetWindowSize");
     }
 
+    UpdateScroll();
+
     /* hide the cursor while the frame is repainted, otherwise it
        visibly jumps around between the old and the new position */
     AppendToBuffer(&ab, "\x1b[?25l", 6);
@@ -389,9 +423,11 @@ void RefreshScreen(void)
 
     /* display the cursor position on terminal screen */
 
-    /* cursor_x/y + 1 here because the terminal starts from 1,1 not 0,0 */
+    /* offsets translate the absolute buffer coordinates into viewport
+       coordinates; + 1 because the terminal starts from 1,1 not 0,0 */
     cursor_position_len = snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
-                                   vted_editor_config.cursor_y + 1, vted_editor_config.cursor_x + 1);
+                                   vted_editor_config.cursor_y - vted_editor_config.row_offset + 1,
+                                   vted_editor_config.cursor_x - vted_editor_config.col_offset + 1);
 
     if (cursor_position_len > 0)
     {
@@ -407,9 +443,11 @@ void RefreshScreen(void)
 }
 void InitVtedEditor(void)
 {
-    /* Initialize the cursor position */
+    /* Initialize the cursor position and the viewport offsets */
     vted_editor_config.cursor_x = 0;
     vted_editor_config.cursor_y = 0;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.col_offset = 0;
 
     if (RefreshWindowSize() == -1)
     {
