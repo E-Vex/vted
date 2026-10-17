@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="466" viewBox="0 0 700 466" font-family="ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="13.5">
+<rect x="1" y="1" width="698" height="464" rx="9" fill="#161310" stroke="#332d24" stroke-width="1.5"/>
+<path d="M1,31 a9,9 0 0 1 9,-9 H 690 a9,9 0 0 1 9,9 V 32 H 1 Z" fill="#242019"/>
+<circle cx="22" cy="17" r="5.5" fill="#ff5f56"/>
+<circle cx="42" cy="17" r="5.5" fill="#ffbd2e"/>
+<circle cx="62" cy="17" r="5.5" fill="#27c93f"/>
+<text x="350" y="21.5" fill="#7a7065" font-size="11.5" text-anchor="middle">vted — 80×24</text>
+<rect x="148.4" y="401.0" width="50.4" height="17.0" fill="#d8a23a"/>
+<rect x="14.0" y="418.0" width="672.0" height="17.0" fill="#a5761e"/>
+<text x="14.0" y="57.3" fill="#d8d2c8">}</text>
+<text x="14.0" y="74.3" fill="#d8d2c8">int RefreshWindowSize(void)</text>
+<text x="14.0" y="91.3" fill="#d8d2c8">{</text>
+<text x="14.0" y="108.3" fill="#d8d2c8">    int rows;</text>
+<text x="14.0" y="125.3" fill="#d8d2c8">    int cols;</text>
+<text x="14.0" y="159.3" fill="#d8d2c8">    if (GetWindowSize(&amp;rows, &amp;cols) == -1)</text>
+<text x="14.0" y="176.3" fill="#d8d2c8">    {</text>
+<text x="14.0" y="193.3" fill="#d8d2c8">        return -1;</text>
+<text x="14.0" y="210.3" fill="#d8d2c8">    }</text>
+<text x="14.0" y="244.3" fill="#d8d2c8">    /* the two bottom rows are reserved for the status bar and</text>
+<text x="14.0" y="261.3" fill="#d8d2c8">       the message bar, so the text viewport is two rows shorter */</text>
+<text x="14.0" y="278.3" fill="#d8d2c8">    vted_editor_config.screen_rows = rows - 2;</text>
+<text x="14.0" y="295.3" fill="#d8d2c8">    vted_editor_config.screen_cols = cols;</text>
+<text x="14.0" y="329.3" fill="#d8d2c8">    return 0;</text>
+<text x="14.0" y="346.3" fill="#d8d2c8">}</text>
+<text x="14.0" y="380.3" fill="#d8d2c8">static void UpdateScroll(void)</text>
+<text x="14.0" y="397.3" fill="#d8d2c8">{</text>
+<text x="14.0" y="414.3" fill="#d8d2c8">    /* keep the </text>
+<text x="148.4" y="414.3" fill="#161310">cursor</text>
+<text x="198.8" y="414.3" fill="#d8d2c8"> inside the viewport by moving the offsets;</text>
+<text x="14.0" y="431.3" fill="#161310"> src/vted_screen.c - 496 lines                                            90/496</text>
+<text x="14.0" y="448.3" fill="#d8d2c8">Find: cursor (ESC cancel, Enter keep, arrows next/prev)</text>
+<rect x="148.4" y="401.0" width="8.4" height="17.0" fill="#ffedb0"/>
+<text x="148.4" y="414.3" fill="#161310">c</text>
+</svg>
