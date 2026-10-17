@@ -68,20 +68,20 @@ int GetWindowSize(int *rows, int *cols)
 }
 int RefreshWindowSize(void)
 {
-    int pre_cols = vted_editor_config.screen_cols;
-    int pre_rows = vted_editor_config.screen_rows;
+    int rows;
+    int cols;
 
-    if (GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols) == -1)
+    if (GetWindowSize(&rows, &cols) == -1)
     {
         return -1;
     }
 
-    if (pre_cols != vted_editor_config.screen_cols || pre_rows != vted_editor_config.screen_rows)
-    {
-        return 1; /* window size changed */
-    }
+    /* the two bottom rows are reserved for the status bar and
+       the message bar, so the text viewport is two rows shorter */
+    vted_editor_config.screen_rows = rows - 2;
+    vted_editor_config.screen_cols = cols;
 
-    return 0; /* no change */
+    return 0;
 }
 
 static void DrawRows(append_buffer_t *ab)
@@ -231,7 +231,7 @@ void InitVtedEditor(void)
     vted_editor_config.cursor_x = 0;
     vted_editor_config.cursor_y = 0;
 
-    if (GetWindowSize(&vted_editor_config.screen_rows, &vted_editor_config.screen_cols) == -1)
+    if (RefreshWindowSize() == -1)
     {
         KillApp("GetWindowSize");
     }
