@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 /*===============================*/
 #include "vted_terminal.h"
 /*===============================*/
@@ -10,9 +11,14 @@ struct termios old_terminal_settings;
 
 void KillApp(const char *syscall_name)
 {
-    write(STDOUT_FILENO, "\x1b[2J", 4); /*clear screen when killapp*/
-    write(STDOUT_FILENO, "\x1b[H", 3);
+    int saved_errno = errno; /* the writes below must not clobber it */
 
+    /* leave the alternate screen before reporting: anything printed
+       inside it vanishes on exit and the shell would resume there.
+       Harmless when the alternate screen was never entered */
+    write(STDOUT_FILENO, "\x1b[?1049l", 8);
+
+    errno = saved_errno;
     perror(syscall_name);
     exit(EXIT_FAILURE);
 }
