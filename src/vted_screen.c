@@ -251,26 +251,82 @@ void ExitAlternateScreenBuffer(void)
     write(STDOUT_FILENO, "\x1b[?1049l", 8);
 }
 
+static void ClampCursorToRow(void)
+{
+    /* after a vertical move the cursor may sit past the end of the
+       new row, or on the phantom row past the last line of text */
+    if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        /* one line past the end of the text: only column 0 exists,
+           pressing Enter there will create a new line */
+        vted_editor_config.cursor_x = 0;
+        return;
+    }
+
+    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+    if (vted_editor_config.cursor_x > row->size)
+    {
+        vted_editor_config.cursor_x = row->size;
+    }
+}
+
 void MoveCursor(int key)
 {
-    /* moving the cursor logically */
+    /* moving the cursor logically, bounded by the text in the buffer */
+
+    vted_row_t *row = NULL;
+
+    if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+    {
+        row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    }
+
     switch (key)
     {
     case ArrowLeft:
         if (vted_editor_config.cursor_x > 0)
+        {
             vted_editor_config.cursor_x--;
+        }
+        else if (vted_editor_config.cursor_y > 0)
+        {
+            /* wrap to the end of the previous line */
+            vted_editor_config.cursor_y--;
+            vted_editor_config.cursor_x = vted_buffer.rows[vted_editor_config.cursor_y].size;
+        }
         break;
+
     case ArrowRight:
-        if (vted_editor_config.cursor_x < vted_editor_config.screen_cols - 1)
-            vted_editor_config.cursor_x++;
+        if (row != NULL)
+        {
+            if (vted_editor_config.cursor_x < row->size)
+            {
+                vted_editor_config.cursor_x++;
+            }
+            else if (vted_editor_config.cursor_y < vted_buffer.num_rows - 1)
+            {
+                /* wrap to the start of the next line */
+                vted_editor_config.cursor_y++;
+                vted_editor_config.cursor_x = 0;
+            }
+        }
         break;
+
     case ArrowUp:
         if (vted_editor_config.cursor_y > 0)
+        {
             vted_editor_config.cursor_y--;
+            ClampCursorToRow();
+        }
         break;
+
     case ArrowDown:
-        if (vted_editor_config.cursor_y < vted_editor_config.screen_rows - 1)
+        if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+        {
             vted_editor_config.cursor_y++;
+            ClampCursorToRow();
+        }
         break;
     }
 }
