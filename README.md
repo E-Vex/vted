@@ -112,7 +112,8 @@ man vted        # the full manual
   invalid bytes as `�`, so nothing odd ever reaches your terminal
 - The cursor keeps its display column across short lines when moving
   up and down
-- Status bar with filename, line count, modified marker and cursor position
+- Status bar with filename, line count, modified marker and the cursor's line
+  and display column
 - Message bar for status and warnings
 - Incremental search (Ctrl-F) with match highlighting
 - Go to a line with Ctrl-G; a number past the end lands on the last line
