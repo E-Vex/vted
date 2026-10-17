@@ -72,14 +72,18 @@ clean:
 # Install locations (override with: make PREFIX=$HOME/.local install)
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
+MANDIR = $(PREFIX)/share/man/man1
 
 install: all
 	@printf "$(CYAN)Installing VTED...$(RESET)\n"
 	mkdir -p $(DESTDIR)$(BINDIR)
+	mkdir -p $(DESTDIR)$(MANDIR)
 	install -m 755 $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
+	install -m 644 docs/vted.1 $(DESTDIR)$(MANDIR)/vted.1
 	@printf "$(GREEN)$(BOLD)✓ Installed$(RESET) -> $(DESTDIR)$(BINDIR)/$(TARGET)\n"
 
 uninstall:
 	@printf "$(YELLOW)Uninstalling VTED...$(RESET)\n"
 	rm -f $(DESTDIR)$(BINDIR)/$(TARGET)
+	rm -f $(DESTDIR)$(MANDIR)/vted.1
 	@printf "$(GREEN)✓ Uninstalled.$(RESET)\n"
