@@ -4,6 +4,7 @@
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_row.h"
+#include "vted_utf8.h"
 /*===============================*/
 
 vted_buffer_t vted_buffer;
@@ -139,6 +140,69 @@ int RowAppendString(vted_row_t *row, const char *s, int len)
     row->size += len;
     row->chars[row->size] = '\0';
     return 0;
+}
+
+int RowCharWidth(const vted_row_t *row, int at, int cell)
+{
+    unsigned char byte = (unsigned char)row->chars[at];
+    int code_point;
+
+    if (byte == '\t')
+    {
+        return VTED_TAB_STOP - (cell % VTED_TAB_STOP);
+    }
+
+    if (byte < 0x20 || byte == 0x7F)
+    {
+        return 2; /* shown as ^X */
+    }
+
+    Utf8Decode(&row->chars[at], row->size - at, &code_point);
+
+    /* C1 controls (U+0080-U+009F) would be executed by a terminal,
+       so they are drawn as a replacement character, one cell wide */
+    if (code_point >= 0x80 && code_point < 0xA0)
+    {
+        return 1;
+    }
+
+    return Utf8CharWidth(code_point);
+}
+
+int RowCxToRx(const vted_row_t *row, int cx)
+{
+    int rx = 0;
+    int at = 0;
+
+    while (at < cx && at < row->size)
+    {
+        rx += RowCharWidth(row, at, rx);
+        at = Utf8NextBoundary(row->chars, row->size, at);
+    }
+
+    return rx;
+}
+
+int RowRxToCx(const vted_row_t *row, int rx)
+{
+    int cell = 0;
+    int at = 0;
+
+    while (at < row->size)
+    {
+        int width = RowCharWidth(row, at, cell);
+
+        /* rx falls inside [cell, cell + width): this is the character */
+        if (cell + width > rx)
+        {
+            return at;
+        }
+
+        cell += width;
+        at = Utf8NextBoundary(row->chars, row->size, at);
+    }
+
+    return row->size;
 }
 
 void FreeRow(vted_row_t *row)

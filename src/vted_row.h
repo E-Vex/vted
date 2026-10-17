@@ -11,6 +11,9 @@
 | the file module loads and stores them.                   |
 ==========================================================*/
 
+/* a tab advances the text to the next multiple of this many cells */
+#define VTED_TAB_STOP 8
+
 typedef struct
 {
     char *chars; /* heap buffer with the raw text of the row */
@@ -37,6 +40,22 @@ void RemoveRow(int at);
 int RowInsertChar(vted_row_t *row, int at, int c);
 int RowRemoveChar(vted_row_t *row, int at);
 int RowAppendString(vted_row_t *row, const char *s, int len);
+
+/* Display layout. Rows hold raw bytes, but the terminal shows cells:
+   a tab spans up to the next tab stop, a control character takes two
+   cells (drawn as ^X) and UTF-8 characters take their own width. The
+   cursor keeps byte indexes (cx), the screen needs cell columns (rx). */
+
+/* cells taken by the character at byte index at, when it starts at
+   cell column cell (a tab's width depends on where it starts) */
+int RowCharWidth(const vted_row_t *row, int at, int cell);
+
+/* cell column where the character at byte index cx starts */
+int RowCxToRx(const vted_row_t *row, int cx);
+
+/* byte index of the character that covers cell column rx; the end of
+   the row when rx lies past the text */
+int RowRxToCx(const vted_row_t *row, int rx);
 
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);
