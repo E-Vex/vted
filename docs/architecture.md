@@ -46,6 +46,7 @@ AND THIS IS NOT THE FINAL ARCHITECTURE.
                  │        ├── movement ──► MoveCursor │
                  │        ├── typing ───► row ops     │
                  │        ├── Ctrl-S ───► SaveFile()  │
+                 │        ├── Ctrl-G ───► go to line  │
                  │        └── Ctrl-F ───► search      │
                  │                                   │
                  │        RefreshScreen()             │
