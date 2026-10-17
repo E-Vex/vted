@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=vted
+GenericName=Terminal Text Editor
+Comment=A small, fast terminal text editor
+Exec=vted %F
+Icon=vted
+Categories=Utility;TextEditor;ConsoleOnly;
+Keywords=text;editor;terminal;console;
+Terminal=true
+StartupNotify=false
+MimeType=text/plain;

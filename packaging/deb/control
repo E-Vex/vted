@@ -1,0 +1,21 @@
+Package: vted
+Version: @VERSION@
+Section: editors
+Priority: optional
+Architecture: @ARCH@
+Maintainer: E-Vex <raiedaleve@gmail.com>
+Installed-Size: @SIZE@
+Homepage: https://github.com/E-Vex/vted
+Description: small, fast terminal text editor for Linux
+ vted is a terminal text editor built around one idea: a single C11
+ binary with no dependencies beyond the C standard library and POSIX.
+ No curses, no plugins, no configuration language - just a fast,
+ careful editor that works in any terminal.
+ .
+ Features: UTF-8 aware editing, incremental search (Ctrl-F), undo and
+ redo (Ctrl-Z / Ctrl-Y), auto-indent, whole-line delete and duplicate,
+ go-to-line (Ctrl-G) and atomic saves that never lose the original
+ file.
+ .
+ This package ships a statically linked binary, so it runs on any
+ glibc or musl based distribution with nothing else to install.

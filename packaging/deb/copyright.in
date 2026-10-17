@@ -1,0 +1,7 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: vted
+Source: https://github.com/E-Vex/vted
+
+Files: *
+Copyright: 2026 Eliea Ossmat Azzam
+License: MIT
