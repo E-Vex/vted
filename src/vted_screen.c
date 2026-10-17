@@ -342,14 +342,26 @@ static void DrawStatusBar(append_buffer_t *ab)
 
     AppendToBuffer(ab, status, status_len);
 
-    /* right side: current line out of the total, when text exists */
-    char right_status[32];
+    /* right side, when text exists: the line out of the total and the
+       display column the cursor is drawn at ("Ln 5/120, Col 12"). The
+       column counts cells, not bytes, so after a tab or a wide
+       character it matches what the screen shows */
+    char right_status[64];
     int right_len = 0;
 
     if (vted_buffer.num_rows > 0)
     {
-        right_len = snprintf(right_status, sizeof(right_status), "%d/%d",
-                             vted_editor_config.cursor_y + 1, vted_buffer.num_rows);
+        right_len = snprintf(right_status, sizeof(right_status), "Ln %d/%d, Col %d",
+                             vted_editor_config.cursor_y + 1, vted_buffer.num_rows,
+                             vted_editor_config.cursor_rx + 1);
+
+        /* beside the file info the long form may not fit: fall back to
+           the line alone */
+        if (right_len < 0 || status_len + right_len > vted_editor_config.screen_cols)
+        {
+            right_len = snprintf(right_status, sizeof(right_status), "%d/%d",
+                                 vted_editor_config.cursor_y + 1, vted_buffer.num_rows);
+        }
 
         if (right_len < 0)
         {
@@ -357,8 +369,8 @@ static void DrawStatusBar(append_buffer_t *ab)
         }
     }
 
-    /* on a narrow terminal the position does not fit beside the file
-       info: drawing it anyway would wrap the bar and scroll the screen */
+    /* on a narrow terminal even that does not fit: drawing it anyway
+       would wrap the bar and scroll the screen */
     if (status_len + right_len > vted_editor_config.screen_cols)
     {
         right_len = 0;
