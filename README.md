@@ -101,6 +101,7 @@ man vted        # the full manual
 - Alternate screen buffer: your shell history stays untouched
 - Open files from the command line, edit, and save them back
 - Full cursor movement: arrows, Home, End, PageUp, PageDown
+- Word movement with Ctrl or Alt and the arrows, or Alt-b and Alt-f; a word\n  is a run of letters and digits, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
