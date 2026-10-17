@@ -10,6 +10,7 @@
 #include "vted_keyboard.h"
 #include "vted_screen.h"
 #include "vted_row.h"
+#include "vted_utf8.h"
 /*===============================*/
 
 vted_editor_Config_t vted_editor_config;
@@ -111,35 +112,129 @@ static void UpdateScroll(void)
     }
 }
 
-static void AppendRowSegment(append_buffer_t *ab, vted_row_t *row, int from, int to)
+/* the Unicode replacement character, drawn for bytes that are not
+   valid UTF-8 so they can never reach the terminal as raw codes */
+#define REPLACEMENT_CHARACTER "\xEF\xBF\xBD"
+
+static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int next,
+                        int cell, int width, int left, int right)
 {
-    /* renders row bytes [from, to) clipped to both the row bounds
-       and the viewport window [col_offset, col_offset + screen_cols) */
-    int viewport_end = vted_editor_config.col_offset + vted_editor_config.screen_cols;
+    /* draws the character at byte index at, which occupies the cells
+       [cell, cell + width), clipped to the viewport cells [left, right) */
+    unsigned char byte = (unsigned char)row->chars[at];
+    int code_point;
+    int offset;
 
-    if (from < 0)
+    if (byte == '\t')
     {
-        from = 0;
-    }
-    if (from < vted_editor_config.col_offset)
-    {
-        from = vted_editor_config.col_offset;
-    }
-    if (to > viewport_end)
-    {
-        to = viewport_end;
-    }
-    if (to > row->size)
-    {
-        to = row->size;
-    }
-
-    if (from >= to)
-    {
+        /* a tab is blank space up to the next tab stop */
+        for (offset = 0; offset < width; offset++)
+        {
+            if (cell + offset >= left && cell + offset < right)
+            {
+                AppendToBuffer(ab, " ", 1);
+            }
+        }
         return;
     }
 
-    AppendToBuffer(ab, &row->chars[from], to - from);
+    if (byte < 0x20 || byte == 0x7F)
+    {
+        /* control characters are drawn as ^X, and DEL as ^? */
+        char caret[2];
+
+        caret[0] = '^';
+        caret[1] = byte == 0x7F ? '?' : (char)(byte + '@');
+
+        for (offset = 0; offset < 2; offset++)
+        {
+            if (cell + offset >= left && cell + offset < right)
+            {
+                AppendToBuffer(ab, &caret[offset], 1);
+            }
+        }
+        return;
+    }
+
+    Utf8Decode(&row->chars[at], row->size - at, &code_point);
+
+    if (width == 0)
+    {
+        /* a combining mark rides on the cell before it: draw it only
+           when that cell is on screen */
+        if (cell > left && cell <= right)
+        {
+            AppendToBuffer(ab, &row->chars[at], next - at);
+        }
+        return;
+    }
+
+    if (cell >= left && cell + width <= right)
+    {
+        if (code_point < 0 || (code_point >= 0x80 && code_point < 0xA0))
+        {
+            AppendToBuffer(ab, REPLACEMENT_CHARACTER, 3);
+        }
+        else
+        {
+            AppendToBuffer(ab, &row->chars[at], next - at);
+        }
+        return;
+    }
+
+    /* a wide character cut by a viewport edge: fill the visible half
+       with blanks instead of drawing half of it */
+    if (cell + width > left && cell < right)
+    {
+        int first = cell > left ? cell : left;
+        int last = cell + width < right ? cell + width : right;
+
+        for (offset = first; offset < last; offset++)
+        {
+            AppendToBuffer(ab, " ", 1);
+        }
+    }
+}
+
+static void DrawRowText(append_buffer_t *ab, const vted_row_t *row, int has_match)
+{
+    /* one pass over the row: every character is laid out in terminal
+       cells, then clipped to the viewport [col_offset, col_offset +
+       screen_cols). Control characters and the active search match
+       are drawn in inverted video */
+    int left = vted_editor_config.col_offset;
+    int right = left + vted_editor_config.screen_cols;
+    int match_end = vted_editor_config.match_col + vted_editor_config.match_len;
+    int cell = 0;
+    int at = 0;
+    int inverted = 0;
+
+    while (at < row->size && cell < right)
+    {
+        unsigned char byte = (unsigned char)row->chars[at];
+        int next = Utf8NextBoundary(row->chars, row->size, at);
+        int width = RowCharWidth(row, at, cell);
+
+        int is_control = (byte < 0x20 && byte != '\t') || byte == 0x7F;
+        int in_match = has_match && at >= vted_editor_config.match_col && at < match_end;
+        int want_inverted = is_control || in_match;
+
+        if (want_inverted != inverted)
+        {
+            AppendToBuffer(ab, want_inverted ? "\x1b[7m" : "\x1b[m", want_inverted ? 4 : 3);
+            inverted = want_inverted;
+        }
+
+        AppendGlyph(ab, row, at, next, cell, width, left, right);
+
+        cell += width;
+        at = next;
+    }
+
+    if (inverted)
+    {
+        AppendToBuffer(ab, "\x1b[m", 3);
+    }
 }
 
 static void DrawRows(append_buffer_t *ab)
@@ -154,23 +249,9 @@ static void DrawRows(append_buffer_t *ab)
         {
             vted_row_t *text_row = &vted_buffer.rows[buffer_row];
 
-            if (buffer_row == vted_editor_config.match_row && vted_editor_config.match_len > 0)
-            {
-                /* active search match: draw the text around it, with
-                   the match itself shown in inverted video */
-                AppendRowSegment(ab, text_row, 0, vted_editor_config.match_col);
-                AppendToBuffer(ab, "\x1b[7m", 4);
-                AppendRowSegment(ab, text_row, vted_editor_config.match_col,
-                                 vted_editor_config.match_col + vted_editor_config.match_len);
-                AppendToBuffer(ab, "\x1b[m", 3);
-                AppendRowSegment(ab, text_row,
-                                 vted_editor_config.match_col + vted_editor_config.match_len,
-                                 text_row->size);
-            }
-            else
-            {
-                AppendRowSegment(ab, text_row, 0, text_row->size);
-            }
+            DrawRowText(ab, text_row,
+                        buffer_row == vted_editor_config.match_row &&
+                            vted_editor_config.match_len > 0);
         }
         else
         {
