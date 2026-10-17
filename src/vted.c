@@ -461,6 +461,23 @@ int main(int argc, char *argv[])
                 /* Ctrl-D duplicates the line under the cursor */
                 EditorDuplicateLine();
             }
+            else if (c_in == CTRL_KEY('z') || c_in == CTRL_KEY('Z'))
+            {
+                /* Ctrl-Z steps the buffer back through its changes */
+                if (EditorUndo() == 0)
+                {
+                    SetStatusMessage("Nothing to undo");
+                }
+            }
+            else if (c_in == CTRL_KEY('y') || c_in == CTRL_KEY('Y'))
+            {
+                /* Ctrl-Y steps the buffer forward through undone
+                   changes */
+                if (EditorRedo() == 0)
+                {
+                    SetStatusMessage("Nothing to redo");
+                }
+            }
             else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
             {
                 /* printable ASCII and UTF-8 bytes land in the text;
