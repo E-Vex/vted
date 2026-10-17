@@ -257,6 +257,29 @@ static void EditorGoToLine(void)
 
     vted_editor_config.cursor_y = (int)line - 1;
     vted_editor_config.cursor_x = 0;
+
+    /* a line that is already on screen stays where it is; one that is
+       not gets the middle of the viewport, so there is context around
+       it instead of the line sitting on the very edge */
+    int first = vted_editor_config.row_offset;
+    int last = first + vted_editor_config.screen_rows;
+
+    if (vted_editor_config.cursor_y < first || vted_editor_config.cursor_y >= last)
+    {
+        int offset = vted_editor_config.cursor_y - vted_editor_config.screen_rows / 2;
+        int max_offset = vted_buffer.num_rows - vted_editor_config.screen_rows;
+
+        if (offset > max_offset)
+        {
+            offset = max_offset; /* no empty screen below the last line */
+        }
+        if (offset < 0)
+        {
+            offset = 0;
+        }
+
+        vted_editor_config.row_offset = offset;
+    }
 }
 
 /* pressing Ctrl-Q this many times in a row overrides unsaved changes */
