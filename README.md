@@ -15,6 +15,73 @@ autotools, no cmake — just `make`.
 
 ## Install
 
+Ready-made packages are attached to every
+[release](https://github.com/E-Vex/vted/releases). They install
+`vted` and the manual page. Each release also carries a
+`SHA256SUMS.txt` so the downloads can be checked with `sha256sum -c`:
+
+| File                              | Installs on                          | How                                        |
+| --------------------------------- | ------------------------------------ | ------------------------------------------ |
+| `vted_<v>_<arch>.deb`             | Debian, Ubuntu, Mint, Pop!_OS, ...   | `sudo apt install ./vted_<v>_<arch>.deb`   |
+| `vted-<v>-1.<arch>.rpm`           | Fedora, RHEL, openSUSE, ...          | `sudo dnf install ./vted-<v>-1.<arch>.rpm` |
+| `vted-<v>-<arch>.AppImage`        | any x86_64 distro                    | `chmod +x` and run                         |
+| `vted-<v>-linux-<arch>.tar.gz`    | any x86_64 distro                    | unpack, then `sudo ./install.sh`           |
+
+The examples below use version 0.2.0; grab the file names from the
+latest release page.
+
+### Debian, Ubuntu, Mint and friends (.deb)
+
+```sh
+sudo apt install ./vted_0.2.0_amd64.deb
+```
+
+The package carries a statically linked binary, so `apt` has nothing
+to resolve and no repositories need to be added — it installs straight
+into `/usr/bin` with the manual page in place. `dpkg -i` works just
+the same. Remove it again with `sudo apt remove vted`.
+
+### Fedora, RHEL, CentOS, openSUSE (.rpm)
+
+```sh
+sudo dnf install ./vted-0.2.0-1.x86_64.rpm     # Fedora, RHEL, CentOS
+sudo zypper install ./vted-0.2.0-1.x86_64.rpm  # openSUSE
+```
+
+The RPM is built from source against the system C library, the way RPM
+distributions expect, so its dependencies are checked honestly at
+install time. Remove it with `sudo dnf remove vted` or
+`sudo zypper remove vted`.
+
+### Any distro — AppImage
+
+```sh
+chmod +x vted-0.2.0-x86_64.AppImage
+./vted-0.2.0-x86_64.AppImage
+```
+
+Nothing is installed and nothing is extracted — it just runs. To use
+it as plain `vted`, put it on your `PATH`:
+
+```sh
+install -m 755 vted-0.2.0-x86_64.AppImage ~/.local/bin/vted
+```
+
+### Any distro — static binary tarball
+
+For everything without `.deb` or `.rpm` support — Arch, Alpine,
+Gentoo, Void, a chroot, a rescue disk:
+
+```sh
+tar xzf vted-0.2.0-linux-x86_64.tar.gz
+cd vted-0.2.0-linux-x86_64
+sudo ./install.sh                          # or: PREFIX="$HOME/.local" ./install.sh
+```
+
+The binary inside is statically linked (musl), so it runs on glibc and
+musl systems alike with zero dependencies. Uninstall with
+`sudo rm /usr/local/bin/vted /usr/local/share/man/man1/vted.1`.
+
 ### From git (the usual way)
 
 ```sh
@@ -31,7 +98,7 @@ This installs:
 
 To try it before installing anything, just run `./vted` after `make`.
 
-### From a release tarball
+### From a release source tarball
 
 ```sh
 curl -LO https://github.com/E-Vex/vted/archive/refs/tags/v0.1.0.tar.gz
