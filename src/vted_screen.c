@@ -89,7 +89,17 @@ int RefreshWindowSize(void)
 static void UpdateScroll(void)
 {
     /* keep the cursor inside the viewport by moving the offsets;
-       the cursor itself keeps absolute buffer coordinates */
+       the cursor itself keeps absolute buffer coordinates. Rows are
+       scrolled in display cells, so the byte index of the cursor is
+       first converted to the cell column it is drawn at */
+
+    vted_editor_config.cursor_rx = 0;
+
+    if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+    {
+        vted_editor_config.cursor_rx = RowCxToRx(&vted_buffer.rows[vted_editor_config.cursor_y],
+                                                 vted_editor_config.cursor_x);
+    }
 
     if (vted_editor_config.cursor_y < vted_editor_config.row_offset)
     {
@@ -101,14 +111,14 @@ static void UpdateScroll(void)
         vted_editor_config.row_offset = vted_editor_config.cursor_y - vted_editor_config.screen_rows + 1;
     }
 
-    if (vted_editor_config.cursor_x < vted_editor_config.col_offset)
+    if (vted_editor_config.cursor_rx < vted_editor_config.col_offset)
     {
-        vted_editor_config.col_offset = vted_editor_config.cursor_x;
+        vted_editor_config.col_offset = vted_editor_config.cursor_rx;
     }
 
-    if (vted_editor_config.cursor_x >= vted_editor_config.col_offset + vted_editor_config.screen_cols)
+    if (vted_editor_config.cursor_rx >= vted_editor_config.col_offset + vted_editor_config.screen_cols)
     {
-        vted_editor_config.col_offset = vted_editor_config.cursor_x - vted_editor_config.screen_cols + 1;
+        vted_editor_config.col_offset = vted_editor_config.cursor_rx - vted_editor_config.screen_cols + 1;
     }
 }
 
@@ -551,7 +561,7 @@ void RefreshScreen(void)
        coordinates; + 1 because the terminal starts from 1,1 not 0,0 */
     cursor_position_len = snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
                                    vted_editor_config.cursor_y - vted_editor_config.row_offset + 1,
-                                   vted_editor_config.cursor_x - vted_editor_config.col_offset + 1);
+                                   vted_editor_config.cursor_rx - vted_editor_config.col_offset + 1);
 
     if (cursor_position_len > 0)
     {
@@ -570,6 +580,7 @@ void InitVtedEditor(void)
     /* Initialize the cursor position and the viewport offsets */
     vted_editor_config.cursor_x = 0;
     vted_editor_config.cursor_y = 0;
+    vted_editor_config.cursor_rx = 0;
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
 

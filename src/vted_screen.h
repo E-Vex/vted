@@ -3,13 +3,14 @@
 
 typedef struct
 {
-  int cursor_x, cursor_y;
+  int cursor_x, cursor_y; /* cursor_x is a byte index into the row */
+  int cursor_rx;          /* the same spot as a display cell column, refreshed every frame */
 
   int screen_rows;
   int screen_cols;
 
   int row_offset; /* first buffer row visible at the top of the viewport */
-  int col_offset; /* first column of a row visible at the left edge */
+  int col_offset; /* first display cell column visible at the left edge */
 
   int match_row; /* row of the highlighted search match, -1 when none */
   int match_col; /* column where the highlighted match starts */
