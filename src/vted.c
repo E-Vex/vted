@@ -64,6 +64,54 @@ static void EditorInsertNewline(void)
     vted_editor_config.cursor_x = 0;
 }
 
+static void EditorDelChar(void)
+{
+    /* deletes the character left of the cursor, or merges the
+       current line into the one above when at column zero */
+
+    if (vted_editor_config.cursor_y == 0 && vted_editor_config.cursor_x == 0)
+    {
+        return; /* nothing before the start of the file */
+    }
+
+    if (vted_editor_config.cursor_y == vted_buffer.num_rows)
+    {
+        return; /* nothing exists past the end of the file */
+    }
+
+    if (vted_editor_config.cursor_x == 0)
+    {
+        /* start of a line: merge it into the line above */
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+        vted_row_t *prev = &vted_buffer.rows[vted_editor_config.cursor_y - 1];
+
+        int prev_size = prev->size; /* cursor will land here after the merge */
+
+        if (RowAppendString(prev, row->chars, row->size) == -1)
+        {
+            KillApp("RowAppendString");
+        }
+
+        RemoveRow(vted_editor_config.cursor_y);
+
+        vted_editor_config.cursor_y--;
+        vted_editor_config.cursor_x = prev_size;
+    }
+    else
+    {
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+        if (RowRemoveChar(row, vted_editor_config.cursor_x - 1) == -1)
+        {
+            KillApp("RowRemoveChar");
+        }
+
+        vted_editor_config.cursor_x--;
+    }
+
+    vted_buffer.dirty = 1;
+}
+
 int main(int argc, char *argv[])
 {
     SaveTerminalCurrentSettings();
@@ -107,6 +155,20 @@ int main(int argc, char *argv[])
         if (c_in == '\r' || c_in == '\n')
         {
             EditorInsertNewline();
+        }
+
+        /* Backspace removes the character left of the cursor */
+        if (c_in == 127)
+        {
+            EditorDelChar();
+        }
+
+        /* Delete removes the character at the cursor: stepping
+           right first turns it into a delete-left operation */
+        if (c_in == DeleteKey)
+        {
+            MoveCursor(ArrowRight);
+            EditorDelChar();
         }
 
         RefreshScreen();
