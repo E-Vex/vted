@@ -186,3 +186,57 @@ int Utf8CharWidth(int code_point)
 
     return 1;
 }
+
+Utf8Class Utf8CharClass(int code_point)
+{
+    if (code_point < 0)
+    {
+        return Utf8ClassPunctuation; /* an invalid byte is not text */
+    }
+
+    if (code_point < 0x80)
+    {
+        if (code_point == ' ' || code_point == '\t')
+        {
+            return Utf8ClassBlank;
+        }
+
+        if ((code_point >= '0' && code_point <= '9') ||
+            (code_point >= 'A' && code_point <= 'Z') ||
+            (code_point >= 'a' && code_point <= 'z') || code_point == '_')
+        {
+            return Utf8ClassWord;
+        }
+
+        return Utf8ClassPunctuation; /* other ASCII and the controls */
+    }
+
+    /* blanks outside ASCII: no-break space, the Unicode space
+       characters and the ideographic space */
+    if (code_point == 0xA0 || code_point == 0x1680 ||
+        (code_point >= 0x2000 && code_point <= 0x200A) ||
+        code_point == 0x202F || code_point == 0x205F || code_point == 0x3000)
+    {
+        return Utf8ClassBlank;
+    }
+
+    /* Latin-1 punctuation and symbols (the letters ª µ º are words),
+       the multiplication and division signs */
+    if ((code_point >= 0xA1 && code_point <= 0xBF && code_point != 0xAA &&
+         code_point != 0xB5 && code_point != 0xBA) ||
+        code_point == 0xD7 || code_point == 0xF7)
+    {
+        return Utf8ClassPunctuation;
+    }
+
+    /* general punctuation (dashes, quotes, ellipsis) and the CJK
+       punctuation block */
+    if ((code_point >= 0x2010 && code_point <= 0x2027) ||
+        (code_point >= 0x2030 && code_point <= 0x205E) ||
+        (code_point >= 0x3001 && code_point <= 0x303F))
+    {
+        return Utf8ClassPunctuation;
+    }
+
+    return Utf8ClassWord; /* letters of every script, emoji, the rest */
+}

@@ -27,4 +27,16 @@ int Utf8NextBoundary(const char *s, int len, int at);
    other zero-width characters), 1 or 2 (East Asian wide, emoji) */
 int Utf8CharWidth(int code_point);
 
+/* what a character counts as when moving by words */
+typedef enum
+{
+    Utf8ClassBlank,       /* spaces, tabs and other blank characters */
+    Utf8ClassWord,        /* letters, digits, underscore, every script */
+    Utf8ClassPunctuation  /* punctuation, symbols and control characters */
+} Utf8Class;
+
+/* word movement treats a run of one class as a unit: "foo_bar" is one
+   word, "->" a run of punctuation. Invalid bytes count as punctuation */
+Utf8Class Utf8CharClass(int code_point);
+
 #endif
