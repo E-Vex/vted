@@ -198,6 +198,13 @@ static void EditorFind(void)
 
         int c = ReadKeyPress();
 
+        if (c == 0)
+        {
+            /* idle read timeout: repaint the prompt, do not touch
+               the search state or the cursor would drift forward */
+            continue;
+        }
+
         if (c == 27) /* ESC: cancel and restore the previous position */
         {
             vted_editor_config.cursor_x = saved_x;
