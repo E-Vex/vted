@@ -189,6 +189,29 @@ static void EditorDeleteLine(void)
     vted_buffer.dirty = 1;
 }
 
+static void EditorDuplicateLine(void)
+{
+    /* Ctrl-D copies the line under the cursor below itself and
+       moves the cursor onto the copy */
+
+    if (vted_editor_config.cursor_y == vted_buffer.num_rows)
+    {
+        return; /* on the phantom row past the end: nothing to copy */
+    }
+
+    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+    if (InsertRow(vted_editor_config.cursor_y + 1, row->chars, row->size) == -1)
+    {
+        KillApp("InsertRow");
+    }
+
+    /* the copy holds the same text, so the column stays where it
+       was; only the line changes */
+    vted_editor_config.cursor_y++;
+    vted_buffer.dirty = 1;
+}
+
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
 #define PROMPT_MAX 1024
 
@@ -627,6 +650,11 @@ int main(int argc, char *argv[])
             {
                 /* Ctrl-K deletes the whole line under the cursor */
                 EditorDeleteLine();
+            }
+            else if (c_in == CTRL_KEY('d') || c_in == CTRL_KEY('D'))
+            {
+                /* Ctrl-D duplicates the line under the cursor */
+                EditorDuplicateLine();
             }
             else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
             {
