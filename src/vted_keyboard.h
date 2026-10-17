@@ -19,7 +19,9 @@ typedef enum
     EndKey,
     PageUp,
     PageDown,
-    DeleteKey
+    DeleteKey,
+    WordLeft,  /* Ctrl or Alt with Left, Alt-b */
+    WordRight  /* Ctrl or Alt with Right, Alt-f */
 
 } EditorKey;
 
