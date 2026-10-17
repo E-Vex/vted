@@ -207,7 +207,11 @@ static char *EditorPrompt(const char *label)
                 return NULL;
             }
 
-            return answer;
+            /* the answer may outlive the prompt (a file name does):
+               give back the unused part of the buffer */
+            char *exact = realloc(answer, (size_t)length + 1);
+
+            return exact != NULL ? exact : answer;
         }
 
         if (c == 127) /* Backspace removes one whole character */
