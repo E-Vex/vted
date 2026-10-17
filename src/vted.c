@@ -522,7 +522,8 @@ int main(int argc, char *argv[])
             /* one key, one action: the dispatch is a chain so special
                key codes are never mistaken for text bytes */
             if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
-                c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey)
+                c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey ||
+                c_in == WordLeft || c_in == WordRight)
             {
                 MoveCursor(c_in);
             }
