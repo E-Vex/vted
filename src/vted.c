@@ -159,42 +159,40 @@ int main(int argc, char *argv[])
             return 0;
         }
 
+        /* one key, one action: the dispatch is a chain so special
+           key codes are never mistaken for text bytes */
         if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
             c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey)
         {
             MoveCursor(c_in);
         }
-
-        /* printable characters and UTF-8 bytes land in the text */
-        if ((c_in >= 32 && c_in != 127) || c_in >= 128)
+        else if (c_in == '\r' || c_in == '\n')
         {
-            EditorInsertChar(c_in);
-        }
-
-        /* Enter splits the current line at the cursor */
-        if (c_in == '\r' || c_in == '\n')
-        {
+            /* Enter splits the current line at the cursor */
             EditorInsertNewline();
         }
-
-        /* Backspace removes the character left of the cursor */
-        if (c_in == 127)
+        else if (c_in == 127)
         {
+            /* Backspace removes the character left of the cursor */
             EditorDelChar();
         }
-
-        /* Delete removes the character at the cursor: stepping
-           right first turns it into a delete-left operation */
-        if (c_in == DeleteKey)
+        else if (c_in == DeleteKey)
         {
+            /* Delete removes the character at the cursor: stepping
+               right first turns it into a delete-left operation */
             MoveCursor(ArrowRight);
             EditorDelChar();
         }
-
-        /* Ctrl-S writes the buffer back to its file */
-        if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
+        else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
         {
+            /* Ctrl-S writes the buffer back to its file */
             EditorSave();
+        }
+        else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
+        {
+            /* printable ASCII and UTF-8 bytes land in the text;
+               key codes at 1000 and above never reach this branch */
+            EditorInsertChar(c_in);
         }
 
         RefreshScreen();
