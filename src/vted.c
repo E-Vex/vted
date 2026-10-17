@@ -142,6 +142,53 @@ static void EditorDelChar(void)
     vted_buffer.dirty = 1;
 }
 
+static void EditorDeleteLine(void)
+{
+    /* Ctrl-K removes the whole line under the cursor */
+
+    if (vted_editor_config.cursor_y == vted_buffer.num_rows)
+    {
+        return; /* on the phantom row past the end: nothing to remove */
+    }
+
+    if (vted_buffer.num_rows == 1)
+    {
+        /* the only line of the file is emptied, not removed: the
+           buffer always keeps at least one row for the cursor to
+           sit on */
+        vted_row_t *row = &vted_buffer.rows[0];
+
+        if (row->size == 0)
+        {
+            return; /* already empty: the buffer stays clean */
+        }
+
+        row->size = 0;
+        row->chars[0] = '\0';
+        vted_editor_config.cursor_x = 0;
+    }
+    else
+    {
+        RemoveRow(vted_editor_config.cursor_y);
+
+        /* removing the last row lands the cursor on the new last
+           one; the column must also fit inside the row it lands on */
+        if (vted_editor_config.cursor_y == vted_buffer.num_rows)
+        {
+            vted_editor_config.cursor_y--;
+        }
+
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+        if (vted_editor_config.cursor_x > row->size)
+        {
+            vted_editor_config.cursor_x = row->size;
+        }
+    }
+
+    vted_buffer.dirty = 1;
+}
+
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
 #define PROMPT_MAX 1024
 
@@ -575,6 +622,11 @@ int main(int argc, char *argv[])
             {
                 /* Ctrl-G jumps to a line number */
                 EditorGoToLine();
+            }
+            else if (c_in == CTRL_KEY('k') || c_in == CTRL_KEY('K'))
+            {
+                /* Ctrl-K deletes the whole line under the cursor */
+                EditorDeleteLine();
             }
             else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
             {
