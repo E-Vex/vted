@@ -211,7 +211,20 @@ int ParseArrowKey(void)
         return ParseSs3Sequence();
     }
 
-    /* ESC followed by anything else is Alt+key: not bound, swallowed */
+    /* ESC followed by a letter is Alt+letter. Alt-b and Alt-f are the
+       readline spelling of "word left" and "word right", handy where
+       the terminal keeps Alt-Arrow for itself */
+    if (introducer == 'b')
+    {
+        return WordLeft;
+    }
+
+    if (introducer == 'f')
+    {
+        return WordRight;
+    }
+
+    /* any other Alt+key is not bound: swallowed */
     return NO_KEY;
 }
 int ReadKeyPress()
