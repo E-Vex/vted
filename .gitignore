@@ -4,3 +4,6 @@ vted
 # editor and tooling leftovers
 *.o
 *.d
+
+# unit test programs
+tests/bin/

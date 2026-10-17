@@ -37,7 +37,7 @@ BR4 = \033[38;5;136m
 BR5 = \033[38;5;172m
 BR6 = \033[38;5;178m
 
-.PHONY: all banner clean install uninstall
+.PHONY: all banner clean install uninstall test
 
 all: banner
 	@printf "$(GREEN)$(BOLD)Building VTED...$(RESET)\n\n"
@@ -69,6 +69,7 @@ banner:
 clean:
 	@printf "$(YELLOW)Cleaning VTED...$(RESET)\n"
 	rm -f $(TARGET)
+	rm -rf tests/bin
 	@printf "$(GREEN)✓ Clean complete.$(RESET)\n"
 # Install locations (override with: make PREFIX=$HOME/.local install)
 PREFIX ?= /usr/local
@@ -88,3 +89,17 @@ uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(TARGET)
 	rm -f $(DESTDIR)$(MANDIR)/vted.1
 	@printf "$(GREEN)✓ Uninstalled.$(RESET)\n"
+
+# Unit tests: every tests/test_*.c is its own program, linked against
+# all modules except the entry point in src/vted.c
+LIB_SRC = $(filter-out src/vted.c,$(SRC))
+TEST_BINS = $(patsubst tests/%.c,tests/bin/%,$(wildcard tests/test_*.c))
+
+tests/bin/%: tests/%.c tests/vted_test.h $(LIB_SRC)
+	@mkdir -p tests/bin
+	$(CC) $(CFLAGS) $< $(LIB_SRC) -o $@
+
+test: $(TEST_BINS)
+	@printf "$(CYAN)Running unit tests:$(RESET)\n"
+	@for test_bin in $(TEST_BINS); do ./$$test_bin || exit 1; done
+	@printf "$(GREEN)$(BOLD)✓ All tests passed$(RESET)\n"
