@@ -79,8 +79,9 @@ an error message and a non\-zero status.
 .SH FILES
 The buffer is saved back to the
 .I file
-given on the command line; without one, Ctrl\-S reports that there is
-nothing to save yet.
+given on the command line. Without one, Ctrl\-S asks for a file name;
+the buffer takes that name only if the file could be written, and ESC
+cancels the save.
 .SH SEE ALSO
 .BR vim (1),
 .BR nano (1)
