@@ -1,5 +1,6 @@
 /*===============================*/
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 /*===============================*/
@@ -35,6 +36,8 @@ static void EditorInsertChar(int c)
 
 static void EditorInsertNewline(void)
 {
+    int indent = 0;
+
     if (vted_editor_config.cursor_x == 0)
     {
         /* new empty line at the cursor */
@@ -47,13 +50,29 @@ static void EditorInsertNewline(void)
     {
         vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
 
+        /* the new line starts with the blanks the current line starts
+           with, but only those left of the cursor: splitting inside
+           the indent must not copy more than what stays behind */
+        indent = RowIndentLength(row, vted_editor_config.cursor_x);
+
+        int tail = row->size - vted_editor_config.cursor_x;
+        char *line = malloc((size_t)(indent + tail) + 1);
+
+        if (line == NULL)
+        {
+            KillApp("malloc");
+        }
+
+        memcpy(line, row->chars, (size_t)indent);
+        memcpy(line + indent, &row->chars[vted_editor_config.cursor_x], (size_t)tail);
+
         /* split: the tail of the row becomes the start of a new row */
-        if (InsertRow(vted_editor_config.cursor_y + 1,
-                      &row->chars[vted_editor_config.cursor_x],
-                      row->size - vted_editor_config.cursor_x) == -1)
+        if (InsertRow(vted_editor_config.cursor_y + 1, line, indent + tail) == -1)
         {
             KillApp("InsertRow");
         }
+
+        free(line);
 
         /* the original row keeps the head; InsertRow may have moved
            the rows array, so take a fresh pointer before shrinking */
@@ -64,7 +83,7 @@ static void EditorInsertNewline(void)
 
     vted_buffer.dirty = 1;
     vted_editor_config.cursor_y++;
-    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_x = indent;
 }
 
 static void EditorDelChar(void)
