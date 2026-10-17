@@ -35,7 +35,8 @@ int main(int argc, char *argv[])
             return 0;
         }
 
-        if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight)
+        if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
+            c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey)
         {
             MoveCursor(c_in);
         }

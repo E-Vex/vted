@@ -328,6 +328,38 @@ void MoveCursor(int key)
             ClampCursorToRow();
         }
         break;
+
+    case PageUp:
+        /* jump one viewport of lines towards the start */
+        vted_editor_config.cursor_y -= vted_editor_config.screen_rows;
+        if (vted_editor_config.cursor_y < 0)
+        {
+            vted_editor_config.cursor_y = 0;
+        }
+        ClampCursorToRow();
+        break;
+
+    case PageDown:
+        /* jump one viewport of lines towards the end, the phantom
+           row past the last line included */
+        vted_editor_config.cursor_y += vted_editor_config.screen_rows;
+        if (vted_editor_config.cursor_y > vted_buffer.num_rows)
+        {
+            vted_editor_config.cursor_y = vted_buffer.num_rows;
+        }
+        ClampCursorToRow();
+        break;
+
+    case HomeKey:
+        vted_editor_config.cursor_x = 0;
+        break;
+
+    case EndKey:
+        if (row != NULL)
+        {
+            vted_editor_config.cursor_x = row->size;
+        }
+        break;
     }
 }
 
