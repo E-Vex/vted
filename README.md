@@ -139,9 +139,7 @@ man vted        # the full manual
 
 vted is under active development. Planned next:
 
-- Auto-indent
-- Go-to-line and save-as prompts
-- Word movement and line operations (delete, duplicate)
+- Line operations (delete, duplicate)
 - Line ending preservation and atomic saves
 - Undo/redo
 - Syntax highlighting and line numbers
