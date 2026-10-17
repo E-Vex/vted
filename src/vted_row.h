@@ -5,10 +5,10 @@
 |                     Text Buffer Module                   |
 |                                                          |
 | Holds the document being edited: a dynamic array of      |
-| text rows. Each row owns a heap buffer of raw bytes      |
-| (not null-terminated) so the text may contain any       |
-| byte value. The screen module renders these rows, the    |
-| file module loads and stores them.                       |
+| text rows. Each row owns a heap buffer of raw bytes,     |
+| always null-terminated so string helpers can be used     |
+| on it as well. The screen module renders these rows,     |
+| the file module loads and stores them.                   |
 ==========================================================*/
 
 typedef struct
@@ -29,7 +29,15 @@ typedef struct
 extern vted_buffer_t vted_buffer;
 
 void InitBuffer(void);
+
 int AppendRow(const char *chars, int size);
+int InsertRow(int at, const char *chars, int size);
+void RemoveRow(int at);
+
+int RowInsertChar(vted_row_t *row, int at, int c);
+int RowRemoveChar(vted_row_t *row, int at);
+int RowAppendString(vted_row_t *row, const char *s, int len);
+
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);
 
