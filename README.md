@@ -125,6 +125,9 @@ man vted        # the full manual
 - Go to a line with Ctrl-G; a number past the end lands on the last line
 - Saving an unnamed buffer asks for a file name; the buffer stays unnamed
   if the file cannot be written
+- Saves are atomic: the text goes to a temporary file that is renamed
+  over the target, so a failed save never destroys the original, and the
+  file's permissions are kept
 - Quit protection: unsaved changes require repeated Ctrl-Q
 
 ## Documentation
@@ -148,7 +151,6 @@ man vted        # the full manual
 
 vted is under active development. Planned next:
 
-- Atomic saves (write to a temporary file, rename into place)
 - Undo/redo
 - Syntax highlighting and line numbers
 
