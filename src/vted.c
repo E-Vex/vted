@@ -380,6 +380,12 @@ int main(int argc, char *argv[])
                     EditorDelChar();
                 }
             }
+            else if (c_in == '\t')
+            {
+                /* Tab inserts a real tab character; the renderer lays
+                   it out up to the next tab stop */
+                EditorInsertChar('\t');
+            }
             else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
             {
                 /* Ctrl-S writes the buffer back to its file */
