@@ -492,6 +492,37 @@ void MoveCursor(int key)
         }
         break;
 
+    case WordLeft:
+        if (vted_editor_config.cursor_x > 0)
+        {
+            vted_editor_config.cursor_x = RowWordLeft(row, vted_editor_config.cursor_x);
+        }
+        else if (vted_editor_config.cursor_y > 0)
+        {
+            /* nothing left of the cursor in this row: wrap like the
+               left arrow does, to the end of the previous line */
+            vted_editor_config.cursor_y--;
+            vted_editor_config.cursor_x = vted_buffer.rows[vted_editor_config.cursor_y].size;
+        }
+        break;
+
+    case WordRight:
+        if (row != NULL)
+        {
+            if (vted_editor_config.cursor_x < row->size)
+            {
+                vted_editor_config.cursor_x = RowWordRight(row, vted_editor_config.cursor_x);
+            }
+            else if (vted_editor_config.cursor_y < vted_buffer.num_rows - 1)
+            {
+                /* already at the end of the row: wrap to the start of
+                   the next line */
+                vted_editor_config.cursor_y++;
+                vted_editor_config.cursor_x = 0;
+            }
+        }
+        break;
+
     case ArrowUp:
         if (vted_editor_config.cursor_y > 0)
         {
