@@ -79,19 +79,19 @@ man vted        # the full manual
 
 ## Keys
 
-| Key            | Action                                         |
-| -------------- | ---------------------------------------------- |
-| arrows         | move the cursor (wraps across lines)          |
-| Home / End     | jump to start / end of line                   |
-| PageUp/Down    | move one viewport up / down                    |
-| Enter          | split the line at the cursor                  |
-| Tab            | insert a tab, shown up to the next tab stop   |
-| Backspace      | delete the character on the left, merge lines |
-| Delete         | delete the character under the cursor          |
-| typing         | insert at the cursor                           |
-| Ctrl-S         | save the buffer to its file                    |
-| Ctrl-F         | incremental search (arrows jump, ESC restores) |
-| Ctrl-Q         | quit (three extra presses when modified)      |
+| Key         | Action                                         |
+| ----------- | ---------------------------------------------- |
+| arrows      | move the cursor (wraps across lines)           |
+| Home / End  | jump to start / end of line                    |
+| PageUp/Down | move one viewport up / down                    |
+| Enter       | split the line at the cursor                   |
+| Tab         | insert a tab, shown up to the next tab stop    |
+| Backspace   | delete the character on the left, merge lines  |
+| Delete      | delete the character under the cursor          |
+| typing      | insert at the cursor                           |
+| Ctrl-S      | save the buffer to its file                    |
+| Ctrl-F      | incremental search (arrows jump, ESC restores) |
+| Ctrl-Q      | quit (three extra presses when modified)       |
 
 ## Features
 
