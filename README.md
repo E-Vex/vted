@@ -102,7 +102,7 @@ man vted        # the full manual
 - Open files from the command line, edit, and save them back
 - Full cursor movement: arrows, Home, End, PageUp, PageDown
 - Word movement with Ctrl or Alt and the arrows, or Alt-b and Alt-f; a word
-  is a run of letters and digits, or a run of punctuation
+  is a run of letters, digits and underscores, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Auto-indent: Enter starts the new line with the indent of the current one
