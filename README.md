@@ -104,6 +104,7 @@ man vted        # the full manual
 - Word movement with Ctrl or Alt and the arrows, or Alt-b and Alt-f; a word\n  is a run of letters and digits, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
+- Auto-indent: Enter starts the new line with the indent of the current one
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
   (CJK, emoji) and combining characters take the right number of cells
 - Tabs expand to tab stops of 8; control characters show as `^X` and
