@@ -1,0 +1,94 @@
+name: release
+
+# Build the Linux packages and attach them to the release:
+#
+#   - .deb     for Debian, Ubuntu, Mint, Pop!_OS, ...
+#              (sudo apt install ./vted_<version>_<arch>.deb)
+#   - .rpm     for Fedora, RHEL, openSUSE, ...
+#   - AppImage for any x86_64 distro, nothing to install
+#   - static tarball for everything else (Arch, Alpine, Gentoo, ...)
+#
+# Runs on every v* tag push, or manually (workflow_dispatch, with the
+# "tag" input pointing at the tag to publish).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish, e.g. v0.2.0 (defaults to the current ref)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  linux-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install the packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools rpm file
+
+      - name: Resolve the tag and check it matches the Makefile
+        id: ver
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          case "$TAG" in
+            v[0-9]*) : ;;
+            *) echo "::error::'$TAG' is not a v-prefixed version tag"; exit 1 ;;
+          esac
+          VERSION="${TAG#v}"
+          MAKEFILE_VERSION="$(sed -n 's/^VERSION *= *//p' Makefile | tr -d '[:space:]')"
+          if [ "$VERSION" != "$MAKEFILE_VERSION" ]; then
+            echo "::error::tag $TAG says $VERSION but the Makefile says $MAKEFILE_VERSION - bump VERSION first"
+            exit 1
+          fi
+          echo "tag=$TAG"      >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build the static binary
+        run: ./packaging/build-static.sh
+
+      - name: Build the .deb
+        run: ./packaging/build-deb.sh
+
+      - name: Build the .rpm
+        run: ./packaging/build-rpm.sh
+
+      - name: Build the AppImage
+        run: ./packaging/build-appimage.sh
+
+      - name: Build the static tarball
+        run: ./packaging/build-tarball.sh
+
+      - name: Smoke test the static binary
+        run: python3 packaging/smoke-test.py ./vted
+
+      - name: Checksum the artifacts
+        run: |
+          cd dist
+          sha256sum vted_*.deb vted-*.rpm vted-*.AppImage vted-*.tar.gz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Attach the packages to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --verify-tag --generate-notes \
+              --title "vted ${TAG#v}"
+          fi
+          gh release view "$TAG" --json assets \
+            --jq '.assets[] | "\(.name)  \(.size) bytes"'
