@@ -14,7 +14,12 @@ typedef enum
     ArrowLeft = 1000,
     ArrowRight,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    HomeKey,
+    EndKey,
+    PageUp,
+    PageDown,
+    DeleteKey
 
 } EditorKey;
 

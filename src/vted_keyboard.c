@@ -59,6 +59,13 @@ int ParseArrowKey(void)
     |   0x42 = Down                                   |
     |   0x43 = Right                                  |
     |   0x44 = Left                                   |
+    |                                                 |
+    | Other special keys use the same shape:          |
+    |   ESC [ H / ESC [ F       -> Home / End         |
+    |   ESC O H / ESC O F       -> Home / End (old)   |
+    |   ESC [ 1 ~ ... ESC [ 6 ~ -> extended keys:     |
+    |     1 = Home   3 = Delete  4 = End              |
+    |     5 = PageUp 6 = PageDown                     |
     =================================================*/
 
     char sequence_input[2];
@@ -70,6 +77,29 @@ int ParseArrowKey(void)
 
     if (sequence_input[0] == '[')
     {
+        if (sequence_input[1] >= '0' && sequence_input[1] <= '9')
+        {
+            /* extended sequence: consume the terminating '~' byte */
+            char terminator;
+
+            if (read(STDIN_FILENO, &terminator, 1) != 1)
+                return '\x1b';
+
+            switch (sequence_input[1])
+            {
+            case '1':
+                return HomeKey;
+            case '3':
+                return DeleteKey;
+            case '4':
+                return EndKey;
+            case '5':
+                return PageUp;
+            case '6':
+                return PageDown;
+            }
+        }
+
         switch (sequence_input[1])
         {
         case 0x41:
@@ -80,6 +110,21 @@ int ParseArrowKey(void)
             return ArrowRight;
         case 0x44:
             return ArrowLeft;
+        case 'H':
+            return HomeKey;
+        case 'F':
+            return EndKey;
+        }
+    }
+    else if (sequence_input[0] == 'O')
+    {
+        /* older terminals send ESC O H / ESC O F for Home / End */
+        switch (sequence_input[1])
+        {
+        case 'H':
+            return HomeKey;
+        case 'F':
+            return EndKey;
         }
     }
     return '\x1B';
