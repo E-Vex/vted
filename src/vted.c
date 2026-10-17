@@ -160,6 +160,105 @@ static void EditorSave(void)
     SetStatusMessage("Saved %s", vted_buffer.filename);
 }
 
+/* longest answer a prompt accepts, in bytes (a path fits comfortably) */
+#define PROMPT_MAX 1024
+
+static char *EditorPrompt(const char *label)
+{
+    /* asks for one line of text in the message bar. Returns it in a
+       heap buffer the caller frees, or NULL when the person cancels
+       with ESC or confirms an empty answer */
+    char *answer = malloc(PROMPT_MAX + 1);
+    int length = 0;
+
+    if (answer == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    answer[0] = '\0';
+
+    while (1)
+    {
+        SetStatusMessage("%s%s", label, answer);
+        RefreshScreen();
+
+        int c = ReadKeyPress();
+
+        if (c == 0)
+        {
+            continue; /* idle read timeout: just repaint the prompt */
+        }
+
+        if (c == 27) /* ESC cancels */
+        {
+            SetStatusMessage("");
+            free(answer);
+            return NULL;
+        }
+
+        if (c == '\r' || c == '\n')
+        {
+            SetStatusMessage("");
+
+            if (length == 0)
+            {
+                free(answer);
+                return NULL;
+            }
+
+            return answer;
+        }
+
+        if (c == 127) /* Backspace removes one whole character */
+        {
+            length = Utf8PrevBoundary(answer, length);
+            answer[length] = '\0';
+        }
+        else if (((c >= 32 && c <= 126) || (c >= 128 && c <= 255)) && length < PROMPT_MAX)
+        {
+            answer[length++] = (char)c;
+            answer[length] = '\0';
+        }
+    }
+}
+
+static void EditorGoToLine(void)
+{
+    char *answer = EditorPrompt("Go to line: ");
+
+    if (answer == NULL)
+    {
+        return;
+    }
+
+    char *end;
+    long line = strtol(answer, &end, 10);
+
+    if (*end != '\0' || end == answer || line < 1)
+    {
+        SetStatusMessage("Not a line number: %s", answer);
+        free(answer);
+        return;
+    }
+
+    free(answer);
+
+    if (vted_buffer.num_rows == 0)
+    {
+        return;
+    }
+
+    /* a number past the end lands on the last line */
+    if (line > vted_buffer.num_rows)
+    {
+        line = vted_buffer.num_rows;
+    }
+
+    vted_editor_config.cursor_y = (int)line - 1;
+    vted_editor_config.cursor_x = 0;
+}
+
 /* pressing Ctrl-Q this many times in a row overrides unsaved changes */
 #define QUIT_CONFIRMATIONS 3
 
@@ -423,6 +522,11 @@ int main(int argc, char *argv[])
             {
                 /* Ctrl-F searches the buffer incrementally */
                 EditorFind();
+            }
+            else if (c_in == CTRL_KEY('g') || c_in == CTRL_KEY('G'))
+            {
+                /* Ctrl-G jumps to a line number */
+                EditorGoToLine();
             }
             else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
             {
