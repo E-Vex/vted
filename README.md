@@ -101,7 +101,8 @@ man vted        # the full manual
 - Alternate screen buffer: your shell history stays untouched
 - Open files from the command line, edit, and save them back
 - Full cursor movement: arrows, Home, End, PageUp, PageDown
-- Word movement with Ctrl or Alt and the arrows, or Alt-b and Alt-f; a word\n  is a run of letters and digits, or a run of punctuation
+- Word movement with Ctrl or Alt and the arrows, or Alt-b and Alt-f; a word
+  is a run of letters and digits, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Auto-indent: Enter starts the new line with the indent of the current one
@@ -115,7 +116,8 @@ man vted        # the full manual
 - Message bar for status and warnings
 - Incremental search (Ctrl-F) with match highlighting
 - Go to a line with Ctrl-G; a number past the end lands on the last line
-- Saving an unnamed buffer asks for a file name and keeps the buffer unnamed\n  if the file cannot be written
+- Saving an unnamed buffer asks for a file name; the buffer stays unnamed
+  if the file cannot be written
 - Quit protection: unsaved changes require repeated Ctrl-Q
 
 ## Documentation
