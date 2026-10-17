@@ -8,6 +8,7 @@
 #include "vted_screen.h"
 #include "vted_row.h"
 #include "vted_file.h"
+#include "vted_utf8.h"
 /*===============================*/
 
 static void EditorInsertChar(int c)
@@ -103,12 +104,20 @@ static void EditorDelChar(void)
     {
         vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
 
-        if (RowRemoveChar(row, vted_editor_config.cursor_x - 1) == -1)
+        /* a character can span several bytes: remove all of them so a
+           multibyte sequence is never left half deleted */
+        int start = Utf8PrevBoundary(row->chars, vted_editor_config.cursor_x);
+        int count = vted_editor_config.cursor_x - start;
+
+        while (count-- > 0)
         {
-            KillApp("RowRemoveChar");
+            if (RowRemoveChar(row, start) == -1)
+            {
+                KillApp("RowRemoveChar");
+            }
         }
 
-        vted_editor_config.cursor_x--;
+        vted_editor_config.cursor_x = start;
     }
 
     vted_buffer.dirty = 1;
