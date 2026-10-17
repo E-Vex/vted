@@ -89,6 +89,24 @@ static void TestCtrlAndAltArrowsMoveByWord(void)
     CHECK_INT(ReadKeyPress(), WordLeft);
 }
 
+static void TestAltLettersMoveByWord(void)
+{
+    FeedInput("\x1b" "b"); /* Alt-b */
+    CHECK_INT(ReadKeyPress(), WordLeft);
+    FeedInput("\x1b" "f"); /* Alt-f */
+    CHECK_INT(ReadKeyPress(), WordRight);
+
+    /* other Alt combinations are swallowed whole, no text leaks */
+    FeedInput("\x1b" "x");
+    CHECK_INT(ReadKeyPress(), 0);
+    CHECK_INT(ReadKeyPress(), 0);
+
+    /* plain b and f are still text */
+    FeedInput("bf");
+    CHECK_INT(ReadKeyPress(), 'b');
+    CHECK_INT(ReadKeyPress(), 'f');
+}
+
 static void TestShiftArrowsStayPlain(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -133,6 +151,7 @@ int main(void)
     TestPlainKeys();
     TestApplicationCursorKeys();
     TestCtrlAndAltArrowsMoveByWord();
+    TestAltLettersMoveByWord();
     TestShiftArrowsStayPlain();
     TestModifiedUpDownStayPlain();
     TestSequencesDoNotLeakText();
