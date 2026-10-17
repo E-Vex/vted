@@ -6,7 +6,8 @@ SRC = \
 	src/vted_terminal.c \
 	src/vted.c \
 	src/vted_keyboard.c \
-	src/vted_screen.c
+	src/vted_screen.c \
+	src/vted_row.c
 
 TARGET = vted
 
