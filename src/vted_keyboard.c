@@ -45,7 +45,7 @@ int ReadRawByte(void)
 
     return NO_KEY;
 }
-int ParseArrowKey()
+int ParseArrowKey(void)
 {
     /*=================================================
     | An arrow key is not a single-byte character.    |
@@ -90,7 +90,7 @@ int ReadKeyPress()
 
     if (user_input == ESC)
     {
-        user_input = ParseArrowKey(user_input);
+        user_input = ParseArrowKey();
     }
 
     return user_input;
