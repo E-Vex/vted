@@ -53,6 +53,15 @@ cursor on the match, ESC restores the previous position
 .TP
 .B Ctrl\-Q
 quit; unsaved changes require three additional confirmations
+.SH TEXT HANDLING
+The cursor moves and deletes by whole UTF\-8 characters, never into
+the middle of a multibyte sequence. Wide characters (CJK, emoji) take
+two terminal cells and combining marks none. Control characters are
+shown as
+.BI ^ X
+in inverted video and bytes that are not valid UTF\-8 as U+FFFD.
+When moving up and down the cursor aims for the display column it
+started from, even across shorter lines.
 .SH EXIT STATUS
 .B vted
 exits with status 0 after a normal quit. Fatal errors (a file that
