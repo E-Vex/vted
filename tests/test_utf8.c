@@ -92,6 +92,32 @@ static void TestWidths(void)
     CHECK_INT(Utf8CharWidth(0x7F), 0);     /* controls are the row's job */
 }
 
+static void TestCharClasses(void)
+{
+    CHECK_INT(Utf8CharClass(' '), Utf8ClassBlank);
+    CHECK_INT(Utf8CharClass('\t'), Utf8ClassBlank);
+    CHECK_INT(Utf8CharClass(0xA0), Utf8ClassBlank);     /* no-break space */
+    CHECK_INT(Utf8CharClass(0x3000), Utf8ClassBlank);   /* ideographic space */
+
+    CHECK_INT(Utf8CharClass('a'), Utf8ClassWord);
+    CHECK_INT(Utf8CharClass('Z'), Utf8ClassWord);
+    CHECK_INT(Utf8CharClass('7'), Utf8ClassWord);
+    CHECK_INT(Utf8CharClass('_'), Utf8ClassWord);
+    CHECK_INT(Utf8CharClass(0xE9), Utf8ClassWord);      /* é */
+    CHECK_INT(Utf8CharClass(0xAA), Utf8ClassWord);      /* ª is a letter */
+    CHECK_INT(Utf8CharClass(0x4E2D), Utf8ClassWord);    /* CJK ideograph */
+    CHECK_INT(Utf8CharClass(0x1F600), Utf8ClassWord);   /* emoji */
+
+    CHECK_INT(Utf8CharClass('-'), Utf8ClassPunctuation);
+    CHECK_INT(Utf8CharClass('.'), Utf8ClassPunctuation);
+    CHECK_INT(Utf8CharClass('\x01'), Utf8ClassPunctuation);
+    CHECK_INT(Utf8CharClass(0xA1), Utf8ClassPunctuation);   /* ¡ */
+    CHECK_INT(Utf8CharClass(0xD7), Utf8ClassPunctuation);   /* × */
+    CHECK_INT(Utf8CharClass(0x2014), Utf8ClassPunctuation); /* em dash */
+    CHECK_INT(Utf8CharClass(0x3002), Utf8ClassPunctuation); /* ideographic full stop */
+    CHECK_INT(Utf8CharClass(-1), Utf8ClassPunctuation);     /* invalid byte */
+}
+
 int main(void)
 {
     TestDecode();
@@ -99,6 +125,7 @@ int main(void)
     TestBoundaries();
     TestBoundariesOnInvalidBytes();
     TestWidths();
+    TestCharClasses();
 
     return TestSummary("utf8");
 }
