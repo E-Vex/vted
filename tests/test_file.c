@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <unistd.h>
 /*===============================*/
 #include "tests/vted_test.h"
@@ -14,13 +16,13 @@
 static char test_path[] = "/tmp/vted_test_file_XXXXXX";
 static char read_back[512];
 
-static void WriteFile(const char *content, int len)
+static void WriteFile(const char *path, const char *content, int len)
 {
-    FILE *file = fopen(test_path, "wb");
+    FILE *file = fopen(path, "wb");
 
     if (file == NULL)
     {
-        perror(test_path);
+        perror(path);
         exit(1);
     }
 
@@ -49,7 +51,7 @@ static const char *ReadBack(void)
 static void Load(const char *content, int len)
 {
     FreeBuffer();
-    WriteFile(content, len);
+    WriteFile(test_path, content, len);
 
     if (OpenFile(test_path) == -1)
     {
@@ -192,6 +194,101 @@ static void TestMissingAndSpecialFiles(void)
     CHECK_INT(OpenFile("/tmp"), -1);
 }
 
+static void TestSaveKeepsTheMode(void)
+{
+    struct stat info;
+
+    Load("abc\n", 4);
+    AppendRow("d", 1, VTED_EOL_LF);
+
+    /* not the 0600 a temporary file starts with */
+    chmod(test_path, 0644);
+
+    CHECK_INT(SaveFile(), 0);
+    CHECK_STR(ReadBack(), "abc\nd\n");
+
+    CHECK_INT(stat(test_path, &info), 0);
+    CHECK_INT(info.st_mode & 07777, 0644);
+}
+
+static void TestSaveNewFileGetsTheUsualMode(void)
+{
+    char new_path[300];
+    struct stat info;
+
+    /* what the save is expected to create: 0666 minus the umask */
+    mode_t mask = umask(0);
+    umask(mask);
+
+    strcpy(new_path, test_path);
+    strcat(new_path, ".new");
+    unlink(new_path);
+
+    FreeBuffer();
+    AppendRow("x", 1, VTED_EOL_LF);
+    vted_buffer.filename = strdup(new_path);
+
+    CHECK_INT(SaveFile(), 0);
+
+    CHECK_INT(stat(new_path, &info), 0);
+    CHECK_INT(info.st_mode & 07777, 0666 & ~mask);
+
+    unlink(new_path);
+}
+
+static void TestFailedSaveKeepsTheOriginal(void)
+{
+    char dir[] = "/tmp/vted_test_dir_XXXXXX";
+    char path[300];
+    struct stat info;
+    DIR *directory;
+    struct dirent *entry;
+    int entries = 0;
+
+    if (mkdtemp(dir) == NULL)
+    {
+        perror("mkdtemp");
+        exit(1);
+    }
+
+    strcpy(path, dir);
+    strcat(path, "/file.txt");
+    WriteFile(path, "keep\n", 5);
+
+    FreeBuffer();
+    CHECK_INT(OpenFile(path), 0);
+    AppendRow("more", 4, VTED_EOL_LF);
+
+    /* a read-only directory stops the temporary file from being
+       made, which must fail the save and leave everything alone */
+    CHECK_INT(chmod(dir, 0500), 0);
+    CHECK_INT(SaveFile(), -1);
+    CHECK_INT(chmod(dir, 0700), 0);
+
+    CHECK_INT(stat(path, &info), 0);
+    CHECK_INT(info.st_size, 5);
+
+    /* and the directory holds no leftover temporary file */
+    directory = opendir(dir);
+
+    if (directory == NULL)
+    {
+        perror(dir);
+        exit(1);
+    }
+
+    while ((entry = readdir(directory)) != NULL)
+    {
+        entries++;
+    }
+    closedir(directory);
+
+    CHECK_INT(entries, 3); /* ".", ".." and the untouched file */
+
+    unlink(path);
+    rmdir(dir);
+}
+
 int main(void)
 {
     int fd = mkstemp(test_path);
@@ -213,6 +310,9 @@ int main(void)
     TestDegenerateFiles();
     TestSaveWritesRowEndings();
     TestMissingAndSpecialFiles();
+    TestSaveKeepsTheMode();
+    TestSaveNewFileGetsTheUsualMode();
+    TestFailedSaveKeepsTheOriginal();
 
     unlink(test_path);
 
