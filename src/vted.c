@@ -4,6 +4,7 @@
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
 #include "vted_screen.h"
+#include "vted_row.h"
 /*===============================*/
 
 int main()
@@ -11,6 +12,7 @@ int main()
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     EnterToAlternateScreenBuffer();
+    InitBuffer();
     InitVtedEditor();
 
     while (1)
@@ -19,6 +21,7 @@ int main()
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
             ExitAlternateScreenBuffer();
+            FreeBuffer();
             return 0;
         }
 
