@@ -1,6 +1,7 @@
 /*===============================*/
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <string.h>
@@ -213,6 +214,34 @@ static void DrawStatusBar(append_buffer_t *ab)
     AppendToBuffer(ab, "\x1b[m", 3); /* reset colors */
     AppendToBuffer(ab, "\r\n", 2);
 }
+
+static void DrawMessageBar(append_buffer_t *ab)
+{
+    /* the message bar is the last screen row; erase it, then show
+       the most recent status message clipped to the viewport */
+    AppendToBuffer(ab, "\x1b[K", 3);
+
+    int message_len = (int)strlen(vted_editor_config.status_message);
+
+    if (message_len > vted_editor_config.screen_cols)
+    {
+        message_len = vted_editor_config.screen_cols;
+    }
+
+    if (message_len > 0)
+    {
+        AppendToBuffer(ab, vted_editor_config.status_message, message_len);
+    }
+}
+
+void SetStatusMessage(const char *format, ...)
+{
+    va_list args;
+
+    va_start(args, format);
+    vsnprintf(vted_editor_config.status_message, sizeof(vted_editor_config.status_message), format, args);
+    va_end(args);
+}
 void EnterToAlternateScreenBuffer(void)
 {
     write(STDOUT_FILENO, "\x1b[?1049h", 8);
@@ -268,6 +297,8 @@ void RefreshScreen(void)
 
     DrawStatusBar(&ab);
 
+    DrawMessageBar(&ab);
+
     /* display the cursor position on terminal screen */
 
     /* cursor_x/y + 1 here because the terminal starts from 1,1 not 0,0 */
@@ -296,6 +327,8 @@ void InitVtedEditor(void)
     {
         KillApp("GetWindowSize");
     }
+
+    SetStatusMessage("HELP: Ctrl-Q = quit");
 
     /* the first RefreshScreen() call from the main loop paints the frame */
 }
