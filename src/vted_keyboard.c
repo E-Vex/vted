@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <stdlib.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
@@ -45,89 +46,152 @@ int ReadRawByte(void)
 
     return NO_KEY;
 }
-int ParseArrowKey(void)
+/* reads one more byte of an escape sequence; -1 when none arrives
+   within the read timeout (the sequence was cut short) */
+static int ReadSequenceByte(void)
+{
+    unsigned char byte;
+
+    if (read(STDIN_FILENO, &byte, 1) != 1)
+    {
+        return -1;
+    }
+
+    return byte;
+}
+
+static int ParseCsiSequence(void)
 {
     /*=================================================
-    | An arrow key is not a single-byte character.    |
-    | It is represented by a 3-byte escape sequence:  |
-    |  [0x1B] [0x5B] [0x41-0x44]                      |
+    | CSI sequences have the shape:                   |
+    |   ESC [ <parameters> <final byte>               |
     |                                                 |
-    | The first byte is always ESC (0x1B).            |
-    | The second byte is always '[' (0x5B).           |
-    | The third byte identifies the arrow:            |
-    |   0x41 = Up                                     |
-    |   0x42 = Down                                   |
-    |   0x43 = Right                                  |
-    |   0x44 = Left                                   |
+    | parameters are digits and ';' separators, the   |
+    | final byte is in the range 0x40-0x7E. Reading   |
+    | up to the final byte keeps modified keys such   |
+    | as Ctrl-Right (ESC [ 1 ; 5 C) from leaking      |
+    | their tail into the text as typed characters.   |
     |                                                 |
-    | Other special keys use the same shape:          |
-    |   ESC [ H / ESC [ F       -> Home / End         |
-    |   ESC O H / ESC O F       -> Home / End (old)   |
-    |   ESC [ 1 ~ ... ESC [ 6 ~ -> extended keys:     |
-    |     1 = Home   3 = Delete  4 = End              |
-    |     5 = PageUp 6 = PageDown                     |
+    |   ESC [ A-D          -> arrows                  |
+    |   ESC [ H / ESC [ F  -> Home / End              |
+    |   ESC [ n ~          -> extended keys:          |
+    |     1,7 = Home   3 = Delete   4,8 = End         |
+    |     5 = PageUp   6 = PageDown                   |
     =================================================*/
 
-    char sequence_input[2];
+    char parameters[16];
+    int parameters_len = 0;
+    int final_byte;
 
-    if (read(STDIN_FILENO, &sequence_input[0], 1) != 1)
-        return '\x1b';
-    if (read(STDIN_FILENO, &sequence_input[1], 1) != 1)
-        return '\x1b';
-
-    if (sequence_input[0] == '[')
+    while ((final_byte = ReadSequenceByte()) != -1)
     {
-        if (sequence_input[1] >= '0' && sequence_input[1] <= '9')
+        if (final_byte >= 0x40 && final_byte <= 0x7E)
         {
-            /* extended sequence: consume the terminating '~' byte */
-            char terminator;
-
-            if (read(STDIN_FILENO, &terminator, 1) != 1)
-                return '\x1b';
-
-            switch (sequence_input[1])
-            {
-            case '1':
-                return HomeKey;
-            case '3':
-                return DeleteKey;
-            case '4':
-                return EndKey;
-            case '5':
-                return PageUp;
-            case '6':
-                return PageDown;
-            }
+            break;
         }
 
-        switch (sequence_input[1])
+        /* overlong parameter lists are read to the end but not kept */
+        if (parameters_len < (int)sizeof(parameters) - 1)
         {
-        case 0x41:
-            return ArrowUp;
-        case 0x42:
-            return ArrowDown;
-        case 0x43:
-            return ArrowRight;
-        case 0x44:
-            return ArrowLeft;
-        case 'H':
-            return HomeKey;
-        case 'F':
-            return EndKey;
+            parameters[parameters_len++] = (char)final_byte;
         }
     }
-    else if (sequence_input[0] == 'O')
+
+    if (final_byte == -1)
     {
-        /* older terminals send ESC O H / ESC O F for Home / End */
-        switch (sequence_input[1])
-        {
-        case 'H':
-            return HomeKey;
-        case 'F':
-            return EndKey;
-        }
+        return '\x1b'; /* cut short: report the lone ESC */
     }
-    return '\x1B';
+
+    parameters[parameters_len] = '\0';
+
+    /* the Linux console sends F1-F5 as ESC [ [ A..E: eat the letter */
+    if (final_byte == '[')
+    {
+        ReadSequenceByte();
+        return NO_KEY;
+    }
+
+    switch (final_byte)
+    {
+    case 'A':
+        return ArrowUp;
+    case 'B':
+        return ArrowDown;
+    case 'C':
+        return ArrowRight;
+    case 'D':
+        return ArrowLeft;
+    case 'H':
+        return HomeKey;
+    case 'F':
+        return EndKey;
+    case '~':
+        switch (atoi(parameters))
+        {
+        case 1:
+        case 7:
+            return HomeKey;
+        case 3:
+            return DeleteKey;
+        case 4:
+        case 8:
+            return EndKey;
+        case 5:
+            return PageUp;
+        case 6:
+            return PageDown;
+        }
+        break;
+    }
+
+    return NO_KEY; /* well-formed but not bound: ignored */
+}
+
+static int ParseSs3Sequence(void)
+{
+    /* older terminals and application cursor mode send ESC O <letter>
+       for the arrows and for Home / End */
+
+    switch (ReadSequenceByte())
+    {
+    case 'A':
+        return ArrowUp;
+    case 'B':
+        return ArrowDown;
+    case 'C':
+        return ArrowRight;
+    case 'D':
+        return ArrowLeft;
+    case 'H':
+        return HomeKey;
+    case 'F':
+        return EndKey;
+    }
+
+    return NO_KEY;
+}
+
+int ParseArrowKey(void)
+{
+    int introducer = ReadSequenceByte();
+
+    if (introducer == -1)
+    {
+        return '\x1b'; /* nothing followed: the ESC key itself */
+    }
+
+    if (introducer == '[')
+    {
+        return ParseCsiSequence();
+    }
+
+    if (introducer == 'O')
+    {
+        return ParseSs3Sequence();
+    }
+
+    /* ESC followed by anything else is Alt+key: not bound, swallowed */
+    return NO_KEY;
 }
 int ReadKeyPress()
 {
