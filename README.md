@@ -91,6 +91,8 @@ man vted        # the full manual
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
 | Ctrl-D          | duplicate the line under the cursor              |
+| Ctrl-Z          | undo the last change (the last 200 are kept)     |
+| Ctrl-Y          | redo the last undone change                      |
 | typing          | insert at the cursor                             |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-G          | go to a line number (ESC cancels)                |
@@ -108,6 +110,7 @@ man vted        # the full manual
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D
+- Undo and redo with Ctrl-Z and Ctrl-Y; the cursor follows along
 - Line endings are preserved: LF, CRLF, CR and mixed files save back
   byte for byte, files without a trailing newline keep having none, and
   new lines take the ending of the line they came from
