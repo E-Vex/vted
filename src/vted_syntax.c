@@ -50,11 +50,48 @@ static const vted_language_t language_c = {
     "//", "/*", "*/", "\"'", 1};
 
 /*----------------------------------------------------------
+| C++
+----------------------------------------------------------*/
+
+static const char *const cpp_extensions[] = {
+    ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".tcc", NULL};
+
+static const char *const cpp_keywords[] = {
+    "break", "case", "catch", "continue", "default", "delete", "do",
+    "else", "for", "goto", "if", "new", "return", "sizeof", "switch",
+    "throw", "try", "while", "co_await", "co_return", "co_yield", NULL};
+
+static const char *const cpp_types[] = {
+    "alignas", "alignof", "auto", "bool", "char", "char8_t", "char16_t",
+    "char32_t", "class", "concept", "const", "constexpr", "consteval",
+    "constinit", "decltype", "double", "enum", "explicit", "extern",
+    "final", "float", "friend", "inline", "int", "long", "mutable",
+    "namespace", "noexcept", "operator", "override", "private",
+    "protected", "public", "register", "short", "signed", "static",
+    "static_assert", "struct", "template", "typedef", "typename", "union",
+    "unsigned", "using", "virtual", "void", "volatile", "wchar_t",
+    "const_cast", "dynamic_cast", "reinterpret_cast", "static_cast",
+    "size_t", "ssize_t", "ptrdiff_t", "intptr_t", "uintptr_t",
+    "int8_t", "int16_t", "int32_t", "int64_t",
+    "uint8_t", "uint16_t", "uint32_t", "uint64_t", "FILE",
+    "string", "wstring", "vector", "map", "set", "pair", "optional",
+    "variant", "unique_ptr", "shared_ptr", "thread", NULL};
+
+static const char *const cpp_constants[] = {
+    "NULL", "nullptr", "true", "false", "EOF", "stdin", "stdout",
+    "stderr", NULL};
+
+static const vted_language_t language_cpp = {
+    "C++", cpp_extensions, cpp_keywords, cpp_types, cpp_constants,
+    "//", "/*", "*/", "\"'", 1};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
 static const vted_language_t *const languages[] = {
     &language_c,
+    &language_cpp,
     NULL};
 
 static const vted_language_t *current_language;

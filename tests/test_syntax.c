@@ -59,6 +59,15 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("include/vted_row.h");
     CHECK_STR(SyntaxLanguageName(), "C");
 
+    SyntaxSelectForFile("main.cpp");
+    CHECK_STR(SyntaxLanguageName(), "C++");
+
+    SyntaxSelectForFile("include/tool.hpp");
+    CHECK_STR(SyntaxLanguageName(), "C++");
+
+    SyntaxSelectForFile("old.cc");
+    CHECK_STR(SyntaxLanguageName(), "C++");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -252,6 +261,36 @@ static void TestInsertingAndRemovingRows(void)
     CHECK_STR(Classes(1), "tttnnn");
 }
 
+static void TestCpp(void)
+{
+    SyntaxSelectForFile("shape.cpp");
+
+    LoadOne("class Foo : public Shape {");
+    CHECK_STR(Classes(0), "ttttt" "n" "nnn" "n" "n" "n" "tttttt" "n" "nnnnn" "n" "n");
+
+    LoadOne("return new int[10];");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "kkk" "n" "ttt" "n" "dd" "n" "n");
+
+    /* a word after the double colon is still seen: :: is a separator */
+    LoadOne("std::string name;");
+    CHECK_STR(Classes(0), "nnn" "nn" "tttttt" "n" "nnnn" "n");
+
+    LoadOne("auto p = nullptr;");
+    CHECK_STR(Classes(0), "tttt" "n" "n" "n" "n" "n" "ddddddd" "n");
+
+    LoadOne("template <int N>");
+    CHECK_STR(Classes(0), "tttttttt" "n" "n" "ttt" "n" "n" "n");
+
+    /* a //.hpp file has the same block comments as C */
+    {
+        const char *lines[3] = {"/* a", "b", "*/ int"};
+
+        SyntaxSelectForFile("tool.hpp");
+        Load(lines, 3);
+        CHECK_STR(Classes(2), "cc" "n" "ttt");
+    }
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -276,6 +315,7 @@ int main(void)
     TestRowsAskedOutOfOrder();
     TestInvalidation();
     TestInsertingAndRemovingRows();
+    TestCpp();
     TestStyles();
 
     FreeBuffer();
