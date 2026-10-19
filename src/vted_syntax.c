@@ -218,6 +218,36 @@ static const vted_language_t language_ts = {
     "//", "/*", "*/", "\"'`", 0};
 
 /*----------------------------------------------------------
+| Rust
+----------------------------------------------------------*/
+
+static const char *const rust_extensions[] = {".rs", NULL};
+
+static const char *const rust_keywords[] = {
+    "as", "break", "const", "continue", "crate", "dyn", "else", "enum",
+    "extern", "fn", "for", "if", "impl", "in", "let", "loop", "match",
+    "mod", "move", "mut", "pub", "ref", "return", "self", "Self",
+    "static", "struct", "super", "trait", "type", "unsafe", "use",
+    "where", "while", "async", "await", NULL};
+
+static const char *const rust_types[] = {
+    "bool", "char", "f32", "f64", "i8", "i16", "i32", "i64", "i128",
+    "isize", "str", "u8", "u16", "u32", "u64", "u128", "usize",
+    "String", "Vec", "Option", "Result", "Box", "Rc", "Arc", "RefCell",
+    "Cell", "HashMap", "HashSet", "BTreeMap", "BTreeSet", "VecDeque",
+    NULL};
+
+static const char *const rust_constants[] = {
+    "true", "false", "None", "Some", "Ok", "Err", NULL};
+
+/* only the double quote opens a string: a single quote almost always
+   starts a lifetime, and letting it open a string would swallow the
+   rest of the row */
+static const vted_language_t language_rust = {
+    "Rust", rust_extensions, rust_keywords, rust_types, rust_constants,
+    "//", "/*", "*/", "\"", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -229,6 +259,7 @@ static const vted_language_t *const languages[] = {
     &language_makefile,
     &language_js,
     &language_ts,
+    &language_rust,
     NULL};
 
 static const vted_language_t *current_language;

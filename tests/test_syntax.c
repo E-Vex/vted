@@ -102,6 +102,9 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("app.tsx");
     CHECK_STR(SyntaxLanguageName(), "TypeScript");
 
+    SyntaxSelectForFile("main.rs");
+    CHECK_STR(SyntaxLanguageName(), "Rust");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -335,6 +338,30 @@ static void TestTypeScript(void)
     CHECK_STR(Classes(0), "kkkkk" "nnnnn" "tttttt" "nnnn");
 }
 
+static void TestRust(void)
+{
+    SyntaxSelectForFile("main.rs");
+
+    LoadOne("let x = 42;");
+    CHECK_STR(Classes(0), "kkk" "nnnnn" "dd" "n");
+
+    LoadOne("fn main() {");
+    CHECK_STR(Classes(0), "kk" "n" "nnnn" "n" "n" "n" "n");
+
+    LoadOne("pub struct Point {");
+    CHECK_STR(Classes(0), "kkk" "n" "kkkkkk" "n" "nnnnn" "n" "n");
+
+    LoadOne("let r = Some(42);");
+    CHECK_STR(Classes(0), "kkk" "nn" "nnn" "dddd" "n" "dd" "n" "n");
+
+    LoadOne("let s = \"hi\";");
+    CHECK_STR(Classes(0), "kkk" "nn" "nnn" "ssss" "n");
+
+    /* a lifetime does not open a string, the row keeps its colors */
+    LoadOne("&'a str");
+    CHECK_STR(Classes(0), "nnnnttt");
+}
+
 static void TestMakefile(void)
 {
     SyntaxSelectForFile("Makefile");
@@ -480,6 +507,7 @@ int main(void)
     TestMakefile();
     TestJavaScript();
     TestTypeScript();
+    TestRust();
     TestStyles();
 
     FreeBuffer();
