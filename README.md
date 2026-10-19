@@ -191,6 +191,8 @@ man vted        # the full manual
   up and down
 - Line numbers in a gutter, the current one in bold; Ctrl-N hides them and
   a terminal too narrow for them drops them on its own
+- Syntax highlighting picked from the file name: C, C++, Python, shell
+  scripts, Makefiles, JavaScript, TypeScript, Rust, Go and JSON
 - Status bar with filename, line count, modified marker and the cursor's line
   and display column
 - Message bar for status and warnings
