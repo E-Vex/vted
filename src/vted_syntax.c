@@ -274,6 +274,20 @@ static const vted_language_t language_go = {
     "//", "/*", "*/", "\"'`", 0};
 
 /*----------------------------------------------------------
+| JSON
+----------------------------------------------------------*/
+
+static const char *const json_extensions[] = {".json", NULL};
+
+static const char *const json_constants[] = {
+    "true", "false", "null", NULL};
+
+/* no comments exist in JSON, and only the double quote is a string */
+static const vted_language_t language_json = {
+    "JSON", json_extensions, NULL, NULL, json_constants,
+    NULL, NULL, NULL, "\"", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -287,6 +301,7 @@ static const vted_language_t *const languages[] = {
     &language_ts,
     &language_rust,
     &language_go,
+    &language_json,
     NULL};
 
 static const vted_language_t *current_language;

@@ -108,6 +108,9 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("main.go");
     CHECK_STR(SyntaxLanguageName(), "Go");
 
+    SyntaxSelectForFile("data.json");
+    CHECK_STR(SyntaxLanguageName(), "JSON");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -341,6 +344,26 @@ static void TestTypeScript(void)
     CHECK_STR(Classes(0), "kkkkk" "nnnnn" "tttttt" "nnnn");
 }
 
+static void TestJson(void)
+{
+    SyntaxSelectForFile("data.json");
+
+    /* only the strings, the numbers and true, false and null color */
+    LoadOne("{\"key\": \"value\", \"n\": 42}");
+    CHECK_STR(Classes(0), "n" "sssss" "nn" "sssssss" "nn" "sss" "nn" "dd" "n");
+
+    LoadOne("true, false, null");
+    CHECK_STR(Classes(0), "dddd" "nn" "ddddd" "nn" "dddd");
+
+    /* // is not a comment here, it is plain text */
+    LoadOne("// not a comment");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnnnnn");
+
+    /* a single quote is not a string opener in JSON */
+    LoadOne("it's");
+    CHECK_STR(Classes(0), "nnnn");
+}
+
 static void TestGo(void)
 {
     SyntaxSelectForFile("main.go");
@@ -536,6 +559,7 @@ int main(void)
     TestTypeScript();
     TestRust();
     TestGo();
+    TestJson();
     TestStyles();
 
     FreeBuffer();
