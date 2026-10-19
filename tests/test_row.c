@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 /*===============================*/
 #include "tests/vted_test.h"
@@ -180,6 +181,66 @@ static void TestWordMovementEmptyRow(void)
     CHECK_INT(RowWordLeft(&row, 0), 0);
 }
 
+/* builds a row whose text lives on the heap, as RowSetText needs */
+static vted_row_t HeapRow(const char *text)
+{
+    vted_row_t row;
+
+    row.size = (int)strlen(text);
+    row.chars = malloc((size_t)row.size + 1);
+    memcpy(row.chars, text, (size_t)row.size + 1);
+    row.eol = VTED_EOL_LF;
+    return row;
+}
+
+static void TestTruncate(void)
+{
+    vted_row_t row = HeapRow("hello world");
+
+    RowTruncate(&row, 5);
+    CHECK_INT(row.size, 5);
+    CHECK_STR(row.chars, "hello");
+
+    /* at or past the end there is nothing to cut */
+    RowTruncate(&row, 5);
+    CHECK_STR(row.chars, "hello");
+    RowTruncate(&row, 99);
+    CHECK_STR(row.chars, "hello");
+
+    /* a negative position is ignored too */
+    RowTruncate(&row, -1);
+    CHECK_STR(row.chars, "hello");
+
+    RowTruncate(&row, 0);
+    CHECK_INT(row.size, 0);
+    CHECK_STR(row.chars, "");
+
+    free(row.chars);
+}
+
+static void TestSetText(void)
+{
+    vted_row_t row = HeapRow("old text");
+
+    CHECK_INT(RowSetText(&row, "new", 3), 0);
+    CHECK_INT(row.size, 3);
+    CHECK_STR(row.chars, "new");
+
+    /* longer than before, and the row ending is left alone */
+    row.eol = VTED_EOL_CRLF;
+    CHECK_INT(RowSetText(&row, "a much longer replacement", 25), 0);
+    CHECK_INT(row.size, 25);
+    CHECK_STR(row.chars, "a much longer replacement");
+    CHECK_INT(row.eol, VTED_EOL_CRLF);
+
+    /* an empty text, with no bytes to copy */
+    CHECK_INT(RowSetText(&row, NULL, 0), 0);
+    CHECK_INT(row.size, 0);
+    CHECK_STR(row.chars, "");
+
+    free(row.chars);
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -193,6 +254,8 @@ int main(void)
     TestWordLeft();
     TestWordMovementUtf8();
     TestWordMovementEmptyRow();
+    TestTruncate();
+    TestSetText();
 
     return TestSummary("row");
 }
