@@ -71,7 +71,9 @@ modules:
   vted_keyboard.c  byte reading, escape sequence parsing
   vted_screen.c    viewport, scrolling, rendering, bars
   vted_row.c       text buffer, row editing primitives
+  vted_undo.c      the undo and redo history
   vted_file.c      OpenFile / SaveFile
+  vted_syntax.c    coloring text by the language of the file
   vted.c           editor core: key dispatch, editing, search
 
 by E-Vex                      
