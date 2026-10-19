@@ -10,6 +10,7 @@
 #include "vted_keyboard.h"
 #include "vted_screen.h"
 #include "vted_row.h"
+#include "vted_syntax.h"
 #include "vted_utf8.h"
 /*===============================*/
 
@@ -255,18 +256,61 @@ static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int 
     }
 }
 
-static void DrawRowText(append_buffer_t *ab, const vted_row_t *row, int has_match)
+/* the class of every byte of the row being drawn, kept between frames so
+   that drawing does not allocate */
+static unsigned char *highlight_classes;
+static int highlight_capacity;
+
+static const unsigned char *ClassesOfRow(int buffer_row, int size)
+{
+    if (size > highlight_capacity)
+    {
+        unsigned char *grown = realloc(highlight_classes, (size_t)size);
+
+        if (grown == NULL)
+        {
+            KillApp("realloc");
+        }
+
+        highlight_classes = grown;
+        highlight_capacity = size;
+    }
+
+    SyntaxHighlightRow(buffer_row, highlight_classes);
+    return highlight_classes;
+}
+
+static void AppendStyle(append_buffer_t *ab, int hl_class, int inverted)
+{
+    /* every change starts from plain text, so no attribute of the
+       previous style can linger */
+    const char *color = SyntaxStyle(hl_class);
+
+    AppendToBuffer(ab, "\x1b[m", 3);
+
+    if (inverted)
+    {
+        AppendToBuffer(ab, "\x1b[7m", 4);
+    }
+
+    AppendToBuffer(ab, color, (int)strlen(color));
+}
+
+static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *row, int has_match)
 {
     /* one pass over the row: every character is laid out in terminal
        cells, then clipped to the viewport [col_offset, col_offset +
-       text_cols). Control characters and the active search match
-       are drawn in inverted video */
+       text_cols). Syntax colors come from the highlight classes;
+       control characters and the active search match are drawn in
+       inverted video */
+    const unsigned char *classes = ClassesOfRow(buffer_row, row->size);
     int left = vted_editor_config.col_offset;
     int right = left + vted_editor_config.text_cols;
     int match_end = vted_editor_config.match_col + vted_editor_config.match_len;
     int cell = 0;
     int at = 0;
     int inverted = 0;
+    int style = HlNormal;
 
     while (at < row->size && cell < right)
     {
@@ -278,10 +322,11 @@ static void DrawRowText(append_buffer_t *ab, const vted_row_t *row, int has_matc
         int in_match = has_match && at >= vted_editor_config.match_col && at < match_end;
         int want_inverted = is_control || in_match;
 
-        if (want_inverted != inverted)
+        if (want_inverted != inverted || classes[at] != style)
         {
-            AppendToBuffer(ab, want_inverted ? "\x1b[7m" : "\x1b[m", want_inverted ? 4 : 3);
+            style = classes[at];
             inverted = want_inverted;
+            AppendStyle(ab, style, inverted);
         }
 
         AppendGlyph(ab, row, at, next, cell, width, left, right);
@@ -290,7 +335,7 @@ static void DrawRowText(append_buffer_t *ab, const vted_row_t *row, int has_matc
         at = next;
     }
 
-    if (inverted)
+    if (inverted || style != HlNormal)
     {
         AppendToBuffer(ab, "\x1b[m", 3);
     }
@@ -336,7 +381,7 @@ static void DrawRows(append_buffer_t *ab)
             vted_row_t *text_row = &vted_buffer.rows[buffer_row];
 
             DrawGutter(ab, buffer_row);
-            DrawRowText(ab, text_row,
+            DrawRowText(ab, buffer_row, text_row,
                         buffer_row == vted_editor_config.match_row &&
                             vted_editor_config.match_len > 0);
         }
