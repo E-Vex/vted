@@ -90,6 +90,18 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("rules.mk");
     CHECK_STR(SyntaxLanguageName(), "Makefile");
 
+    SyntaxSelectForFile("app.js");
+    CHECK_STR(SyntaxLanguageName(), "JavaScript");
+
+    SyntaxSelectForFile("app.mjs");
+    CHECK_STR(SyntaxLanguageName(), "JavaScript");
+
+    SyntaxSelectForFile("app.ts");
+    CHECK_STR(SyntaxLanguageName(), "TypeScript");
+
+    SyntaxSelectForFile("app.tsx");
+    CHECK_STR(SyntaxLanguageName(), "TypeScript");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -283,6 +295,46 @@ static void TestInsertingAndRemovingRows(void)
     CHECK_STR(Classes(1), "tttnnn");
 }
 
+static void TestJavaScript(void)
+{
+    SyntaxSelectForFile("app.js");
+
+    LoadOne("const x = 42;");
+    CHECK_STR(Classes(0), "kkkkk" "nnnnn" "dd" "n");
+
+    LoadOne("function greet(name) {");
+    CHECK_STR(Classes(0), "kkkkkkkk" "n" "nnnnn" "n" "nnnn" "n" "n" "n");
+
+    /* a template literal is a string, the backtick opens it */
+    LoadOne("const s = `hi`;");
+    CHECK_STR(Classes(0), "kkkkk" "nnnnn" "ssss" "n");
+
+    LoadOne("return null;");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "dddd" "n");
+
+    /* a // inside a string is not a comment */
+    LoadOne("url = \"http://x\";");
+    CHECK_STR(Classes(0), "nnn" "n" "n" "n" "ssssssssss" "n");
+}
+
+static void TestTypeScript(void)
+{
+    SyntaxSelectForFile("app.ts");
+
+    LoadOne("interface Foo {");
+    CHECK_STR(Classes(0), "kkkkkkkkk" "n" "nnn" "n" "n");
+
+    LoadOne("const x: string = \"hi\";");
+    CHECK_STR(Classes(0), "kkkkk" "nnnn" "tttttt" "nnn" "ssss" "n");
+
+    LoadOne("enum Color {");
+    CHECK_STR(Classes(0), "kkkk" "n" "nnnnn" "n" "n");
+
+    /* the JavaScript words still color, the types join in */
+    LoadOne("const n = Number(x);");
+    CHECK_STR(Classes(0), "kkkkk" "nnnnn" "tttttt" "nnnn");
+}
+
 static void TestMakefile(void)
 {
     SyntaxSelectForFile("Makefile");
@@ -426,6 +478,8 @@ int main(void)
     TestPython();
     TestShell();
     TestMakefile();
+    TestJavaScript();
+    TestTypeScript();
     TestStyles();
 
     FreeBuffer();

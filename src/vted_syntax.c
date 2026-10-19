@@ -161,6 +161,63 @@ static const vted_language_t language_makefile = {
     "#", NULL, NULL, "\"'", 0};
 
 /*----------------------------------------------------------
+| JavaScript
+----------------------------------------------------------*/
+
+static const char *const js_extensions[] = {
+    ".js", ".jsx", ".mjs", ".cjs", NULL};
+
+static const char *const js_keywords[] = {
+    "break", "case", "catch", "class", "const", "continue", "debugger",
+    "default", "delete", "do", "else", "export", "extends", "finally",
+    "for", "function", "if", "import", "in", "instanceof", "let", "new",
+    "return", "super", "switch", "this", "throw", "try", "typeof", "var",
+    "void", "while", "with", "yield", "async", "await", "static", "of",
+    NULL};
+
+static const char *const js_types[] = {
+    "Array", "Boolean", "Date", "Error", "Function", "JSON", "Math",
+    "Number", "Object", "Promise", "Proxy", "RegExp", "String", "Symbol",
+    "BigInt", "Map", "Set", "WeakMap", "WeakSet", NULL};
+
+static const char *const js_constants[] = {
+    "null", "undefined", "true", "false", "NaN", "Infinity", "globalThis",
+    NULL};
+
+/* the quotes carry a backtick: a template literal is a string */
+static const vted_language_t language_js = {
+    "JavaScript", js_extensions, js_keywords, js_types, js_constants,
+    "//", "/*", "*/", "\"'`", 0};
+
+/*----------------------------------------------------------
+| TypeScript
+----------------------------------------------------------*/
+
+static const char *const ts_extensions[] = {
+    ".ts", ".tsx", ".mts", ".cts", NULL};
+
+static const char *const ts_keywords[] = {
+    "break", "case", "catch", "class", "const", "continue", "debugger",
+    "default", "delete", "do", "else", "export", "extends", "finally",
+    "for", "function", "if", "import", "in", "instanceof", "let", "new",
+    "return", "super", "switch", "this", "throw", "try", "typeof", "var",
+    "void", "while", "with", "yield", "async", "await", "static", "of",
+    "interface", "implements", "enum", "namespace", "declare", "type",
+    "abstract", "readonly", "public", "private", "protected", "override",
+    "as", "is", "keyof", "infer", "asserts", "satisfies", NULL};
+
+static const char *const ts_types[] = {
+    "Array", "Boolean", "Date", "Error", "Function", "JSON", "Math",
+    "Number", "Object", "Promise", "Proxy", "RegExp", "String", "Symbol",
+    "BigInt", "Map", "Set", "WeakMap", "WeakSet",
+    "string", "number", "boolean", "any", "unknown", "never", "object",
+    NULL};
+
+static const vted_language_t language_ts = {
+    "TypeScript", ts_extensions, ts_keywords, ts_types, js_constants,
+    "//", "/*", "*/", "\"'`", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -170,6 +227,8 @@ static const vted_language_t *const languages[] = {
     &language_python,
     &language_shell,
     &language_makefile,
+    &language_js,
+    &language_ts,
     NULL};
 
 static const vted_language_t *current_language;
