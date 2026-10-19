@@ -135,6 +135,32 @@ static const vted_language_t language_shell = {
     shell_constants, "#", NULL, NULL, "\"'", 0};
 
 /*----------------------------------------------------------
+| Makefile
+----------------------------------------------------------*/
+
+static const char *const makefile_names[] = {
+    "Makefile", "makefile", "GNUmakefile", ".mk", NULL};
+
+static const char *const makefile_keywords[] = {
+    "include", "ifdef", "ifndef", "ifeq", "ifneq", "else", "endif",
+    "define", "endef", "export", "unexport", "override", "vpath",
+    "undefine", "PHONY", "SUFFIXES", "DEFAULT", "PRECIOUS", "SECONDARY",
+    "DELETE_ON_ERROR", "SILENT", "NOTPARALLEL", "ONESHELL", NULL};
+
+static const char *const makefile_types[] = {
+    "wildcard", "patsubst", "subst", "shell", "foreach", "call", "filter",
+    "dir", "notdir", "basename", "addprefix", "addsuffix", "join", "word",
+    "words", "firstword", "lastword", "strip", "sort", "findstring",
+    "abspath", "realpath", "error", "warning", "info", "origin", "eval",
+    "value", "file",
+    "CC", "CXX", "CFLAGS", "CXXFLAGS", "CPPFLAGS", "LDFLAGS", "LDLIBS",
+    "AR", "RM", "MAKE", "SHELL", "PREFIX", "DESTDIR", NULL};
+
+static const vted_language_t language_makefile = {
+    "Makefile", makefile_names, makefile_keywords, makefile_types, NULL,
+    "#", NULL, NULL, "\"'", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -143,6 +169,7 @@ static const vted_language_t *const languages[] = {
     &language_cpp,
     &language_python,
     &language_shell,
+    &language_makefile,
     NULL};
 
 static const vted_language_t *current_language;

@@ -80,6 +80,16 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("script.bash");
     CHECK_STR(SyntaxLanguageName(), "Shell");
 
+    /* the whole file name counts, not only the extension */
+    SyntaxSelectForFile("Makefile");
+    CHECK_STR(SyntaxLanguageName(), "Makefile");
+
+    SyntaxSelectForFile("GNUmakefile");
+    CHECK_STR(SyntaxLanguageName(), "Makefile");
+
+    SyntaxSelectForFile("rules.mk");
+    CHECK_STR(SyntaxLanguageName(), "Makefile");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -273,6 +283,31 @@ static void TestInsertingAndRemovingRows(void)
     CHECK_STR(Classes(1), "tttnnn");
 }
 
+static void TestMakefile(void)
+{
+    SyntaxSelectForFile("Makefile");
+
+    LoadOne("CC = gcc");
+    CHECK_STR(Classes(0), "tt" "n" "n" "n" "nnn");
+
+    LoadOne("CFLAGS = -Wall");
+    CHECK_STR(Classes(0), "tttttt" "nnnn" "nnnn");
+
+    /* the dot of a special target separates, PHONY is the word */
+    LoadOne(".PHONY: clean");
+    CHECK_STR(Classes(0), "n" "kkkkk" "n" "n" "nnnnn");
+
+    LoadOne("include config.mk");
+    CHECK_STR(Classes(0), "kkkkkkk" "n" "nnnnn" "n" "nnn");
+
+    /* a make function inside $( ) is a declaration word */
+    LoadOne("$(wildcard *.c)");
+    CHECK_STR(Classes(0), "n" "n" "tttttttt" "n" "n" "n" "n" "n");
+
+    LoadOne("# build everything");
+    CHECK_STR(Classes(0), "cccccccccccccccccc");
+}
+
 static void TestShell(void)
 {
     SyntaxSelectForFile("run.sh");
@@ -390,6 +425,7 @@ int main(void)
     TestCpp();
     TestPython();
     TestShell();
+    TestMakefile();
     TestStyles();
 
     FreeBuffer();
