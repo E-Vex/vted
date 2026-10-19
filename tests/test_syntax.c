@@ -105,6 +105,9 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("main.rs");
     CHECK_STR(SyntaxLanguageName(), "Rust");
 
+    SyntaxSelectForFile("main.go");
+    CHECK_STR(SyntaxLanguageName(), "Go");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -338,6 +341,30 @@ static void TestTypeScript(void)
     CHECK_STR(Classes(0), "kkkkk" "nnnnn" "tttttt" "nnnn");
 }
 
+static void TestGo(void)
+{
+    SyntaxSelectForFile("main.go");
+
+    LoadOne("package main");
+    CHECK_STR(Classes(0), "kkkkkkk" "n" "nnnn");
+
+    LoadOne("func add(a int) int {");
+    CHECK_STR(Classes(0), "kkkk" "n" "nnn" "n" "n" "n" "ttt" "n" "n" "ttt" "n" "n");
+
+    LoadOne("var x = nil");
+    CHECK_STR(Classes(0), "kkk" "nnnnn" "ddd");
+
+    /* a raw string is a string, the backtick opens it */
+    LoadOne("s := `hi`");
+    CHECK_STR(Classes(0), "nnnnn" "ssss");
+
+    LoadOne("defer f.Close()");
+    CHECK_STR(Classes(0), "kkkkk" "nnn" "nnnnn" "n" "n");
+
+    LoadOne("import \"fmt\"");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "sssss");
+}
+
 static void TestRust(void)
 {
     SyntaxSelectForFile("main.rs");
@@ -508,6 +535,7 @@ int main(void)
     TestJavaScript();
     TestTypeScript();
     TestRust();
+    TestGo();
     TestStyles();
 
     FreeBuffer();

@@ -248,6 +248,32 @@ static const vted_language_t language_rust = {
     "//", "/*", "*/", "\"", 0};
 
 /*----------------------------------------------------------
+| Go
+----------------------------------------------------------*/
+
+static const char *const go_extensions[] = {".go", NULL};
+
+static const char *const go_keywords[] = {
+    "break", "case", "chan", "const", "continue", "default", "defer",
+    "else", "fallthrough", "for", "func", "go", "goto", "if", "import",
+    "interface", "map", "package", "range", "return", "select", "struct",
+    "switch", "type", "var", NULL};
+
+static const char *const go_types[] = {
+    "bool", "byte", "complex64", "complex128", "error", "float32",
+    "float64", "int", "int8", "int16", "int32", "int64", "rune", "string",
+    "uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "any",
+    "comparable", NULL};
+
+static const char *const go_constants[] = {
+    "nil", "true", "false", "iota", NULL};
+
+/* a raw string is a string too: the backtick opens one */
+static const vted_language_t language_go = {
+    "Go", go_extensions, go_keywords, go_types, go_constants,
+    "//", "/*", "*/", "\"'`", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -260,6 +286,7 @@ static const vted_language_t *const languages[] = {
     &language_js,
     &language_ts,
     &language_rust,
+    &language_go,
     NULL};
 
 static const vted_language_t *current_language;
