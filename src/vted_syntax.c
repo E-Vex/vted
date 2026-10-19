@@ -86,12 +86,39 @@ static const vted_language_t language_cpp = {
     "//", "/*", "*/", "\"'", 1};
 
 /*----------------------------------------------------------
+| Python
+----------------------------------------------------------*/
+
+static const char *const python_extensions[] = {".py", ".pyi", ".pyw", NULL};
+
+static const char *const python_keywords[] = {
+    "and", "as", "assert", "async", "await", "break", "class", "continue",
+    "def", "del", "elif", "else", "except", "finally", "for", "from",
+    "global", "if", "import", "in", "is", "lambda", "match", "case",
+    "nonlocal", "not", "or", "pass", "raise", "return", "try", "while",
+    "with", "yield", NULL};
+
+static const char *const python_types[] = {
+    "bool", "int", "float", "complex", "str", "bytes", "bytearray",
+    "list", "tuple", "dict", "set", "frozenset", "object", "type",
+    "range", "memoryview", "slice", NULL};
+
+static const char *const python_constants[] = {
+    "True", "False", "None", "NotImplemented", "Ellipsis", "self", "cls",
+    NULL};
+
+static const vted_language_t language_python = {
+    "Python", python_extensions, python_keywords, python_types,
+    python_constants, "#", NULL, NULL, "\"'", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
 static const vted_language_t *const languages[] = {
     &language_c,
     &language_cpp,
+    &language_python,
     NULL};
 
 static const vted_language_t *current_language;

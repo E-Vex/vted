@@ -68,6 +68,12 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("old.cc");
     CHECK_STR(SyntaxLanguageName(), "C++");
 
+    SyntaxSelectForFile("main.py");
+    CHECK_STR(SyntaxLanguageName(), "Python");
+
+    SyntaxSelectForFile("tool.pyi");
+    CHECK_STR(SyntaxLanguageName(), "Python");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -261,6 +267,41 @@ static void TestInsertingAndRemovingRows(void)
     CHECK_STR(Classes(1), "tttnnn");
 }
 
+static void TestPython(void)
+{
+    SyntaxSelectForFile("main.py");
+
+    LoadOne("def main():");
+    CHECK_STR(Classes(0), "kkk" "n" "nnnn" "nnn");
+
+    LoadOne("import os");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "nn");
+
+    LoadOne("x: int = 5");
+    CHECK_STR(Classes(0), "n" "n" "n" "ttt" "n" "n" "n" "d");
+
+    LoadOne("x = True");
+    CHECK_STR(Classes(0), "n" "n" "n" "n" "dddd");
+
+    /* a # inside a string does not start a comment */
+    LoadOne("s = \"a # b\"");
+    CHECK_STR(Classes(0), "nnnn" "sssssss");
+
+    /* only a whole word matches */
+    LoadOne("define def_x returns");
+    CHECK_STR(Classes(0), "nnnnnn" "n" "nnnnn" "n" "nnnnnnn");
+
+    /* a triple quote opens a string that runs to the end of the row;
+       rows after it are not tracked, the quote never carries over */
+    {
+        const char *lines[2] = {"x = \"\"\"doc", "more"};
+
+        Load(lines, 2);
+        CHECK_STR(Classes(0), "nnnn" "ssssss");
+        CHECK_STR(Classes(1), "nnnn");
+    }
+}
+
 static void TestCpp(void)
 {
     SyntaxSelectForFile("shape.cpp");
@@ -316,6 +357,7 @@ int main(void)
     TestInvalidation();
     TestInsertingAndRemovingRows();
     TestCpp();
+    TestPython();
     TestStyles();
 
     FreeBuffer();
