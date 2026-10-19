@@ -10,8 +10,9 @@ typedef struct
   int screen_rows;
   int screen_cols; /* width of the whole terminal in cells */
 
-  int gutter_width; /* cells at the left edge taken by line numbers, 0 when none */
-  int text_cols;    /* cells left for the text: screen_cols - gutter_width */
+  int show_line_numbers; /* 1 to draw the line number gutter */
+  int gutter_width;      /* cells at the left edge taken by line numbers, 0 when none */
+  int text_cols;         /* cells left for the text: screen_cols - gutter_width */
 
   int row_offset; /* first buffer row visible at the top of the viewport */
   int col_offset; /* first display cell column visible at the left edge */

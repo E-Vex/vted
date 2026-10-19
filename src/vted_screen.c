@@ -68,6 +68,53 @@ int GetWindowSize(int *rows, int *cols)
     *rows = window_size.ws_row;
     return 0;
 }
+/* line numbers are at least this many digits wide, so the gutter does
+   not jump when a file grows past 9 or 99 lines */
+#define GUTTER_MIN_DIGITS 3
+
+/* a terminal narrower than this many text cells drops the gutter, the
+   text matters more than the numbers */
+#define GUTTER_MIN_TEXT_COLS 20
+
+static int CountDigits(int number)
+{
+    int digits = 1;
+
+    while (number >= 10)
+    {
+        number /= 10;
+        digits++;
+    }
+
+    return digits;
+}
+
+static void UpdateGutterWidth(int cols)
+{
+    /* the numbers, one blank to separate them from the text; the
+       number of the line the cursor may be about to create (one past
+       the last row) has to fit as well */
+    int digits = CountDigits(vted_buffer.num_rows + 1);
+    int width;
+
+    if (digits < GUTTER_MIN_DIGITS)
+    {
+        digits = GUTTER_MIN_DIGITS;
+    }
+
+    width = digits + 1;
+
+    if (vted_editor_config.show_line_numbers == 0 || cols - width < GUTTER_MIN_TEXT_COLS)
+    {
+        width = 0;
+    }
+
+    vted_editor_config.gutter_width = width;
+
+    /* whatever the gutter does not use is the width the text scrolls in */
+    vted_editor_config.text_cols = cols - width;
+}
+
 int RefreshWindowSize(void)
 {
     int rows;
@@ -83,8 +130,7 @@ int RefreshWindowSize(void)
     vted_editor_config.screen_rows = rows - 2;
     vted_editor_config.screen_cols = cols;
 
-    /* whatever the gutter does not use is the width the text scrolls in */
-    vted_editor_config.text_cols = cols - vted_editor_config.gutter_width;
+    UpdateGutterWidth(cols);
 
     return 0;
 }
@@ -250,6 +296,33 @@ static void DrawRowText(append_buffer_t *ab, const vted_row_t *row, int has_matc
     }
 }
 
+static void DrawGutter(append_buffer_t *ab, int buffer_row)
+{
+    /* the line number, right-aligned and followed by one blank. The
+       number of the line the cursor sits on is bold, the others are
+       gray so they stay out of the way of the text */
+    char number[24];
+    int digits = vted_editor_config.gutter_width - 1;
+    int is_current = buffer_row == vted_editor_config.cursor_y;
+    int length;
+
+    if (vted_editor_config.gutter_width == 0)
+    {
+        return;
+    }
+
+    length = snprintf(number, sizeof(number), "%*d ", digits, buffer_row + 1);
+
+    if (length < 0)
+    {
+        return;
+    }
+
+    AppendToBuffer(ab, is_current ? "\x1b[1m" : "\x1b[90m", is_current ? 4 : 5);
+    AppendToBuffer(ab, number, length);
+    AppendToBuffer(ab, "\x1b[m", 3);
+}
+
 static void DrawRows(append_buffer_t *ab)
 {
     int row;
@@ -262,9 +335,18 @@ static void DrawRows(append_buffer_t *ab)
         {
             vted_row_t *text_row = &vted_buffer.rows[buffer_row];
 
+            DrawGutter(ab, buffer_row);
             DrawRowText(ab, text_row,
                         buffer_row == vted_editor_config.match_row &&
                             vted_editor_config.match_len > 0);
+        }
+        else if (buffer_row == vted_buffer.num_rows && vted_editor_config.cursor_y == buffer_row &&
+                 vted_editor_config.gutter_width > 0)
+        {
+            /* the line the cursor stands on past the end of the text:
+               it gets its number too, so the cursor never sits in an
+               empty gutter */
+            DrawGutter(ab, buffer_row);
         }
         else
         {
@@ -645,7 +727,8 @@ void InitVtedEditor(void)
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
 
-    /* no line number gutter yet */
+    /* line numbers are on until the person turns them off */
+    vted_editor_config.show_line_numbers = 1;
     vted_editor_config.gutter_width = 0;
 
     /* no search match highlighted yet */
