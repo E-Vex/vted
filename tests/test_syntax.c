@@ -212,12 +212,44 @@ static void TestInvalidation(void)
 
     CHECK_STR(Classes(1), "ccc");
 
-    /* the comment is closed after the fact; until the module is told,
-       it still believes the old state */
+    /* the comment is cut away after the fact: the row primitives report
+       the change, so the next row is no longer inside a comment */
     RowRemoveChar(&vted_buffer.rows[0], 0);
     RowRemoveChar(&vted_buffer.rows[0], 0);
-    SyntaxInvalidate(0);
     CHECK_STR(Classes(1), "ttt");
+
+    /* and a comment opened by typing swallows the rows after it */
+    RowInsertChar(&vted_buffer.rows[0], 0, '/');
+    RowInsertChar(&vted_buffer.rows[0], 1, '*');
+    CHECK_STR(Classes(1), "ccc");
+}
+
+static void TestInsertingAndRemovingRows(void)
+{
+    const char *lines[2] = {"int a;", "int b;"};
+
+    SyntaxSelectForFile("a.c");
+    Load(lines, 2);
+    CHECK_STR(Classes(1), "tttnnn");
+
+    /* a row that opens a comment, put in between */
+    InsertRow(1, "/*", 2, VTED_EOL_LF);
+    CHECK_STR(Classes(1), "cc");
+    CHECK_STR(Classes(2), "cccccc");
+
+    /* and taken out again */
+    RemoveRow(1);
+    CHECK_STR(Classes(1), "tttnnn");
+
+    /* cutting and replacing text count as edits as well */
+    InsertRow(0, "/* x", 4, VTED_EOL_LF);
+    CHECK_STR(Classes(1), "cccccc");
+    RowTruncate(&vted_buffer.rows[0], 1);
+    CHECK_STR(Classes(1), "tttnnn");
+    RowSetText(&vted_buffer.rows[0], "/*", 2);
+    CHECK_STR(Classes(1), "cccccc");
+    RowAppendString(&vted_buffer.rows[0], "*/", 2);
+    CHECK_STR(Classes(1), "tttnnn");
 }
 
 static void TestStyles(void)
@@ -243,6 +275,7 @@ int main(void)
     TestBlockComments();
     TestRowsAskedOutOfOrder();
     TestInvalidation();
+    TestInsertingAndRemovingRows();
     TestStyles();
 
     FreeBuffer();
