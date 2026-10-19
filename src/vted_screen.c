@@ -83,6 +83,9 @@ int RefreshWindowSize(void)
     vted_editor_config.screen_rows = rows - 2;
     vted_editor_config.screen_cols = cols;
 
+    /* whatever the gutter does not use is the width the text scrolls in */
+    vted_editor_config.text_cols = cols - vted_editor_config.gutter_width;
+
     return 0;
 }
 
@@ -116,9 +119,9 @@ static void UpdateScroll(void)
         vted_editor_config.col_offset = vted_editor_config.cursor_rx;
     }
 
-    if (vted_editor_config.cursor_rx >= vted_editor_config.col_offset + vted_editor_config.screen_cols)
+    if (vted_editor_config.cursor_rx >= vted_editor_config.col_offset + vted_editor_config.text_cols)
     {
-        vted_editor_config.col_offset = vted_editor_config.cursor_rx - vted_editor_config.screen_cols + 1;
+        vted_editor_config.col_offset = vted_editor_config.cursor_rx - vted_editor_config.text_cols + 1;
     }
 }
 
@@ -210,10 +213,10 @@ static void DrawRowText(append_buffer_t *ab, const vted_row_t *row, int has_matc
 {
     /* one pass over the row: every character is laid out in terminal
        cells, then clipped to the viewport [col_offset, col_offset +
-       screen_cols). Control characters and the active search match
+       text_cols). Control characters and the active search match
        are drawn in inverted video */
     int left = vted_editor_config.col_offset;
-    int right = left + vted_editor_config.screen_cols;
+    int right = left + vted_editor_config.text_cols;
     int match_end = vted_editor_config.match_col + vted_editor_config.match_len;
     int cell = 0;
     int at = 0;
@@ -617,7 +620,8 @@ void RefreshScreen(void)
        coordinates; + 1 because the terminal starts from 1,1 not 0,0 */
     cursor_position_len = snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
                                    vted_editor_config.cursor_y - vted_editor_config.row_offset + 1,
-                                   vted_editor_config.cursor_rx - vted_editor_config.col_offset + 1);
+                                   vted_editor_config.cursor_rx - vted_editor_config.col_offset +
+                                       vted_editor_config.gutter_width + 1);
 
     if (cursor_position_len > 0)
     {
@@ -640,6 +644,9 @@ void InitVtedEditor(void)
     vted_editor_config.preferred_rx = -1;
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
+
+    /* no line number gutter yet */
+    vted_editor_config.gutter_width = 0;
 
     /* no search match highlighted yet */
     vted_editor_config.match_row = -1;
