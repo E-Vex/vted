@@ -145,6 +145,39 @@ int RowAppendString(vted_row_t *row, const char *s, int len)
     return 0;
 }
 
+void RowTruncate(vted_row_t *row, int at)
+{
+    if (at < 0 || at >= row->size)
+    {
+        return;
+    }
+
+    row->size = at;
+    row->chars[at] = '\0';
+}
+
+int RowSetText(vted_row_t *row, const char *chars, int size)
+{
+    char *new_chars = malloc((size_t)size + 1);
+
+    if (new_chars == NULL)
+    {
+        return -1;
+    }
+
+    if (size > 0)
+    {
+        memcpy(new_chars, chars, (size_t)size);
+    }
+
+    new_chars[size] = '\0';
+
+    free(row->chars);
+    row->chars = new_chars;
+    row->size = size;
+    return 0;
+}
+
 int RowCharWidth(const vted_row_t *row, int at, int cell)
 {
     unsigned char byte = (unsigned char)row->chars[at];

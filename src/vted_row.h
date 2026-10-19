@@ -55,6 +55,14 @@ int RowInsertChar(vted_row_t *row, int at, int c);
 int RowRemoveChar(vted_row_t *row, int at);
 int RowAppendString(vted_row_t *row, const char *s, int len);
 
+/* cuts the row down to its first at bytes; nothing happens when at lies
+   at or past the end */
+void RowTruncate(vted_row_t *row, int at);
+
+/* replaces the whole text of the row with a copy of the given bytes;
+   the row is left alone and -1 returned when memory runs out */
+int RowSetText(vted_row_t *row, const char *chars, int size);
+
 /* Display layout. Rows hold raw bytes, but the terminal shows cells:
    a tab spans up to the next tab stop, a control character takes two
    cells (drawn as ^X) and UTF-8 characters take their own width. The
