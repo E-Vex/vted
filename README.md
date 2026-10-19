@@ -218,8 +218,10 @@ man vted        # the full manual
 | `vted_keyboard`   | raw byte reading, escape sequence parsing   |
 | `vted_screen`     | viewport, scrolling, rendering, bars        |
 | `vted_row`        | text buffer, row editing and cell layout    |
+| `vted_undo`       | the undo and redo history                   |
 | `vted_utf8`       | UTF-8 decoding, boundaries and cell widths  |
 | `vted_file`       | loading and saving files                    |
+| `vted_syntax`     | coloring text by the language of the file   |
 | `vted`            | the editor core: key dispatch and editing   |
 
 ## Contributing
