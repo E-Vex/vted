@@ -74,6 +74,12 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("tool.pyi");
     CHECK_STR(SyntaxLanguageName(), "Python");
 
+    SyntaxSelectForFile("run.sh");
+    CHECK_STR(SyntaxLanguageName(), "Shell");
+
+    SyntaxSelectForFile("script.bash");
+    CHECK_STR(SyntaxLanguageName(), "Shell");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -267,6 +273,31 @@ static void TestInsertingAndRemovingRows(void)
     CHECK_STR(Classes(1), "tttnnn");
 }
 
+static void TestShell(void)
+{
+    SyntaxSelectForFile("run.sh");
+
+    /* the shebang is a comment like any other */
+    LoadOne("#!/bin/sh");
+    CHECK_STR(Classes(0), "ccccccccc");
+
+    LoadOne("if [ -f x ]; then");
+    CHECK_STR(Classes(0), "kk" "nnnnnnnnnnn" "kkkk");
+
+    LoadOne("for f in *.txt; do");
+    CHECK_STR(Classes(0), "kkk" "n" "n" "n" "kk" "n" "n" "n" "nnn" "n" "n" "kk");
+
+    LoadOne("export EDITOR=vted");
+    CHECK_STR(Classes(0), "tttttt" "n" "nnnnnn" "n" "nnnn");
+
+    /* a # inside a string does not start a comment */
+    LoadOne("echo \"# not\"");
+    CHECK_STR(Classes(0), "tttt" "n" "sssssss");
+
+    LoadOne("return 0");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "d");
+}
+
 static void TestPython(void)
 {
     SyntaxSelectForFile("main.py");
@@ -358,6 +389,7 @@ int main(void)
     TestInsertingAndRemovingRows();
     TestCpp();
     TestPython();
+    TestShell();
     TestStyles();
 
     FreeBuffer();

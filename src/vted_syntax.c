@@ -112,6 +112,29 @@ static const vted_language_t language_python = {
     python_constants, "#", NULL, NULL, "\"'", 0};
 
 /*----------------------------------------------------------
+| Shell
+----------------------------------------------------------*/
+
+static const char *const shell_extensions[] = {".sh", ".bash", ".zsh", NULL};
+
+static const char *const shell_keywords[] = {
+    "if", "then", "else", "elif", "fi", "for", "while", "until", "do",
+    "done", "case", "esac", "in", "function", "select", "time", "coproc",
+    "return", "exit", "break", "continue", NULL};
+
+static const char *const shell_types[] = {
+    "local", "declare", "export", "readonly", "unset", "trap", "eval",
+    "exec", "source", "alias", "set", "shift", "echo", "printf", "cd",
+    "pwd", "read", NULL};
+
+static const char *const shell_constants[] = {
+    "true", "false", NULL};
+
+static const vted_language_t language_shell = {
+    "Shell", shell_extensions, shell_keywords, shell_types,
+    shell_constants, "#", NULL, NULL, "\"'", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -119,6 +142,7 @@ static const vted_language_t *const languages[] = {
     &language_c,
     &language_cpp,
     &language_python,
+    &language_shell,
     NULL};
 
 static const vted_language_t *current_language;
