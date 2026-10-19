@@ -118,8 +118,7 @@ void EditorInsertNewline(void)
         /* the original row keeps the head; InsertRow may have moved
            the rows array, so take a fresh pointer before shrinking */
         row = &vted_buffer.rows[vted_editor_config.cursor_y];
-        row->size = vted_editor_config.cursor_x;
-        row->chars[row->size] = '\0';
+        RowTruncate(row, vted_editor_config.cursor_x);
 
         /* a replay must put the line back exactly as Enter built
            it, indent and all — the split alone would lose them */
@@ -282,8 +281,7 @@ void EditorDeleteLine(void)
         };
         UndoPush(&entry);
 
-        row->size = 0;
-        row->chars[0] = '\0';
+        RowTruncate(row, 0);
         vted_editor_config.cursor_x = 0;
 
         vted_buffer.dirty = 1;
