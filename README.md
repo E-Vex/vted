@@ -224,7 +224,7 @@ man vted        # the full manual
 
 vted is under active development. Planned next:
 
-- Syntax highlighting and line numbers
+- Syntax highlighting
 
 ## Contributing
 
