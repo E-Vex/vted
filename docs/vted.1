@@ -20,6 +20,12 @@ cursor is on in bold. The gutter is at least three digits wide and
 grows with the file; a terminal too narrow to leave room for the text
 beside it drops the numbers.
 .PP
+The text is colored by what it means: comments, strings, numbers,
+keywords, types and preprocessor lines. The language is picked from
+the file name; C, C++, Python, shell scripts, Makefiles, JavaScript,
+TypeScript, Rust, Go and JSON are known, and any other name is drawn
+plain. The colors are the terminal's own, so they follow its theme.
+.PP
 The bottom line of the screen is a status bar showing the file name,
 line count, a modified marker and the cursor's line and display
 column ("Ln 5/120, Col 12"; narrow terminals show the line alone, then
