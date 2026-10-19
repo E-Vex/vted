@@ -11,6 +11,7 @@
 #include "vted_edit.h"
 #include "vted_undo.h"
 #include "vted_file.h"
+#include "vted_syntax.h"
 #include "vted_utf8.h"
 /*===============================*/
 
@@ -175,6 +176,13 @@ static void EditorSave(void)
     }
 
     vted_buffer.dirty = 0;
+
+    /* a buffer that just got its name may now have a language */
+    if (named_here)
+    {
+        SyntaxSelectForFile(vted_buffer.filename);
+    }
+
     SetStatusMessage("Saved %s", vted_buffer.filename);
 }
 
@@ -348,6 +356,9 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* the file's name tells which language its text is in */
+    SyntaxSelectForFile(vted_buffer.filename);
+
     /* whatever was edited before this file is unreachable now */
     UndoReset();
 
@@ -379,6 +390,7 @@ int main(int argc, char *argv[])
             {
                 ExitAlternateScreenBuffer();
                 FreeBuffer();
+                SyntaxFree();
                 return 0;
             }
         }
