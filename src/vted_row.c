@@ -1,9 +1,11 @@
 /*===============================*/
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_row.h"
+#include "vted_syntax.h"
 #include "vted_utf8.h"
 /*===============================*/
 
@@ -16,6 +18,31 @@ void InitBuffer(void)
     vted_buffer.filename = NULL;
     vted_buffer.dirty = 0;
     vted_buffer.final_newline = 1;
+
+    /* a new buffer has no colors worked out yet */
+    SyntaxInvalidate(0);
+}
+
+/* tells the syntax module that a row was edited, so its colors, and
+   those of the rows below it, are worked out again. Rows that live
+   outside the buffer (a scratch row) are nobody's business */
+static void NoteRowChange(const vted_row_t *row)
+{
+    uintptr_t at = (uintptr_t)row;
+    uintptr_t first = (uintptr_t)vted_buffer.rows;
+    uintptr_t index;
+
+    if (vted_buffer.rows == NULL || at < first)
+    {
+        return;
+    }
+
+    index = (at - first) / sizeof(vted_row_t);
+
+    if (index < (uintptr_t)vted_buffer.num_rows)
+    {
+        SyntaxInvalidate((int)index);
+    }
 }
 
 static int RowAlloc(vted_row_t *row, const char *chars, int size)
@@ -64,6 +91,7 @@ int InsertRow(int at, const char *chars, int size, int eol)
     vted_buffer.rows[at].eol = eol;
 
     vted_buffer.num_rows++;
+    SyntaxInvalidate(at);
     return 0;
 }
 
@@ -86,6 +114,7 @@ void RemoveRow(int at)
             (size_t)(vted_buffer.num_rows - at - 1) * sizeof(vted_row_t));
 
     vted_buffer.num_rows--;
+    SyntaxInvalidate(at);
 }
 
 int RowInsertChar(vted_row_t *row, int at, int c)
@@ -110,6 +139,7 @@ int RowInsertChar(vted_row_t *row, int at, int c)
     row->chars[at] = (char)c;
     row->size++;
     row->chars[row->size] = '\0';
+    NoteRowChange(row);
     return 0;
 }
 
@@ -124,6 +154,7 @@ int RowRemoveChar(vted_row_t *row, int at)
     memmove(&row->chars[at], &row->chars[at + 1], (size_t)(row->size - at));
     row->size--;
     row->chars[row->size] = '\0';
+    NoteRowChange(row);
     return 0;
 }
 
@@ -142,6 +173,7 @@ int RowAppendString(vted_row_t *row, const char *s, int len)
     memcpy(&row->chars[row->size], s, (size_t)len);
     row->size += len;
     row->chars[row->size] = '\0';
+    NoteRowChange(row);
     return 0;
 }
 
@@ -154,6 +186,7 @@ void RowTruncate(vted_row_t *row, int at)
 
     row->size = at;
     row->chars[at] = '\0';
+    NoteRowChange(row);
 }
 
 int RowSetText(vted_row_t *row, const char *chars, int size)
@@ -175,6 +208,7 @@ int RowSetText(vted_row_t *row, const char *chars, int size)
     free(row->chars);
     row->chars = new_chars;
     row->size = size;
+    NoteRowChange(row);
     return 0;
 }
 
