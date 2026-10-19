@@ -164,6 +164,7 @@ man vted        # the full manual
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-G          | go to a line number (ESC cancels)                |
 | Ctrl-F          | incremental search (arrows jump, ESC restores)   |
+| Ctrl-N          | show or hide the line numbers                    |
 | Ctrl-Q          | quit (three extra presses when modified)         |
 
 ## Features
@@ -188,6 +189,8 @@ man vted        # the full manual
   invalid bytes as `�`, so nothing odd ever reaches your terminal
 - The cursor keeps its display column across short lines when moving
   up and down
+- Line numbers in a gutter, the current one in bold; Ctrl-N hides them and
+  a terminal too narrow for them drops them on its own
 - Status bar with filename, line count, modified marker and the cursor's line
   and display column
 - Message bar for status and warnings
