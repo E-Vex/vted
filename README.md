@@ -222,12 +222,6 @@ man vted        # the full manual
 | `vted_file`       | loading and saving files                    |
 | `vted`            | the editor core: key dispatch and editing   |
 
-## Roadmap
-
-vted is under active development. Planned next:
-
-- Syntax highlighting
-
 ## Contributing
 
 The project is built one small step at a time — every commit does one
