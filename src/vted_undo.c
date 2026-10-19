@@ -123,8 +123,7 @@ static void SplitRowAt(int row, int cx, int eol)
 
     /* InsertRow may have moved the rows array */
     upper = &vted_buffer.rows[row];
-    upper->size = cx;
-    upper->chars[cx] = '\0';
+    RowTruncate(upper, cx);
 }
 
 /* rows[row] takes the text of rows[row + 1], which disappears; the
@@ -150,21 +149,10 @@ static void RestoreRowText(const UndoEntry *entry)
 {
     vted_row_t *row = &vted_buffer.rows[entry->row];
 
-    free(row->chars);
-    row->chars = malloc((size_t)entry->length + 1);
-
-    if (row->chars == NULL)
+    if (RowSetText(row, entry->bytes, entry->length) == -1)
     {
-        KillApp("malloc");
+        KillApp("RowSetText");
     }
-
-    if (entry->length > 0)
-    {
-        memcpy(row->chars, entry->bytes, (size_t)entry->length);
-    }
-
-    row->chars[entry->length] = '\0';
-    row->size = entry->length;
 }
 
 /* replays a recorded change */
@@ -189,9 +177,7 @@ static void Apply(const UndoEntry *entry)
         }
 
         /* the original row keeps whatever sits left of the split */
-        vted_row_t *row = &vted_buffer.rows[entry->row];
-        row->size = entry->cx;
-        row->chars[entry->cx] = '\0';
+        RowTruncate(&vted_buffer.rows[entry->row], entry->cx);
         break;
     }
     case UndoKindMergeRows:
@@ -209,9 +195,7 @@ static void Apply(const UndoEntry *entry)
         break;
     case UndoKindReplaceRow:
     {
-        vted_row_t *row = &vted_buffer.rows[entry->row];
-        row->size = 0;
-        row->chars[0] = '\0';
+        RowTruncate(&vted_buffer.rows[entry->row], 0);
         break;
     }
     }
