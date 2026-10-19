@@ -87,7 +87,7 @@ static int MatchesName(const vted_language_t *language, const char *base, const 
     {
         const char *candidate = language->extensions[i];
 
-        if (strcmp(candidate, base) == 0)
+        if (candidate[0] != '.' && strcmp(candidate, base) == 0)
         {
             return 1; /* a whole file name, like Makefile */
         }
