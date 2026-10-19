@@ -451,6 +451,13 @@ int main(int argc, char *argv[])
                 /* Ctrl-G jumps to a line number */
                 EditorGoToLine();
             }
+            else if (c_in == CTRL_KEY('n') || c_in == CTRL_KEY('N'))
+            {
+                /* Ctrl-N shows or hides the line number gutter */
+                vted_editor_config.show_line_numbers = !vted_editor_config.show_line_numbers;
+                SetStatusMessage("Line numbers %s",
+                                 vted_editor_config.show_line_numbers ? "on" : "off");
+            }
             else if (c_in == CTRL_KEY('k') || c_in == CTRL_KEY('K'))
             {
                 /* Ctrl-K deletes the whole line under the cursor */
