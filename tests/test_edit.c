@@ -208,6 +208,137 @@ static void TestDuplicateLine(void)
     CHECK_INT(vted_editor_config.cursor_x, 1);
 }
 
+static void TestInsertTextInsideALine(void)
+{
+    Begin("abcd");
+    CursorAt(0, 2);
+
+    EditorInsertText("XY", 2);
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abXYcd");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+    CHECK_INT(vted_buffer.dirty, 1);
+}
+
+static void TestInsertTextSeveralLines(void)
+{
+    /* the rest of the line rides to the end of the pasted text */
+    Begin("abcd");
+    CursorAt(0, 2);
+
+    EditorInsertText("X\nYY\nZ", 6);
+
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "abX");
+    CHECK_STR(vted_buffer.rows[1].chars, "YY");
+    CHECK_STR(vted_buffer.rows[2].chars, "Zcd");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestInsertTextAddsNoIndent(void)
+{
+    /* Enter would copy the four blanks; a paste brings its own */
+    Begin("    abcd");
+    CursorAt(0, 6);
+
+    EditorInsertText("X\nY", 3);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "    abX");
+    CHECK_STR(vted_buffer.rows[1].chars, "Ycd");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestInsertTextEndingWithABreak(void)
+{
+    /* a copied whole line ends with its break: the cursor lands at
+       the start of the line the old tail now sits on */
+    Begin("abcd");
+    CursorAt(0, 2);
+
+    EditorInsertText("X\n", 2);
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "abX");
+    CHECK_STR(vted_buffer.rows[1].chars, "cd");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestInsertTextLineBreakForms(void)
+{
+    /* CR LF, a lone CR and a lone LF are each one break */
+    Begin("");
+    EditorInsertText("a\r\nb\rc\nd", 9);
+
+    CHECK_INT(vted_buffer.num_rows, 4);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_STR(vted_buffer.rows[1].chars, "b");
+    CHECK_STR(vted_buffer.rows[2].chars, "c");
+    CHECK_STR(vted_buffer.rows[3].chars, "d");
+}
+
+static void TestInsertTextDropsControlBytes(void)
+{
+    /* an ESC, a NUL and a DEL are dropped; a Tab and UTF-8 stay */
+    Begin("");
+    EditorInsertText("a\x1b" "b\0c\x7f" "d\te\xc3\xa9", 11);
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd\te\xc3\xa9");
+    CHECK_INT(vted_editor_config.cursor_x, 8); /* bytes: the é takes two */
+}
+
+static void TestInsertTextOfNothing(void)
+{
+    /* only control bytes, or no bytes: nothing changes, not even the
+       dirty flag */
+    Begin("abc");
+    CursorAt(0, 1);
+
+    EditorInsertText("\x1b\x01", 2);
+    EditorInsertText("", 0);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+    CHECK_INT(vted_buffer.dirty, 0);
+}
+
+static void TestInsertTextIntoAnEmptyBuffer(void)
+{
+    Begin(NULL); /* no rows at all */
+
+    EditorInsertText("one\ntwo", 7);
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+}
+
+static void TestInsertTextOnPhantomRow(void)
+{
+    /* below the last line the paste starts new lines, ending the way
+       the file does */
+    Begin("a");
+    vted_buffer.rows[0].eol = VTED_EOL_CRLF;
+    CursorAt(1, 0);
+
+    EditorInsertText("p\nq", 3);
+
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_STR(vted_buffer.rows[1].chars, "p");
+    CHECK_STR(vted_buffer.rows[2].chars, "q");
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.rows[2].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
 int main(void)
 {
     TestInsertChar();
@@ -224,6 +355,15 @@ int main(void)
     TestDeleteLineClampsColumn();
     TestDeleteOnlyLine();
     TestDuplicateLine();
+    TestInsertTextInsideALine();
+    TestInsertTextSeveralLines();
+    TestInsertTextAddsNoIndent();
+    TestInsertTextEndingWithABreak();
+    TestInsertTextLineBreakForms();
+    TestInsertTextDropsControlBytes();
+    TestInsertTextOfNothing();
+    TestInsertTextIntoAnEmptyBuffer();
+    TestInsertTextOnPhantomRow();
 
     return TestSummary("edit");
 }

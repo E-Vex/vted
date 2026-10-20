@@ -160,6 +160,110 @@ void EditorInsertNewline(void)
     InsertLineBreak(1);
 }
 
+void EditorInsertText(const char *text, int length)
+{
+    /* the text is cleaned on its way in, into the one form the buffer
+       and the undo history share: lines separated by a line feed */
+    char *clean = malloc((size_t)length + 1);
+    int clean_len = 0;
+    int i;
+
+    if (clean == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    for (i = 0; i < length; i++)
+    {
+        unsigned char byte = (unsigned char)text[i];
+
+        if (byte == '\r')
+        {
+            /* CR LF is one break, and so is a lone CR */
+            if (i + 1 < length && text[i + 1] == '\n')
+            {
+                i++;
+            }
+
+            clean[clean_len++] = '\n';
+        }
+        else if (byte == '\n' || byte == '\t' || (byte >= 32 && byte != 127))
+        {
+            clean[clean_len++] = (char)byte;
+        }
+        /* any other control byte would draw as ^X, or end a row early
+           when it is a NUL: it is dropped */
+    }
+
+    if (clean_len == 0)
+    {
+        free(clean);
+        return; /* nothing left to paste: the buffer stays clean */
+    }
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    int made_row = 0;
+
+    /* the lines the paste makes end the way the line it lands on does
+       (the last real one when the cursor sits past the end) */
+    int source = before_y < vted_buffer.num_rows ? before_y : vted_buffer.num_rows - 1;
+    int eol = source >= 0 ? vted_buffer.rows[source].eol : VTED_EOL_LF;
+
+    /* pasting on the empty row past the end starts a new line */
+    if (before_y == vted_buffer.num_rows)
+    {
+        if (AppendRow("", 0, eol) == -1)
+        {
+            KillApp("AppendRow");
+        }
+
+        made_row = 1;
+    }
+
+    if (InsertText(before_y, before_x, clean, clean_len, eol) == -1)
+    {
+        KillApp("InsertText");
+    }
+
+    /* the cursor lands right after the text: on the same row when it
+       had one line, at the end of the last line when it had several */
+    int lines = 0;
+    int last_start = 0;
+
+    for (i = 0; i < clean_len; i++)
+    {
+        if (clean[i] == '\n')
+        {
+            lines++;
+            last_start = i + 1;
+        }
+    }
+
+    vted_editor_config.cursor_y = before_y + lines;
+    vted_editor_config.cursor_x = lines == 0 ? before_x + clean_len
+                                             : clean_len - last_start;
+
+    vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindInsertText,
+        .row = before_y,
+        .cx = before_x,
+        .bytes = clean,
+        .length = clean_len,
+        .eol = eol,
+        .made_row = made_row,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = vted_editor_config.cursor_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPush(&entry);
+
+    free(clean);
+}
+
 void EditorDelChar(void)
 {
     /* deletes the character left of the cursor, or merges the
