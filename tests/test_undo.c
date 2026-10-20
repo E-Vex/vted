@@ -336,17 +336,13 @@ static void TestTypingOnThePhantomRowRoundTrips(void)
     CHECK_INT(vted_buffer.num_rows, 1);
     CHECK_STR(vted_buffer.rows[0].chars, "hi");
 
-    CHECK_INT(EditorUndo(), 1); /* only the i goes */
-    CHECK_STR(vted_buffer.rows[0].chars, "h");
-
-    CHECK_INT(EditorUndo(), 1); /* the h took its row with it */
+    /* the row and the typing that filled it are one change: one
+       step takes the line away whole */
+    CHECK_INT(EditorUndo(), 1);
     CHECK_INT(vted_buffer.num_rows, 0);
 
-    CHECK_INT(EditorRedo(), 1); /* the row comes back holding the h */
+    CHECK_INT(EditorRedo(), 1); /* and brings it back whole */
     CHECK_INT(vted_buffer.num_rows, 1);
-    CHECK_STR(vted_buffer.rows[0].chars, "h");
-
-    CHECK_INT(EditorRedo(), 1);
     CHECK_STR(vted_buffer.rows[0].chars, "hi");
     CHECK_INT(vted_editor_config.cursor_x, 2);
 }

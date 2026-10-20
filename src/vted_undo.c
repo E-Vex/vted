@@ -35,13 +35,18 @@ static char *CopyBytes(const UndoEntry *entry)
     return copy;
 }
 
-void UndoPush(UndoEntry *entry)
+/* a new change makes the redo history unreachable */
+static void DropRedo(void)
 {
-    /* a new change makes the redo history unreachable */
     while (redo_count > 0)
     {
         free(redo_stack[--redo_count].bytes);
     }
+}
+
+void UndoPush(UndoEntry *entry)
+{
+    DropRedo();
 
     /* at the limit the oldest change is the first to go */
     if (undo_count == UNDO_LIMIT)
@@ -55,6 +60,98 @@ void UndoPush(UndoEntry *entry)
     undo_stack[undo_count] = *entry;
     undo_stack[undo_count].bytes = CopyBytes(entry);
     undo_count++;
+}
+
+/* grows the recorded span of the stack's top change at its end and
+   moves its redo cursor to where the keystroke left it; the undo
+   cursor stays where the burst began */
+static void AppendToTop(UndoEntry *top, const UndoEntry *entry)
+{
+    char *grown = realloc(top->bytes, (size_t)(top->length + entry->length));
+
+    if (grown == NULL)
+    {
+        KillApp("realloc");
+    }
+
+    memcpy(grown + top->length, entry->bytes, (size_t)entry->length);
+
+    top->bytes = grown;
+    top->length += entry->length;
+    top->redo_y = entry->redo_y;
+    top->redo_x = entry->redo_x;
+}
+
+/* folds a keystroke into the change at the top of the stack when the
+   two are contiguous — the same row, and the keystroke lands exactly
+   where the previous one ended, or for backspace exactly left of
+   where the previous bite began. Returns 1 when it did. */
+static int FoldKeystroke(UndoEntry *entry)
+{
+    UndoEntry *top = &undo_stack[undo_count - 1];
+
+    if (entry->kind == UndoKindInsertBytes)
+    {
+        /* typing continues a burst, or starts filling a line that was
+           just created: on the phantom row past the end, or right
+           after Enter at column zero. A duplicated line does not
+           count — it was somebody else's text, so its copy must undo
+           on its own */
+        if ((top->kind == UndoKindInsertBytes &&
+             entry->row == top->row &&
+             entry->cx == top->cx + top->length) ||
+            (top->kind == UndoKindInsertRow &&
+             top->fold &&
+             entry->row == top->row &&
+             entry->cx == top->length))
+        {
+            AppendToTop(top, entry);
+            return 1;
+        }
+    }
+    else if (entry->kind == UndoKindRemoveBytes)
+    {
+        /* backspace bites leftwards: each bite sits just left of the
+           one before it, and the recorded bytes grow at the front */
+        if (top->kind == UndoKindRemoveBytes &&
+            entry->row == top->row &&
+            entry->cx + entry->length == top->cx)
+        {
+            char *grown = realloc(top->bytes,
+                                  (size_t)(top->length + entry->length));
+
+            if (grown == NULL)
+            {
+                KillApp("realloc");
+            }
+
+            memmove(grown + entry->length, grown, (size_t)top->length);
+            memcpy(grown, entry->bytes, (size_t)entry->length);
+
+            top->bytes = grown;
+            top->cx = entry->cx;
+            top->length += entry->length;
+            top->redo_y = entry->redo_y;
+            top->redo_x = entry->redo_x;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+void UndoPushTyping(UndoEntry *entry)
+{
+    /* a keystroke invalidates the redo history just like any change,
+       folded or not */
+    DropRedo();
+
+    if (undo_count > 0 && FoldKeystroke(entry))
+    {
+        return;
+    }
+
+    UndoPush(entry);
 }
 
 void UndoReset(void)

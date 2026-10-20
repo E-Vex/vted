@@ -54,12 +54,13 @@ void EditorInsertChar(int c)
         .bytes = &byte,
         .length = 1,
         .eol = eol,
+        .fold = row_created, /* typing may keep growing the new line */
         .undo_y = before_y,
         .undo_x = before_x,
         .redo_y = vted_editor_config.cursor_y,
         .redo_x = vted_editor_config.cursor_x,
     };
-    UndoPush(&entry);
+    UndoPushTyping(&entry);
 }
 
 void EditorInsertNewline(void)
@@ -131,7 +132,9 @@ void EditorInsertNewline(void)
     vted_editor_config.cursor_x = indent;
 
     /* Enter at column zero made a row appear; anywhere else it
-       split the row in two */
+       split the row in two. The empty row is the one kind of line
+       creation whose undo entry holds no text yet — typing may fill
+       it and fold in */
     UndoEntry entry = {
         .kind = before_x == 0 ? UndoKindInsertRow : UndoKindSplitRow,
         .row = before_y,
@@ -140,6 +143,7 @@ void EditorInsertNewline(void)
         .length = recorded_len,
         .eol = eol,
         .indent = indent,
+        .fold = before_x == 0,
         .undo_y = before_y,
         .undo_x = before_x,
         .redo_y = vted_editor_config.cursor_y,
@@ -240,7 +244,7 @@ void EditorDelChar(void)
             .redo_y = vted_editor_config.cursor_y,
             .redo_x = vted_editor_config.cursor_x,
         };
-        UndoPush(&entry);
+        UndoPushTyping(&entry);
     }
 }
 

@@ -8,7 +8,9 @@
 | enough to replay it (redo) and to invert it (undo).      |
 | The editing operations record entries as they work;      |
 | this module keeps the two stacks and moves the buffer    |
-| between the states they describe.                        |
+| between the states they describe. A run of keystrokes    |
+| in the same place folds into a single entry, so one     |
+| step takes back a whole burst of typing.                 |
 ==========================================================*/
 
 typedef enum
@@ -35,6 +37,7 @@ typedef struct
     int eol;      /* the row ending involved */
     int prev_eol; /* the ending a merge replaced */
     int indent;   /* blanks auto-indent added to the new line */
+    int fold;     /* a created row that may absorb the typing that follows it */
 
     int undo_y, undo_x; /* the cursor to restore on undo */
     int redo_y, redo_x; /* the cursor to restore on redo */
@@ -42,6 +45,10 @@ typedef struct
 
 /* stores a copy of the entry's bytes and drops the redo history */
 void UndoPush(UndoEntry *entry);
+
+/* the same, but a keystroke contiguous with the previous typing
+   folds into it: one Ctrl-Z then takes back the whole burst */
+void UndoPushTyping(UndoEntry *entry);
 
 /* drops both histories (a freshly loaded file has none) */
 void UndoReset(void);
