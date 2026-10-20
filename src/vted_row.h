@@ -52,6 +52,10 @@ int InsertRow(int at, const char *chars, int size, int eol);
 void RemoveRow(int at);
 
 int RowInsertChar(vted_row_t *row, int at, int c);
+/* places len bytes at byte index at in one step, which a whole run of
+   text needs instead of a call per byte; the row is left alone and -1
+   returned when at is outside it or memory runs out */
+int RowInsertString(vted_row_t *row, int at, const char *s, int len);
 int RowRemoveChar(vted_row_t *row, int at);
 int RowAppendString(vted_row_t *row, const char *s, int len);
 

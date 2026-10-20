@@ -158,6 +158,37 @@ int RowRemoveChar(vted_row_t *row, int at)
     return 0;
 }
 
+int RowInsertString(vted_row_t *row, int at, const char *s, int len)
+{
+    if (at < 0 || at > row->size || len < 0)
+    {
+        return -1;
+    }
+
+    if (len == 0)
+    {
+        return 0;
+    }
+
+    /* room for the new bytes plus the null terminator */
+    char *new_chars = realloc(row->chars, (size_t)row->size + (size_t)len + 1);
+
+    if (new_chars == NULL)
+    {
+        return -1;
+    }
+
+    row->chars = new_chars;
+
+    /* one shift of the tail makes the gap, one copy fills it */
+    memmove(&row->chars[at + len], &row->chars[at], (size_t)(row->size - at));
+    memcpy(&row->chars[at], s, (size_t)len);
+    row->size += len;
+    row->chars[row->size] = '\0';
+    NoteRowChange(row);
+    return 0;
+}
+
 int RowAppendString(vted_row_t *row, const char *s, int len)
 {
     /* room for the appended bytes plus the null terminator */

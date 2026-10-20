@@ -241,6 +241,40 @@ static void TestSetText(void)
     free(row.chars);
 }
 
+static void TestInsertString(void)
+{
+    vted_row_t row = HeapRow("hello");
+
+    /* in the middle, at the start and at the end */
+    CHECK_INT(RowInsertString(&row, 2, "XY", 2), 0);
+    CHECK_STR(row.chars, "heXYllo");
+    CHECK_INT(row.size, 7);
+
+    CHECK_INT(RowInsertString(&row, 0, ">>", 2), 0);
+    CHECK_STR(row.chars, ">>heXYllo");
+
+    CHECK_INT(RowInsertString(&row, row.size, "!", 1), 0);
+    CHECK_STR(row.chars, ">>heXYllo!");
+    CHECK_INT(row.size, 10);
+
+    /* nothing to place leaves the row as it is */
+    CHECK_INT(RowInsertString(&row, 3, "", 0), 0);
+    CHECK_STR(row.chars, ">>heXYllo!");
+
+    /* a position outside the row, or a negative length, is refused */
+    CHECK_INT(RowInsertString(&row, 11, "x", 1), -1);
+    CHECK_INT(RowInsertString(&row, -1, "x", 1), -1);
+    CHECK_INT(RowInsertString(&row, 0, "x", -1), -1);
+    CHECK_STR(row.chars, ">>heXYllo!");
+
+    /* the bytes are copied as they are, a tab and UTF-8 included */
+    CHECK_INT(RowInsertString(&row, 2, "\t\xc3\xa9", 3), 0);
+    CHECK_INT(row.size, 13);
+    CHECK_STR(row.chars, ">>\t\xc3\xa9heXYllo!");
+
+    free(row.chars);
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -256,6 +290,7 @@ int main(void)
     TestWordMovementEmptyRow();
     TestTruncate();
     TestSetText();
+    TestInsertString();
 
     return TestSummary("row");
 }
