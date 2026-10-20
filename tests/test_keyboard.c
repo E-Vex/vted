@@ -1,4 +1,12 @@
+/* the pseudo-terminal calls below need POSIX 2008, which -std=c11
+   alone hides */
+#define _XOPEN_SOURCE 700
+#include <fcntl.h>
+#include <stdlib.h>
+#include <termios.h>
+#include <time.h>
 #include <unistd.h>
+#include <sys/wait.h>
 /*===============================*/
 #include "tests/vted_test.h"
 #include "src/vted_keyboard.h"
@@ -194,6 +202,66 @@ static void TestReadPastedText(void)
     CHECK_INT(paste == NULL, 1);
 }
 
+/* A real terminal in the editor's raw mode reads with a 100 ms timeout,
+   and a big paste can pause for longer than that between two chunks.
+   The paste must wait for the rest instead of ending at the pause. */
+static void TestSlowPasteIsNotCut(void)
+{
+    int master = posix_openpt(O_RDWR | O_NOCTTY);
+
+    if (master == -1 || grantpt(master) == -1 || unlockpt(master) == -1)
+    {
+        return; /* no pseudo-terminals here: nothing to check */
+    }
+
+    int slave = open(ptsname(master), O_RDWR | O_NOCTTY);
+
+    if (slave == -1)
+    {
+        close(master);
+        return;
+    }
+
+    struct termios raw;
+    tcgetattr(slave, &raw);
+    raw.c_iflag &= ~(tcflag_t)(ICRNL | IXON);
+    raw.c_oflag &= ~(tcflag_t)OPOST;
+    raw.c_lflag &= ~(tcflag_t)(ICANON | ECHO | ISIG | IEXTEN);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1; /* the editor's 100 ms read timeout */
+    tcsetattr(slave, TCSANOW, &raw);
+
+    pid_t writer = fork();
+
+    if (writer == 0)
+    {
+        /* the paste, with a pause of 300 ms in the middle of it */
+        write(master, "ab", 2);
+        struct timespec pause = {0, 300000000L};
+        nanosleep(&pause, NULL);
+        write(master, "cd\x1b[201~", 8);
+        _exit(0);
+    }
+
+    dup2(slave, STDIN_FILENO);
+    close(slave);
+
+    int length = 0;
+    char *paste = ReadPastedText(&length);
+
+    CHECK(paste != NULL);
+
+    if (paste != NULL)
+    {
+        CHECK_INT(length, 4);
+        CHECK_STR(paste, "abcd");
+        free(paste);
+    }
+
+    waitpid(writer, NULL, 0);
+    close(master);
+}
+
 int main(void)
 {
     TestPlainKeys();
@@ -206,6 +274,7 @@ int main(void)
     TestCutShortSequences();
     TestBracketedPasteMarkers();
     TestReadPastedText();
+    TestSlowPasteIsNotCut();
 
     return TestSummary("keyboard");
 }

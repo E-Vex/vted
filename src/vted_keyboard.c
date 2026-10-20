@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <poll.h>
 #include <stdlib.h>
 #include <string.h>
 /*===============================*/
@@ -247,6 +248,11 @@ int ReadKeyPress()
     return user_input;
 }
 
+/* how long a paste may stay silent before it is taken as over: the
+   terminal's own read timeout is much shorter than the pauses a big
+   paste can have between two chunks, so reading must outwait it */
+#define PASTE_STALL_MS 2000
+
 /* the end marker of a bracketed paste */
 static const char paste_end_marker[] = {'\x1b', '[', '2', '0', '1', '~'};
 
@@ -304,7 +310,24 @@ char *ReadPastedText(int *out_length)
 
         if (got != 1)
         {
-            break; /* input ended: keep what arrived, marker or not */
+            /* the read timeout ran out (or a signal came in): the paste
+               may only be pausing, so wait for more. End-of-file and
+               real silence both leave without POLLIN, and then the
+               paste is over, marker or not */
+            struct pollfd waiting = {.fd = STDIN_FILENO, .events = POLLIN, .revents = 0};
+            int ready = poll(&waiting, 1, PASTE_STALL_MS);
+
+            if (ready == -1 && errno == EINTR)
+            {
+                continue;
+            }
+
+            if (ready <= 0 || !(waiting.revents & POLLIN))
+            {
+                break;
+            }
+
+            continue; /* data is waiting: read it */
         }
 
         if (byte == (unsigned char)paste_end_marker[matched])
