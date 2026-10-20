@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 /*===============================*/
 #include "tests/vted_test.h"
@@ -831,6 +832,130 @@ static void TestTypingAfterAPasteStaysSeparate(void)
     CHECK_INT(EditorUndo(), 0);
 }
 
+static void TestPasteRoundTrips(void)
+{
+    Begin("abcd");
+    vted_editor_config.cursor_x = 2;
+
+    EditorInsertText("X\nYY\nZ", 6);
+    CHECK_INT(vted_buffer.num_rows, 3);
+
+    /* the three lines come back out in one step */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+    CHECK_INT(EditorUndo(), 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "abX");
+    CHECK_STR(vted_buffer.rows[1].chars, "YY");
+    CHECK_STR(vted_buffer.rows[2].chars, "Zcd");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestPasteOnThePhantomRowRoundTrips(void)
+{
+    Begin("a");
+    vted_editor_config.cursor_y = 1; /* the empty row past the end */
+
+    EditorInsertText("p\nq", 3);
+    CHECK_INT(vted_buffer.num_rows, 3);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[1].chars, "p");
+    CHECK_STR(vted_buffer.rows[2].chars, "q");
+}
+
+static void TestPasteIntoAnEmptyBufferRoundTrips(void)
+{
+    Begin(NULL); /* a buffer with no rows at all */
+
+    EditorInsertText("one\ntwo", 7);
+    CHECK_INT(vted_buffer.num_rows, 2);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+}
+
+static void TestBigPasteIsOneStep(void)
+{
+    /* far more lines than the history holds entries: it must still
+       come back out in one step, none of it left behind */
+    char *text = malloc(2 * 500 + 1);
+    int i;
+
+    for (i = 0; i < 500; i++)
+    {
+        text[2 * i] = 'l';
+        text[2 * i + 1] = '\n';
+    }
+    text[1000] = '\0';
+
+    Begin("ab");
+    vted_editor_config.cursor_x = 1;
+
+    EditorInsertText(text, 1000);
+    CHECK_INT(vted_buffer.num_rows, 501);
+    CHECK_STR(vted_buffer.rows[0].chars, "al");
+    CHECK_STR(vted_buffer.rows[500].chars, "b");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(EditorUndo(), 0);
+
+    free(text);
+}
+
+static void TestTypingAfterAPasteIsItsOwnStep(void)
+{
+    Begin("ab");
+    vted_editor_config.cursor_x = 1;
+
+    EditorInsertText("XY", 2);
+    EditorInsertChar('Z'); /* right where the paste ended */
+    CHECK_STR(vted_buffer.rows[0].chars, "aXYZb");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aXYb"); /* the paste is whole */
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(EditorUndo(), 0);
+}
+
+static void TestPasteKeepsEndingsThroughUndo(void)
+{
+    Begin("abcd");
+    vted_buffer.rows[0].eol = VTED_EOL_CRLF;
+    vted_editor_config.cursor_x = 2;
+
+    EditorInsertText("X\nZ", 3);
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF); /* a CRLF file stays CRLF */
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_CRLF);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -867,6 +992,12 @@ int main(void)
     TestInsertTextKeepsEndings();
     TestInsertTextOnTheEmptyRowPastTheEnd();
     TestTypingAfterAPasteStaysSeparate();
+    TestPasteRoundTrips();
+    TestPasteOnThePhantomRowRoundTrips();
+    TestPasteIntoAnEmptyBufferRoundTrips();
+    TestBigPasteIsOneStep();
+    TestTypingAfterAPasteIsItsOwnStep();
+    TestPasteKeepsEndingsThroughUndo();
 
     return TestSummary("undo");
 }
