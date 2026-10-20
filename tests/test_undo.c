@@ -522,6 +522,149 @@ static void TestMultibyteDeleteRoundTrips(void)
     CHECK_INT(vted_editor_config.cursor_x, 1);
 }
 
+static void TestTypingBurstUndoesAsOne(void)
+{
+    Begin("ab");
+    vted_editor_config.cursor_x = 1;
+
+    EditorInsertChar('X');
+    EditorInsertChar('Y');
+    EditorInsertChar('Z');
+    CHECK_STR(vted_buffer.rows[0].chars, "aXYZb");
+
+    CHECK_INT(EditorUndo(), 1); /* the whole burst goes */
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(vted_editor_config.cursor_x, 1); /* where it began */
+
+    CHECK_INT(EditorRedo(), 1); /* and comes back whole */
+    CHECK_STR(vted_buffer.rows[0].chars, "aXYZb");
+    CHECK_INT(vted_editor_config.cursor_x, 4); /* where it ended */
+}
+
+static void TestBackspaceBurstUndoesAsOne(void)
+{
+    Begin("hello");
+    vted_editor_config.cursor_x = 5;
+
+    EditorDelChar();
+    EditorDelChar();
+    CHECK_STR(vted_buffer.rows[0].chars, "hel");
+
+    CHECK_INT(EditorUndo(), 1); /* both bites come back */
+    CHECK_STR(vted_buffer.rows[0].chars, "hello");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "hel");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+}
+
+static void TestBurstBreaksWhenTheCursorMoves(void)
+{
+    Begin("ab");
+    vted_editor_config.cursor_x = 1;
+
+    EditorInsertChar('X');
+    vted_editor_config.cursor_x = 3; /* moved to the end in between */
+    EditorInsertChar('Y');
+    CHECK_STR(vted_buffer.rows[0].chars, "aXbY");
+
+    /* a gap between the keystrokes: two separate changes */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aXb");
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+}
+
+static void TestBurstBreaksAcrossRows(void)
+{
+    Begin("ab");
+    AppendRow("cd", 2, VTED_EOL_LF);
+
+    vted_editor_config.cursor_y = 1;
+    EditorInsertChar('X'); /* row 1 becomes Xcd, the column is 1 now */
+    vted_editor_config.cursor_y = 0; /* typed on another row in between */
+    EditorInsertChar('Y'); /* row 0 becomes aYb, the column is 2 now */
+    vted_editor_config.cursor_y = 1;
+    EditorInsertChar('Z');
+    CHECK_STR(vted_buffer.rows[0].chars, "aYb");
+    CHECK_STR(vted_buffer.rows[1].chars, "XcZd");
+
+    CHECK_INT(EditorUndo(), 1); /* the Z goes alone */
+    CHECK_STR(vted_buffer.rows[1].chars, "Xcd");
+    CHECK_INT(EditorUndo(), 1); /* then the Y */
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(EditorUndo(), 1); /* then the X */
+    CHECK_STR(vted_buffer.rows[1].chars, "cd");
+}
+
+static void TestTypingAfterEnterAtZeroFoldsIntoTheLine(void)
+{
+    Begin("ab");
+
+    EditorInsertNewline(); /* an empty line appears above */
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+    CHECK_STR(vted_buffer.rows[1].chars, "ab");
+
+    /* Enter leaves the cursor on the line below; step up onto the
+       new empty one and fill it */
+    vted_editor_config.cursor_y = 0;
+    EditorInsertChar('h');
+    EditorInsertChar('i');
+    CHECK_STR(vted_buffer.rows[0].chars, "hi");
+
+    /* the line and the typing that filled it are one change */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "hi");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestTypingAfterDuplicateStaysSeparate(void)
+{
+    Begin("ab");
+    vted_editor_config.cursor_x = 2;
+
+    EditorDuplicateLine();
+    EditorInsertChar('!'); /* typed at the end of the copy */
+    CHECK_STR(vted_buffer.rows[1].chars, "ab!");
+
+    /* the copy was a change of its own: the ! must not fold into it */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[1].chars, "ab");
+    CHECK_INT(vted_buffer.num_rows, 2);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+}
+
+static void TestFoldingDropsRedo(void)
+{
+    Begin(NULL);
+
+    EditorInsertChar('h');
+    EditorInsertChar('i'); /* one folded entry */
+    EditorInsertNewline(); /* the split at the end: an entry of its own */
+    CHECK_INT(vted_buffer.num_rows, 2);
+
+    CHECK_INT(EditorUndo(), 1); /* the split is undone: hi is whole */
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "hi");
+
+    /* typing more folds into the hi entry, and the undone split
+       must become unreachable with it */
+    EditorInsertChar('!');
+    CHECK_STR(vted_buffer.rows[0].chars, "hi!");
+
+    CHECK_INT(EditorRedo(), 0);
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 0); /* the line went whole */
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -546,6 +689,13 @@ int main(void)
     TestDeleteOnlyLineRoundTrips();
     TestDuplicateRoundTrips();
     TestMultibyteDeleteRoundTrips();
+    TestTypingBurstUndoesAsOne();
+    TestBackspaceBurstUndoesAsOne();
+    TestBurstBreaksWhenTheCursorMoves();
+    TestBurstBreaksAcrossRows();
+    TestTypingAfterEnterAtZeroFoldsIntoTheLine();
+    TestTypingAfterDuplicateStaysSeparate();
+    TestFoldingDropsRedo();
 
     return TestSummary("undo");
 }
