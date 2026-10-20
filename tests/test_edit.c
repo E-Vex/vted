@@ -339,6 +339,67 @@ static void TestInsertTextOnPhantomRow(void)
     CHECK_INT(vted_editor_config.cursor_x, 1);
 }
 
+static void TestInsertTextEndingTheFile(void)
+{
+    /* pasted on the row past the end, the break at the end of the text
+       only ends its last line: no empty line below, the cursor back
+       on the row past the end, like after reading a file */
+    Begin("a");
+    CursorAt(1, 0);
+
+    EditorInsertText("p\nq\n", 5);
+
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[1].chars, "p");
+    CHECK_STR(vted_buffer.rows[2].chars, "q");
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestInsertTextOfOneBreakEndingTheFile(void)
+{
+    /* a lone line break there makes one empty line, like Enter does */
+    Begin("a");
+    CursorAt(1, 0);
+
+    EditorInsertText("\n", 1);
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+    CHECK_INT(vted_buffer.dirty, 1);
+}
+
+static void TestInsertTextEndingWithABreakIntoAnEmptyBuffer(void)
+{
+    Begin(NULL);
+
+    EditorInsertText("one\ntwo\n", 8);
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestInsertTextBreakAtTheEndOfTheLastLine(void)
+{
+    /* with the cursor on the last real line, Enter-like behavior stays:
+       the break makes an empty line for the cursor to sit on */
+    Begin("x");
+    CursorAt(0, 1);
+
+    EditorInsertText("1\n", 2);
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "x1");
+    CHECK_STR(vted_buffer.rows[1].chars, "");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
 int main(void)
 {
     TestInsertChar();
@@ -364,6 +425,10 @@ int main(void)
     TestInsertTextOfNothing();
     TestInsertTextIntoAnEmptyBuffer();
     TestInsertTextOnPhantomRow();
+    TestInsertTextEndingTheFile();
+    TestInsertTextOfOneBreakEndingTheFile();
+    TestInsertTextEndingWithABreakIntoAnEmptyBuffer();
+    TestInsertTextBreakAtTheEndOfTheLastLine();
 
     return TestSummary("edit");
 }

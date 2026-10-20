@@ -284,8 +284,9 @@ static void Apply(const UndoEntry *entry)
             KillApp("InsertRow");
         }
 
-        if (InsertText(entry->row, entry->cx, entry->bytes, entry->length,
-                       entry->eol) == -1)
+        if (InsertText(entry->row, entry->cx,
+                       entry->bytes != NULL ? entry->bytes : "",
+                       entry->length, entry->eol) == -1)
         {
             KillApp("InsertText");
         }
@@ -346,7 +347,9 @@ static void Revert(const UndoEntry *entry)
         RestoreRowText(entry);
         break;
     case UndoKindInsertText:
-        if (RemoveText(entry->row, entry->cx, entry->bytes, entry->length) == -1)
+        if (RemoveText(entry->row, entry->cx,
+                       entry->bytes != NULL ? entry->bytes : "",
+                       entry->length) == -1)
         {
             KillApp("RemoveText");
         }

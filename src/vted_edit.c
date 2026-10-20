@@ -210,6 +210,12 @@ void EditorInsertText(const char *text, int length)
     int source = before_y < vted_buffer.num_rows ? before_y : vted_buffer.num_rows - 1;
     int eol = source >= 0 ? vted_buffer.rows[source].eol : VTED_EOL_LF;
 
+    /* a line break at the very end of a text pasted on the empty row
+       past the end only ends its last line: the cursor goes back to
+       the row past the end, the way a file read from disk leaves it,
+       and no empty line appears below what was pasted */
+    int ends_the_file = 0;
+
     /* pasting on the empty row past the end starts a new line */
     if (before_y == vted_buffer.num_rows)
     {
@@ -219,6 +225,12 @@ void EditorInsertText(const char *text, int length)
         }
 
         made_row = 1;
+
+        if (clean[clean_len - 1] == '\n')
+        {
+            clean_len--;
+            ends_the_file = 1;
+        }
     }
 
     if (InsertText(before_y, before_x, clean, clean_len, eol) == -1)
@@ -240,9 +252,17 @@ void EditorInsertText(const char *text, int length)
         }
     }
 
-    vted_editor_config.cursor_y = before_y + lines;
-    vted_editor_config.cursor_x = lines == 0 ? before_x + clean_len
-                                             : clean_len - last_start;
+    if (ends_the_file)
+    {
+        vted_editor_config.cursor_y = before_y + lines + 1;
+        vted_editor_config.cursor_x = 0;
+    }
+    else
+    {
+        vted_editor_config.cursor_y = before_y + lines;
+        vted_editor_config.cursor_x = lines == 0 ? before_x + clean_len
+                                                 : clean_len - last_start;
+    }
 
     vted_buffer.dirty = 1;
 

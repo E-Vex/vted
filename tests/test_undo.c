@@ -956,6 +956,49 @@ static void TestPasteKeepsEndingsThroughUndo(void)
     CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
 }
 
+static void TestPasteEndingTheFileRoundTrips(void)
+{
+    Begin("a");
+    vted_editor_config.cursor_y = 1; /* the empty row past the end */
+
+    EditorInsertText("p\nq\n", 5);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[1].chars, "p");
+    CHECK_STR(vted_buffer.rows[2].chars, "q");
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestPasteOfOneBreakEndingTheFileRoundTrips(void)
+{
+    /* the text left over after the break is empty: the entry holds no
+       bytes at all, and a replay must cope with that */
+    Begin("a");
+    vted_editor_config.cursor_y = 1;
+
+    EditorInsertText("\n", 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -998,6 +1041,8 @@ int main(void)
     TestBigPasteIsOneStep();
     TestTypingAfterAPasteIsItsOwnStep();
     TestPasteKeepsEndingsThroughUndo();
+    TestPasteEndingTheFileRoundTrips();
+    TestPasteOfOneBreakEndingTheFileRoundTrips();
 
     return TestSummary("undo");
 }
