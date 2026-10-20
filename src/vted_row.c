@@ -243,6 +243,111 @@ int RowSetText(vted_row_t *row, const char *chars, int size)
     return 0;
 }
 
+int SplitRow(int row, int cx, int eol)
+{
+    vted_row_t *upper = &vted_buffer.rows[row];
+
+    int tail = upper->size - cx;
+    char *line = malloc((size_t)tail + 1);
+
+    if (line == NULL)
+    {
+        return -1;
+    }
+
+    memcpy(line, &upper->chars[cx], (size_t)tail);
+
+    if (InsertRow(row + 1, line, tail, eol) == -1)
+    {
+        free(line);
+        return -1;
+    }
+
+    free(line);
+
+    /* InsertRow may have moved the rows array */
+    RowTruncate(&vted_buffer.rows[row], cx);
+    return 0;
+}
+
+int InsertText(int row, int cx, const char *text, int length, int eol)
+{
+    int start = 0; /* where the line being placed begins in the text */
+    int i;
+
+    for (i = 0; i < length; i++)
+    {
+        if (text[i] != '\n')
+        {
+            continue;
+        }
+
+        if (RowInsertString(&vted_buffer.rows[row], cx, text + start, i - start) == -1)
+        {
+            return -1;
+        }
+
+        if (SplitRow(row, cx + (i - start), eol) == -1)
+        {
+            return -1;
+        }
+
+        row++;
+        cx = 0;
+        start = i + 1;
+    }
+
+    return RowInsertString(&vted_buffer.rows[row], cx, text + start, length - start);
+}
+
+int RemoveText(int row, int cx, const char *text, int length)
+{
+    int lines = 0;      /* line breaks inside the text */
+    int last_start = 0; /* where its last line begins */
+    int i;
+
+    for (i = 0; i < length; i++)
+    {
+        if (text[i] == '\n')
+        {
+            lines++;
+            last_start = i + 1;
+        }
+    }
+
+    vted_row_t *upper = &vted_buffer.rows[row];
+
+    if (lines == 0)
+    {
+        /* one line: close the gap it leaves, terminator included */
+        memmove(&upper->chars[cx], &upper->chars[cx + length],
+                (size_t)(upper->size - cx - length) + 1);
+        upper->size -= length;
+        NoteRowChange(upper);
+        return 0;
+    }
+
+    vted_row_t *lower = &vted_buffer.rows[row + lines];
+    int last_length = length - last_start;
+
+    /* the first line of the text goes, then the tail that follows the
+       last line is joined on in its place */
+    RowTruncate(upper, cx);
+
+    if (RowAppendString(upper, lower->chars + last_length,
+                        lower->size - last_length) == -1)
+    {
+        return -1;
+    }
+
+    while (lines-- > 0)
+    {
+        RemoveRow(row + 1);
+    }
+
+    return 0;
+}
+
 int RowCharWidth(const vted_row_t *row, int at, int cell)
 {
     unsigned char byte = (unsigned char)row->chars[at];

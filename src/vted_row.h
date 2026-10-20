@@ -67,6 +67,21 @@ void RowTruncate(vted_row_t *row, int at);
    the row is left alone and -1 returned when memory runs out */
 int RowSetText(vted_row_t *row, const char *chars, int size);
 
+/* splits rows[row] at byte cx: the tail moves to a new row below, which
+   ends the way eol says; -1 when memory runs out */
+int SplitRow(int row, int cx, int eol);
+
+/* places a text whose lines are separated by '\n' at byte cx of
+   rows[row]. The lines after the first become rows of their own, ending
+   as eol says, and whatever stood right of cx rides along to the end of
+   the last line; -1 when memory runs out */
+int InsertText(int row, int cx, const char *text, int length, int eol);
+
+/* takes a text placed by InsertText back out: the rows it made vanish
+   and what rode along to its last line returns to the first; -1 when
+   memory runs out */
+int RemoveText(int row, int cx, const char *text, int length);
+
 /* Display layout. Rows hold raw bytes, but the terminal shows cells:
    a tab spans up to the next tab stop, a control character takes two
    cells (drawn as ^X) and UTF-8 characters take their own width. The
