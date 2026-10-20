@@ -275,6 +275,85 @@ static void TestInsertString(void)
     free(row.chars);
 }
 
+/* a buffer holding the given lines, every one ending with LF */
+static void FillBuffer(int count, const char *lines[])
+{
+    int i;
+
+    FreeBuffer();
+
+    for (i = 0; i < count; i++)
+    {
+        AppendRow(lines[i], (int)strlen(lines[i]), VTED_EOL_LF);
+    }
+}
+
+static void TestSplitRow(void)
+{
+    const char *lines[] = {"abcd", "end"};
+    FillBuffer(2, lines);
+
+    CHECK_INT(SplitRow(0, 2, VTED_EOL_CRLF), 0);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_STR(vted_buffer.rows[1].chars, "cd");
+    CHECK_STR(vted_buffer.rows[2].chars, "end");
+
+    /* the new row takes the ending asked for, the old one keeps its own */
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_LF);
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+
+    /* split at the very end, the new row is empty */
+    CHECK_INT(SplitRow(2, 3, VTED_EOL_LF), 0);
+    CHECK_INT(vted_buffer.num_rows, 4);
+    CHECK_STR(vted_buffer.rows[2].chars, "end");
+    CHECK_STR(vted_buffer.rows[3].chars, "");
+
+    FreeBuffer();
+}
+
+static void TestInsertAndRemoveText(void)
+{
+    const char *lines[] = {"abcd"};
+    FillBuffer(1, lines);
+
+    /* one line goes in like typing */
+    CHECK_INT(InsertText(0, 2, "XY", 2, VTED_EOL_LF), 0);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abXYcd");
+
+    /* several lines: what stood right of the spot rides to the last one */
+    CHECK_INT(InsertText(0, 3, "1\n22\n3", 6, VTED_EOL_CRLF), 0);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "abX1");
+    CHECK_STR(vted_buffer.rows[1].chars, "22");
+    CHECK_STR(vted_buffer.rows[2].chars, "3Ycd");
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_LF);
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.rows[2].eol, VTED_EOL_CRLF);
+
+    /* taking it out again leaves the row as it was */
+    CHECK_INT(RemoveText(0, 3, "1\n22\n3", 6), 0);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abXYcd");
+
+    CHECK_INT(RemoveText(0, 2, "XY", 2), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_buffer.rows[0].size, 4);
+
+    /* a text that is only line breaks, and one that ends with one */
+    CHECK_INT(InsertText(0, 1, "\n\n", 2, VTED_EOL_LF), 0);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_STR(vted_buffer.rows[1].chars, "");
+    CHECK_STR(vted_buffer.rows[2].chars, "bcd");
+    CHECK_INT(RemoveText(0, 1, "\n\n", 2), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_buffer.num_rows, 1);
+
+    FreeBuffer();
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -291,6 +370,8 @@ int main(void)
     TestTruncate();
     TestSetText();
     TestInsertString();
+    TestSplitRow();
+    TestInsertAndRemoveText();
 
     return TestSummary("row");
 }
