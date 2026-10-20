@@ -63,7 +63,10 @@ void EditorInsertChar(int c)
     UndoPushTyping(&entry);
 }
 
-void EditorInsertNewline(void)
+/* breaks the line at the cursor. With auto_indent the new line starts
+   with the blanks the current one starts with (what Enter does); text
+   that carries its own indentation, a paste, asks for none */
+static void InsertLineBreak(int auto_indent)
 {
     int indent = 0;
     int before_y = vted_editor_config.cursor_y;
@@ -95,7 +98,7 @@ void EditorInsertNewline(void)
         /* the new line starts with the blanks the current line starts
            with, but only those left of the cursor: splitting inside
            the indent must not copy more than what stays behind */
-        indent = RowIndentLength(row, vted_editor_config.cursor_x);
+        indent = auto_indent ? RowIndentLength(row, vted_editor_config.cursor_x) : 0;
 
         int tail = row->size - vted_editor_config.cursor_x;
         char *line = malloc((size_t)(indent + tail) + 1);
@@ -150,6 +153,11 @@ void EditorInsertNewline(void)
         .redo_x = vted_editor_config.cursor_x,
     };
     UndoPush(&entry);
+}
+
+void EditorInsertNewline(void)
+{
+    InsertLineBreak(1);
 }
 
 void EditorDelChar(void)
