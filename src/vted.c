@@ -346,6 +346,7 @@ int main(int argc, char *argv[])
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     EnterToAlternateScreenBuffer();
+    EnableBracketedPaste();
     InitBuffer();
 
     if (argc >= 2)
@@ -413,6 +414,21 @@ int main(int argc, char *argv[])
                 c_in == WordLeft || c_in == WordRight)
             {
                 MoveCursor(c_in);
+            }
+            else if (c_in == PasteBegin)
+            {
+                /* a paste arrives whole, between two markers. It goes
+                   into the text as one block, so Enter's auto indent
+                   does not pile onto the indent it already carries,
+                   and a single Ctrl-Z takes all of it back */
+                int pasted_length = 0;
+                char *pasted = ReadPastedText(&pasted_length);
+
+                if (pasted != NULL)
+                {
+                    EditorInsertText(pasted, pasted_length);
+                    free(pasted);
+                }
             }
             else if (c_in == '\r' || c_in == '\n')
             {
