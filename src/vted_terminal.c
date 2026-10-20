@@ -13,6 +13,10 @@ struct termios old_terminal_settings;
    never apply the zeroed struct it would otherwise find there */
 static int terminal_settings_saved = 0;
 
+/* set while bracketed paste is on, so turning it off writes nothing
+   when it was never turned on */
+static int bracketed_paste_enabled = 0;
+
 void KillApp(const char *syscall_name)
 {
     int saved_errno = errno; /* the writes below must not clobber it */
@@ -101,9 +105,28 @@ void EnableTerminalRawMode(void)
      *========================================*/
 }
 
+void EnableBracketedPaste(void)
+{
+    write(STDOUT_FILENO, "\x1b[?2004h", 8);
+    bracketed_paste_enabled = 1;
+}
+
+void DisableBracketedPaste(void)
+{
+    if (bracketed_paste_enabled)
+    {
+        write(STDOUT_FILENO, "\x1b[?2004l", 8);
+        bracketed_paste_enabled = 0;
+    }
+}
+
 void RestoreTerminalSettings(void)
 {
     int tcsetattr_return;
+
+    /* this runs on every way out, KillApp included: the terminal must
+       not keep wrapping pastes in markers once the shell has it back */
+    DisableBracketedPaste();
 
     tcsetattr_return = tcsetattr(STDIN_FILENO, TCSAFLUSH, &old_terminal_settings);
 

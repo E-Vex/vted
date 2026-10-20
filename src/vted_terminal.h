@@ -17,4 +17,11 @@ void EnableTerminalRawMode(void);
 
 void RestoreTerminalSettings(void);
 
+/* asks the terminal to wrap pasted text in ESC [ 2 0 0 ~ and
+   ESC [ 2 0 1 ~, so a paste can be told apart from typing. The mode
+   is switched off again on every way out (RestoreTerminalSettings
+   runs at exit), so the shell is never left receiving markers */
+void EnableBracketedPaste(void);
+void DisableBracketedPaste(void);
+
 #endif
