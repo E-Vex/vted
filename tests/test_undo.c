@@ -665,6 +665,172 @@ static void TestFoldingDropsRedo(void)
     CHECK_INT(vted_buffer.num_rows, 0); /* the line went whole */
 }
 
+static void TestInsertTextOneLine(void)
+{
+    Begin("abXYcd"); /* as if XY had been pasted at column 2 */
+
+    UndoEntry entry = {
+        .kind = UndoKindInsertText,
+        .row = 0,
+        .cx = 2,
+        .bytes = "XY",
+        .length = 2,
+        .undo_y = 0,
+        .undo_x = 2,
+        .redo_y = 0,
+        .redo_x = 4,
+    };
+    UndoPush(&entry);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abXYcd");
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+}
+
+static void TestInsertTextSeveralLines(void)
+{
+    Begin("abX"); /* as if "X\nYY\nZ" had been pasted at column 2 of "abcd" */
+    AppendRow("YY", 2, VTED_EOL_LF);
+    AppendRow("Zcd", 3, VTED_EOL_LF);
+
+    UndoEntry entry = {
+        .kind = UndoKindInsertText,
+        .row = 0,
+        .cx = 2,
+        .bytes = "X\nYY\nZ",
+        .length = 6,
+        .eol = VTED_EOL_LF,
+        .undo_y = 0,
+        .undo_x = 2,
+        .redo_y = 2,
+        .redo_x = 1,
+    };
+    UndoPush(&entry);
+
+    /* one undo takes back all three lines */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+    CHECK_INT(EditorUndo(), 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "abX");
+    CHECK_STR(vted_buffer.rows[1].chars, "YY");
+    CHECK_STR(vted_buffer.rows[2].chars, "Zcd");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestInsertTextKeepsEndings(void)
+{
+    Begin("abX"); /* a CRLF line, pasted into */
+    AppendRow("Zcd", 3, VTED_EOL_CRLF);
+    vted_buffer.rows[0].eol = VTED_EOL_CRLF;
+
+    UndoEntry entry = {
+        .kind = UndoKindInsertText,
+        .row = 0,
+        .cx = 2,
+        .bytes = "X\nZ",
+        .length = 3,
+        .eol = VTED_EOL_CRLF,
+        .undo_y = 0,
+        .undo_x = 2,
+        .redo_y = 1,
+        .redo_x = 1,
+    };
+    UndoPush(&entry);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_CRLF);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+}
+
+static void TestInsertTextOnTheEmptyRowPastTheEnd(void)
+{
+    Begin("a"); /* "p\nq" pasted on the row past the end made two rows */
+    AppendRow("p", 1, VTED_EOL_LF);
+    AppendRow("q", 1, VTED_EOL_LF);
+
+    UndoEntry entry = {
+        .kind = UndoKindInsertText,
+        .row = 1,
+        .cx = 0,
+        .bytes = "p\nq",
+        .length = 3,
+        .eol = VTED_EOL_LF,
+        .made_row = 1,
+        .undo_y = 1,
+        .undo_x = 0,
+        .redo_y = 2,
+        .redo_x = 1,
+    };
+    UndoPush(&entry);
+
+    /* the row the paste made is gone too, the cursor back past the end */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[1].chars, "p");
+    CHECK_STR(vted_buffer.rows[2].chars, "q");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+}
+
+static void TestTypingAfterAPasteStaysSeparate(void)
+{
+    Begin("abXYZcd"); /* XY pasted at column 2, then Z typed right after it */
+
+    UndoEntry pasted = {
+        .kind = UndoKindInsertText,
+        .row = 0,
+        .cx = 2,
+        .bytes = "XY",
+        .length = 2,
+        .undo_y = 0,
+        .undo_x = 2,
+        .redo_y = 0,
+        .redo_x = 4,
+    };
+    UndoPush(&pasted);
+
+    UndoEntry typed = {
+        .kind = UndoKindInsertBytes,
+        .row = 0,
+        .cx = 4,
+        .bytes = "Z",
+        .length = 1,
+        .undo_y = 0,
+        .undo_x = 4,
+        .redo_y = 0,
+        .redo_x = 5,
+    };
+    UndoPushTyping(&typed);
+
+    /* the typed letter goes first, the paste is still whole */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abXYcd");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(EditorUndo(), 0);
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -696,6 +862,11 @@ int main(void)
     TestTypingAfterEnterAtZeroFoldsIntoTheLine();
     TestTypingAfterDuplicateStaysSeparate();
     TestFoldingDropsRedo();
+    TestInsertTextOneLine();
+    TestInsertTextSeveralLines();
+    TestInsertTextKeepsEndings();
+    TestInsertTextOnTheEmptyRowPastTheEnd();
+    TestTypingAfterAPasteStaysSeparate();
 
     return TestSummary("undo");
 }

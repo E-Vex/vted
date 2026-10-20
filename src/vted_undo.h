@@ -10,7 +10,8 @@
 | this module keeps the two stacks and moves the buffer    |
 | between the states they describe. A run of keystrokes    |
 | in the same place folds into a single entry, so one     |
-| step takes back a whole burst of typing.                 |
+| step takes back a whole burst of typing, and a pasted    |
+| text of any length is a single entry of its own.         |
 ==========================================================*/
 
 typedef enum
@@ -21,7 +22,8 @@ typedef enum
     UndoKindMergeRows,   /* two rows became one */
     UndoKindInsertRow,   /* a whole row appeared */
     UndoKindRemoveRow,   /* a whole row vanished */
-    UndoKindReplaceRow   /* a row's whole text was replaced */
+    UndoKindReplaceRow,  /* a row's whole text was replaced */
+    UndoKindInsertText   /* a text of several lines was placed (a paste) */
 } UndoKind;
 
 typedef struct
@@ -31,13 +33,15 @@ typedef struct
     int row; /* the row the change touched */
     int cx;  /* the column inside it */
 
-    char *bytes; /* the bytes involved (NULL when there are none) */
+    char *bytes; /* the bytes involved (NULL when there are none); the
+                    lines of an inserted text are separated by '\n' */
     int length;
 
     int eol;      /* the row ending involved */
     int prev_eol; /* the ending a merge replaced */
     int indent;   /* blanks auto-indent added to the new line */
     int fold;     /* a created row that may absorb the typing that follows it */
+    int made_row; /* an inserted text went onto a row made just for it */
 
     int undo_y, undo_x; /* the cursor to restore on undo */
     int redo_y, redo_x; /* the cursor to restore on redo */

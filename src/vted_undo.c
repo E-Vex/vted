@@ -223,6 +223,83 @@ static void SplitRowAt(int row, int cx, int eol)
     RowTruncate(upper, cx);
 }
 
+/* places a text whose lines are separated by '\n' at a spot in a row.
+   The lines after the first become rows of their own, ending as eol
+   says, and whatever stood right of the spot rides along to the end
+   of the last line */
+static void PlaceText(int row, int cx, const char *text, int length, int eol)
+{
+    int start = 0;
+    int i;
+
+    for (i = 0; i < length; i++)
+    {
+        if (text[i] != '\n')
+        {
+            continue;
+        }
+
+        if (RowInsertString(&vted_buffer.rows[row], cx, text + start, i - start) == -1)
+        {
+            KillApp("RowInsertString");
+        }
+
+        SplitRowAt(row, cx + (i - start), eol);
+
+        row++;
+        cx = 0;
+        start = i + 1;
+    }
+
+    if (RowInsertString(&vted_buffer.rows[row], cx, text + start, length - start) == -1)
+    {
+        KillApp("RowInsertString");
+    }
+}
+
+/* takes a text placed by PlaceText back out: the rows it made vanish
+   and what rode along to its last line returns to the first */
+static void RemoveText(int row, int cx, const char *text, int length)
+{
+    int lines = 0;      /* line breaks inside the text */
+    int last_start = 0; /* where its last line begins */
+    int i;
+
+    for (i = 0; i < length; i++)
+    {
+        if (text[i] == '\n')
+        {
+            lines++;
+            last_start = i + 1;
+        }
+    }
+
+    if (lines == 0)
+    {
+        TakeBytes(row, cx, length);
+        return;
+    }
+
+    vted_row_t *upper = &vted_buffer.rows[row];
+    vted_row_t *lower = &vted_buffer.rows[row + lines];
+    int last_length = length - last_start;
+
+    /* the first line of the text goes, then the tail that follows the
+       last line is joined on in its place */
+    RowTruncate(upper, cx);
+
+    if (RowAppendString(upper, lower->chars + last_length,
+                        lower->size - last_length) == -1)
+    {
+        KillApp("RowAppendString");
+    }
+
+    while (lines-- > 0)
+    {
+        RemoveRow(row + 1);
+    }
+}
+
 /* rows[row] takes the text of rows[row + 1], which disappears; the
    merged line ends the way the lower one did */
 static void MergeRowIntoNext(int row)
@@ -295,6 +372,15 @@ static void Apply(const UndoEntry *entry)
         RowTruncate(&vted_buffer.rows[entry->row], 0);
         break;
     }
+    case UndoKindInsertText:
+        if (entry->made_row &&
+            InsertRow(entry->row, "", 0, entry->eol) == -1)
+        {
+            KillApp("InsertRow");
+        }
+
+        PlaceText(entry->row, entry->cx, entry->bytes, entry->length, entry->eol);
+        break;
     }
 }
 
@@ -349,6 +435,14 @@ static void Revert(const UndoEntry *entry)
         break;
     case UndoKindReplaceRow:
         RestoreRowText(entry);
+        break;
+    case UndoKindInsertText:
+        RemoveText(entry->row, entry->cx, entry->bytes, entry->length);
+
+        if (entry->made_row)
+        {
+            RemoveRow(entry->row);
+        }
         break;
     }
 }
