@@ -66,8 +66,10 @@ empties it
 duplicate the line under the cursor and move onto the copy
 .TP
 .B Ctrl\-Z
-undo the last change and put the cursor back where it was; the last
-200 changes are kept
+undo the last change and put the cursor back where it was; a run of
+typing or backspace keystrokes in one place counts as a single
+change, so one press takes back the whole burst; the last 200
+changes are kept
 .TP
 .B Ctrl\-Y
 redo the change that Ctrl\-Z undid
