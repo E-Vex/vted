@@ -20,11 +20,18 @@ typedef enum
     PageUp,
     PageDown,
     DeleteKey,
-    WordLeft,  /* Ctrl or Alt with Left, Alt-b */
-    WordRight  /* Ctrl or Alt with Right, Alt-f */
+    WordLeft,   /* Ctrl or Alt with Left, Alt-b */
+    WordRight,  /* Ctrl or Alt with Right, Alt-f */
+    PasteBegin  /* the terminal started a bracketed paste */
 
 } EditorKey;
 
 int ReadKeyPress(void);
+
+/* reads the bytes of a bracketed paste up to its end marker; returns
+   them NUL-terminated in a heap buffer the caller frees (NULL when
+   the paste held nothing) and reports their count through the
+   out parameter */
+char *ReadPastedText(int *out_length);
 
 #endif

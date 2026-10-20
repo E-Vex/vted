@@ -154,6 +154,8 @@ static int ParseCsiSequence(void)
             return HomeKey;
         case 3:
             return DeleteKey;
+        case 200:
+            return PasteBegin;
         case 4:
         case 8:
             return EndKey;
@@ -243,4 +245,115 @@ int ReadKeyPress()
     }
 
     return user_input;
+}
+
+/* the end marker of a bracketed paste */
+static const char paste_end_marker[] = {'\x1b', '[', '2', '0', '1', '~'};
+
+/* appends bytes to the paste buffer, growing it as needed */
+static void AppendPastedBytes(char **text, int *capacity, int *length,
+                              const char *bytes, int count)
+{
+    if (*length + count > *capacity)
+    {
+        while (*length + count > *capacity)
+        {
+            *capacity *= 2;
+        }
+
+        char *grown = realloc(*text, (size_t)*capacity);
+
+        if (grown == NULL)
+        {
+            free(*text);
+            KillApp("realloc");
+        }
+
+        *text = grown;
+    }
+
+    memcpy(*text + *length, bytes, (size_t)count);
+    *length += count;
+}
+
+char *ReadPastedText(int *out_length)
+{
+    /*=================================================
+    | Inside a bracketed paste the terminal sends the |
+    | pasted bytes verbatim, closed by ESC [ 2 0 1 ~. |
+    | The marker is scanned out byte by byte so text  |
+    | containing an ESC of its own survives intact.   |
+    | Input that ends before the marker (a dead ssh   |
+    | connection, say) pastes whatever arrived.       |
+    =================================================*/
+
+    int capacity = 256;
+    int length = 0;
+    int matched = 0; /* bytes of the end marker seen so far */
+    char *text = malloc((size_t)capacity);
+
+    if (text == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    while (matched < (int)sizeof(paste_end_marker))
+    {
+        unsigned char byte;
+        ssize_t got = read(STDIN_FILENO, &byte, 1);
+
+        if (got != 1)
+        {
+            break; /* input ended: keep what arrived, marker or not */
+        }
+
+        if (byte == (unsigned char)paste_end_marker[matched])
+        {
+            matched++;
+        }
+        else
+        {
+            /* a mismatch means the pending bytes were text after
+               all; the mismatching byte may open the marker itself */
+            AppendPastedBytes(&text, &capacity, &length,
+                              paste_end_marker, matched);
+
+            if (byte == (unsigned char)paste_end_marker[0])
+            {
+                matched = 1;
+            }
+            else
+            {
+                AppendPastedBytes(&text, &capacity, &length,
+                                  (const char *)&byte, 1);
+                matched = 0;
+            }
+        }
+    }
+
+    /* input that ended mid-marker leaves the pending bytes as text */
+    if (matched > 0 && matched < (int)sizeof(paste_end_marker))
+    {
+        AppendPastedBytes(&text, &capacity, &length,
+                          paste_end_marker, matched);
+    }
+
+    char *ended = realloc(text, (size_t)length + 1);
+
+    if (ended == NULL)
+    {
+        free(text);
+        KillApp("realloc");
+    }
+
+    ended[length] = '\0';
+    *out_length = length;
+
+    if (length == 0)
+    {
+        free(ended);
+        return NULL;
+    }
+
+    return ended;
 }

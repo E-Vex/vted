@@ -152,6 +152,48 @@ static void TestCutShortSequences(void)
     CHECK_INT(ReadKeyPress(), '\x1b');
 }
 
+static void TestBracketedPasteMarkers(void)
+{
+    /* the begin marker reads as its own key code */
+    FeedInput("\x1b[200~");
+    CHECK_INT(ReadKeyPress(), PasteBegin);
+
+    /* an end marker arriving on its own (another app left the mode
+       on, say) is not bound: nothing leaks into the text */
+    FeedInput("\x1b[201~");
+    CHECK_INT(ReadKeyPress(), 0);
+}
+
+static void TestReadPastedText(void)
+{
+    int length;
+    char *paste;
+
+    /* plain content up to the end marker */
+    FeedInput("one\r\ntwo\x1b[201~");
+    paste = ReadPastedText(&length);
+    CHECK_STR(paste, "one\r\ntwo");
+    CHECK_INT(length, 8);
+    free(paste);
+
+    /* an ESC inside the content is not the end marker */
+    FeedInput("a\x1bOb\x1b[201~");
+    paste = ReadPastedText(&length);
+    CHECK_STR(paste, "a\x1bOb");
+    free(paste);
+
+    /* input ending before the marker pastes what arrived */
+    FeedInput("tail");
+    paste = ReadPastedText(&length);
+    CHECK_STR(paste, "tail");
+    free(paste);
+
+    /* an empty paste reads as nothing */
+    FeedInput("\x1b[201~");
+    paste = ReadPastedText(&length);
+    CHECK_INT(paste == NULL, 1);
+}
+
 int main(void)
 {
     TestPlainKeys();
@@ -162,6 +204,8 @@ int main(void)
     TestModifiedUpDownStayPlain();
     TestSequencesDoNotLeakText();
     TestCutShortSequences();
+    TestBracketedPasteMarkers();
+    TestReadPastedText();
 
     return TestSummary("keyboard");
 }
