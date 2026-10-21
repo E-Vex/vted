@@ -39,4 +39,8 @@ void SetStatusMessage(const char *format, ...);
 void RefreshScreen(void);
 void InitVtedEditor(void);
 
+/* gives back the memory the module holds between frames */
+void ScreenFree(void);
+
 #endif
+

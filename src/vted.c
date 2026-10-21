@@ -339,6 +339,18 @@ static void EditorFind(void)
     SetStatusMessage("");
 }
 
+/* gives back everything the editor holds: the undo history, the
+   colors of the syntax module, the scratch space of the screen
+   module and the text buffer itself. It runs once, on the way out,
+   whichever way the editor leaves */
+static void FreeEditorState(void)
+{
+    UndoReset();
+    SyntaxFree();
+    ScreenFree();
+    FreeBuffer();
+}
+
 int main(int argc, char *argv[])
 {
     int quit_confirmations = QUIT_CONFIRMATIONS;
@@ -348,6 +360,10 @@ int main(int argc, char *argv[])
     EnterToAlternateScreenBuffer();
     EnableBracketedPaste();
     InitBuffer();
+
+    /* registered right after the buffer exists, so the state is
+       released even when a fatal error ends the editor early */
+    atexit(FreeEditorState);
 
     if (argc >= 2)
     {
@@ -390,9 +406,7 @@ int main(int argc, char *argv[])
             else
             {
                 ExitAlternateScreenBuffer();
-                FreeBuffer();
-                SyntaxFree();
-                return 0;
+                return 0; /* the state is freed by FreeEditorState */
             }
         }
         else

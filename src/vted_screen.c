@@ -715,6 +715,15 @@ void MoveCursor(int key)
     }
 }
 
+void ScreenFree(void)
+{
+    /* the highlight classes are kept between frames so that drawing
+       does not allocate; they are given back when the editor leaves */
+    free(highlight_classes);
+    highlight_classes = NULL;
+    highlight_capacity = 0;
+}
+
 void RefreshScreen(void)
 {
     append_buffer_t ab = ABUF_INIT;
