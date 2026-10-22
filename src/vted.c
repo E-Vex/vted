@@ -499,9 +499,24 @@ int main(int argc, char *argv[])
             }
             else if (c_in == '\t')
             {
-                /* Tab inserts a real tab character; the renderer lays
-                   it out up to the next tab stop */
-                EditorInsertChar('\t');
+                if (vted_editor_config.insert_spaces != 0)
+                {
+                    /* Tab inserts spaces up to the next tab stop;
+                       each keystroke is contiguous, so they undo as
+                       one burst */
+                    int i;
+
+                    for (i = 0; i < vted_editor_config.tab_width; i++)
+                    {
+                        EditorInsertChar(' ');
+                    }
+                }
+                else
+                {
+                    /* Tab inserts a real tab character; the renderer
+                       lays it out up to the next tab stop */
+                    EditorInsertChar('\t');
+                }
             }
             else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
             {
