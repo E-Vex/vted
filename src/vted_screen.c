@@ -767,7 +767,10 @@ void RefreshScreen(void)
     AppendToBuffer(&ab, "\x1b[?25h", 6); /* show the cursor again */
 
     /* the whole frame goes out with one write() to avoid flicker */
-    write(STDOUT_FILENO, ab.data, (size_t)ab.len);
+    if (write(STDOUT_FILENO, ab.data, (size_t)ab.len) == -1)
+    {
+        KillApp("write");
+    }
 
     FreeAppendBuffer(&ab);
 }

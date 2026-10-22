@@ -1,13 +1,40 @@
+/* sigaction() and struct sigaction are POSIX, not ISO C11 */
+#define _POSIX_C_SOURCE 200809L
 /*===============================*/
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
+#include <signal.h>
 /*===============================*/
 #include "vted_terminal.h"
 /*===============================*/
 
 struct termios old_terminal_settings;
+
+/* set by a signal: the editor leaves on the next loop turn and
+   restores the terminal the usual way (through the exit handlers) */
+static volatile sig_atomic_t vted_wants_exit = 0;
+
+/* set by SIGWINCH: the next frame repaints at the new terminal size */
+static volatile sig_atomic_t vted_terminal_resized = 0;
+
+/* set when read() reaches end of file: stdin went away, so the editor
+   leaves instead of spinning on an empty input */
+static volatile sig_atomic_t vted_stdin_eof = 0;
+
+static void OnExitSignal(int signo)
+{
+    (void)signo;
+    vted_wants_exit = 1;
+}
+
+static void OnResizeSignal(int signo)
+{
+    (void)signo;
+    vted_terminal_resized = 1;
+}
 
 /* set once old_terminal_settings holds a real snapshot; KillApp must
    never apply the zeroed struct it would otherwise find there */
@@ -118,6 +145,52 @@ void DisableBracketedPaste(void)
         write(STDOUT_FILENO, "\x1b[?2004l", 8);
         bracketed_paste_enabled = 0;
     }
+}
+
+void SetupExitSignals(void)
+{
+    struct sigaction action;
+
+    /* SIGHUP, SIGINT and SIGTERM all ask the editor to leave; the
+       actual exit happens in the main loop, so the terminal is
+       restored the usual way and nothing is left half drawn */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = OnExitSignal;
+
+    sigaction(SIGHUP, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
+    sigaction(SIGTERM, &action, NULL);
+
+    /* a terminal that hangs up must not kill the editor with SIGPIPE:
+       a failed write is reported and the editor leaves instead */
+    signal(SIGPIPE, SIG_IGN);
+}
+
+void SetupResizeSignal(void)
+{
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = OnResizeSignal;
+    sigaction(SIGWINCH, &action, NULL);
+}
+
+int TerminalWantsExit(void)
+{
+    return vted_wants_exit || vted_stdin_eof;
+}
+
+int TerminalSizeChanged(void)
+{
+    int changed = vted_terminal_resized;
+
+    vted_terminal_resized = 0;
+    return changed;
+}
+
+void TerminalStdinEof(void)
+{
+    vted_stdin_eof = 1;
 }
 
 void RestoreTerminalSettings(void)

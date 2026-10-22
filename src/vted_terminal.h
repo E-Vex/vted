@@ -24,4 +24,20 @@ void RestoreTerminalSettings(void);
 void EnableBracketedPaste(void);
 void DisableBracketedPaste(void);
 
+/* ask the editor to leave on the next loop turn: SIGHUP, SIGINT and
+   SIGTERM all do this, and the terminal is then restored the usual
+   way (through the exit handlers) */
+void SetupExitSignals(void);
+
+/* tell the editor that the terminal size changed: the next frame
+   repaints at the new size */
+void SetupResizeSignal(void);
+
+/* queries */
+int TerminalWantsExit(void);   /* 1 when the editor should leave */
+int TerminalSizeChanged(void); /* 1 once after a resize, then 0 */
+
+/* called by the keyboard module when stdin reaches end of file */
+void TerminalStdinEof(void);
+
 #endif

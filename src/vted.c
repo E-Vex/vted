@@ -357,6 +357,8 @@ int main(int argc, char *argv[])
 
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
+    SetupExitSignals();
+    SetupResizeSignal();
     EnterToAlternateScreenBuffer();
     EnableBracketedPaste();
     InitBuffer();
@@ -387,10 +389,15 @@ int main(int argc, char *argv[])
 
         if (c_in == 0)
         {
-            /* idle read timeout: nothing was typed, only keep the
-               screen fresh (resizes repaint here too). The quit
-               confirmation count must survive idle ticks, so they
-               never fall through to the key dispatch. */
+            /* idle read timeout: nothing was typed. A signal or a
+               closed stdin asks the editor to leave: the exit
+               handlers restore the terminal and free the state. A
+               terminal resize repaints at the new size. */
+            if (TerminalWantsExit())
+            {
+                break;
+            }
+
             RefreshScreen();
             continue;
         }
@@ -538,5 +545,9 @@ int main(int argc, char *argv[])
         RefreshScreen();
     }
 
+    /* leaving for good: leave the alternate screen so the shell
+       resumes on the main screen; the exit handlers restore the
+       terminal settings and free the editor state */
+    ExitAlternateScreenBuffer();
     return 0;
 }

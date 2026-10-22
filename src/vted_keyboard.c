@@ -30,6 +30,14 @@ int ReadRawByte(void)
     {
         return user_input;
     }
+
+    if (read_return == 0)
+    {
+        /* end of file on stdin: the terminal went away, leave */
+        TerminalStdinEof();
+        return NO_KEY;
+    }
+
     else if (read_return == -1)
     {
 
