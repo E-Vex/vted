@@ -367,6 +367,41 @@ static void AppendStyle(append_buffer_t *ab, int hl_class, int inverted)
     AppendToBuffer(ab, color, (int)strlen(color));
 }
 
+/* the selection the editor core hands over after every key press; the
+   renderer draws it inverted */
+static int sel_active;
+static int sel_y0;
+static int sel_x0;
+static int sel_y1;
+static int sel_x1;
+
+void ScreenSetSelection(int top, int left, int bottom, int right)
+{
+    int row;
+
+    if (sel_active)
+    {
+        for (row = sel_y0; row <= sel_y1; row++)
+        {
+            ScreenMarkRowDirty(row);
+        }
+    }
+
+    sel_active = top >= 0;
+    sel_y0 = top;
+    sel_x0 = left;
+    sel_y1 = bottom;
+    sel_x1 = right;
+
+    if (sel_active)
+    {
+        for (row = top; row <= bottom; row++)
+        {
+            ScreenMarkRowDirty(row);
+        }
+    }
+}
+
 static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *row, int has_match)
 {
     /* one pass over the row: every character is laid out in terminal
@@ -382,6 +417,33 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
     int at = 0;
     int inverted = 0;
     int style = HlNormal;
+    int sel_start = -1;
+    int sel_end = -1;
+
+    /* which bytes of this row fall inside the selection */
+    if (sel_active && buffer_row >= sel_y0 && buffer_row <= sel_y1)
+    {
+        if (buffer_row == sel_y0 && buffer_row == sel_y1)
+        {
+            sel_start = sel_x0;
+            sel_end = sel_x1;
+        }
+        else if (buffer_row == sel_y0)
+        {
+            sel_start = sel_x0;
+            sel_end = row->size;
+        }
+        else if (buffer_row == sel_y1)
+        {
+            sel_start = 0;
+            sel_end = sel_x1;
+        }
+        else
+        {
+            sel_start = 0;
+            sel_end = row->size;
+        }
+    }
 
     while (at < row->size && cell < right)
     {
@@ -391,7 +453,8 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
 
         int is_control = (byte < 0x20 && byte != '\t') || byte == 0x7F;
         int in_match = has_match && at >= vted_editor_config.match_col && at < match_end;
-        int want_inverted = is_control || in_match;
+        int want_inverted = is_control || in_match ||
+                            (sel_start >= 0 && at >= sel_start && at < sel_end);
 
         if (want_inverted != inverted || classes[at] != style)
         {
@@ -697,7 +760,33 @@ static void ClampCursorToRow(void)
 
 void MoveCursor(int key)
 {
-    /* moving the cursor logically, bounded by the text in the buffer */
+    /* moving the cursor logically, bounded by the text in the buffer.
+       Shift variants move the cursor exactly like the plain key; the
+       editor core treats them as selection extensions instead. */
+
+    switch (key)
+    {
+    case ShiftArrowLeft:
+        key = ArrowLeft;
+        break;
+    case ShiftArrowRight:
+        key = ArrowRight;
+        break;
+    case ShiftArrowUp:
+        key = ArrowUp;
+        break;
+    case ShiftArrowDown:
+        key = ArrowDown;
+        break;
+    case ShiftHome:
+        key = HomeKey;
+        break;
+    case ShiftEnd:
+        key = EndKey;
+        break;
+    default:
+        break;
+    }
 
     vted_row_t *row = NULL;
 

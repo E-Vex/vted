@@ -49,6 +49,11 @@ void ScreenMarkRowDirty(int row);
 void ScreenMarkRowsDirtyFrom(int row);
 void ScreenMarkAllDirty(void);
 
+/* hands the selection over from the editor core: top/left and
+   bottom/right are the normalized anchor and cursor ends; a negative
+   top clears it */
+void ScreenSetSelection(int top, int left, int bottom, int right);
+
 /* gives back the memory the module holds between frames */
 void ScreenFree(void);
 
