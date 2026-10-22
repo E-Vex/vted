@@ -141,6 +141,34 @@ static void EditorGoToLine(void)
     }
 }
 
+static void EditorSetTabWidth(void)
+{
+    char *answer = EditorPrompt("Tab width (1-32): ");
+
+    if (answer == NULL)
+    {
+        SetStatusMessage("Tab width unchanged");
+        return;
+    }
+
+    char *end;
+    long width = strtol(answer, &end, 10);
+    const char *bad = answer;
+
+    if (*end != '\0' || end == answer || width < 1 || width > 32)
+    {
+        SetStatusMessage("Not a tab width: %s", bad);
+        free(answer);
+        return;
+    }
+
+    free(answer);
+
+    vted_editor_config.tab_width = (int)width;
+    RowSetTabWidth(vted_editor_config.tab_width);
+    SetStatusMessage("Tab width %d", vted_editor_config.tab_width);
+}
+
 static void EditorSave(void)
 {
     int named_here = 0;
@@ -637,12 +665,25 @@ int main(int argc, char *argv[])
                 /* Ctrl-G jumps to a line number */
                 EditorGoToLine();
             }
+            else if (c_in == CTRL_KEY('w') || c_in == CTRL_KEY('W'))
+            {
+                /* Ctrl-W sets the tab width in cells */
+                EditorSetTabWidth();
+            }
             else if (c_in == CTRL_KEY('n') || c_in == CTRL_KEY('N'))
             {
                 /* Ctrl-N shows or hides the line number gutter */
                 vted_editor_config.show_line_numbers = !vted_editor_config.show_line_numbers;
                 SetStatusMessage("Line numbers %s",
                                  vted_editor_config.show_line_numbers ? "on" : "off");
+            }
+            else if (c_in == CTRL_KEY('t') || c_in == CTRL_KEY('T'))
+            {
+                /* Ctrl-T toggles whether Tab inserts spaces up to the
+                   next tab stop instead of a tab character */
+                vted_editor_config.insert_spaces = !vted_editor_config.insert_spaces;
+                SetStatusMessage("Tab inserts %s",
+                                 vted_editor_config.insert_spaces ? "spaces" : "a tab");
             }
             else if (c_in == MoveLineUp || c_in == MoveLineDown)
             {
