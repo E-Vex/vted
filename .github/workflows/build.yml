@@ -28,3 +28,16 @@ jobs:
           make install DESTDIR="$PWD/stage"
           test -x stage/usr/local/bin/vted
           test -f stage/usr/local/share/man/man1/vted.1
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Build and run tests under ASan/UBSan
+        run: |
+          make clean
+          make CFLAGS="-Wall -Wextra -Wconversion -std=c11 -I. -Werror -fsanitize=address,undefined -fno-omit-frame-pointer"
+          make test CFLAGS="-Wall -Wextra -Wconversion -std=c11 -I. -Werror -fsanitize=address,undefined -fno-omit-frame-pointer"
