@@ -28,4 +28,24 @@ void EditorDuplicateLine(void);
 void EditorMoveLineUp(void);
 void EditorMoveLineDown(void);
 
+/* selection: anchor/cursor model. The anchor is set with
+   EditSetAnchor(); the cursor is the other end of the selection. */
+void EditSetAnchor(int y, int x);
+void EditClearSelection(void);
+int EditSelectionActive(void);
+void EditSelectionRange(int *top, int *left, int *bottom, int *right);
+
+/* copies the selection into a heap buffer the caller frees, lines
+   joined with line feeds; NULL when there is nothing to copy */
+char *EditCopyText(int *out_length);
+
+/* deletes the selection as one undoable change; the cursor lands at
+   the top/left end of what was selected */
+void EditDeleteSelection(void);
+
+/* copies or cuts the selection (or the current line) to the terminal
+   clipboard with an OSC 52 escape sequence */
+void EditorCopy(void);
+void EditorCut(void);
+
 #endif

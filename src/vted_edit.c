@@ -575,3 +575,315 @@ void EditorMoveLineDown(void)
 {
     EditorMoveLine(+1);
 }
+
+/*==========================================================
+|                    Selection                           |
+|                                                          |
+| The selection runs from an anchor to the cursor. The      |
+| anchor is set by the first shift movement of a run; every |
+| other movement clears it again.                           |
+==========================================================*/
+
+/* the anchor end of the selection; the cursor is the other end */
+static int sel_active;
+static int sel_anchor_y;
+static int sel_anchor_x;
+
+void EditSetAnchor(int y, int x)
+{
+    sel_active = 1;
+    sel_anchor_y = y;
+    sel_anchor_x = x;
+}
+
+void EditClearSelection(void)
+{
+    sel_active = 0;
+}
+
+int EditSelectionActive(void)
+{
+    return sel_active;
+}
+
+/* normalizes the anchor and the cursor into the top/left and
+   bottom/right ends of the selection */
+void EditSelectionRange(int *top, int *left, int *bottom, int *right)
+{
+    int cy = vted_editor_config.cursor_y;
+    int cx = vted_editor_config.cursor_x;
+
+    if (sel_anchor_y < cy ||
+        (sel_anchor_y == cy && sel_anchor_x <= cx))
+    {
+        *top = sel_anchor_y;
+        *left = sel_anchor_x;
+        *bottom = cy;
+        *right = cx;
+    }
+    else
+    {
+        *top = cy;
+        *left = cx;
+        *bottom = sel_anchor_y;
+        *right = sel_anchor_x;
+    }
+}
+
+/* joins the selected span with line feeds into a heap buffer the
+   caller frees; NULL when there is nothing selected */
+char *EditCopyText(int *out_length)
+{
+    int top;
+    int left;
+    int bottom;
+    int right;
+    int length = 0;
+    int row;
+    char *text;
+    int at = 0;
+
+    EditSelectionRange(&top, &left, &bottom, &right);
+
+    for (row = top; row <= bottom; row++)
+    {
+        int start = (row == top) ? left : 0;
+        int end = (row == bottom) ? right : vted_buffer.rows[row].size;
+
+        if (end > start)
+        {
+            length += end - start + (row < bottom ? 1 : 0);
+        }
+    }
+
+    *out_length = length;
+
+    if (length == 0)
+    {
+        return NULL;
+    }
+
+    text = malloc((size_t)length + 1);
+
+    if (text == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    for (row = top; row <= bottom; row++)
+    {
+        int start = (row == top) ? left : 0;
+        int end = (row == bottom) ? right : vted_buffer.rows[row].size;
+        int chunk = end - start;
+
+        if (chunk > 0)
+        {
+            memcpy(text + at, &vted_buffer.rows[row].chars[start], (size_t)chunk);
+            at += chunk;
+        }
+
+        if (row < bottom)
+        {
+            text[at++] = '\n';
+        }
+    }
+
+    text[length] = '\0';
+    return text;
+}
+
+/* takes the selection out of the buffer as one change: the tail of
+   the top row, the middle rows and the head of the bottom row vanish,
+   and the cursor lands at the top/left end of what was selected */
+void EditDeleteSelection(void)
+{
+    int top;
+    int left;
+    int bottom;
+    int right;
+    int total = 0;
+    int row;
+    char *removed;
+    int at = 0;
+
+    int was_active = sel_active;
+
+    EditSelectionRange(&top, &left, &bottom, &right);
+    EditClearSelection();
+
+    if (!was_active || (top == bottom && left == right))
+    {
+        return;
+    }
+
+    for (row = top; row <= bottom; row++)
+    {
+        int start = (row == top) ? left : 0;
+        int end = (row == bottom) ? right : vted_buffer.rows[row].size;
+
+        if (end > start)
+        {
+            total += end - start + (row < bottom ? 1 : 0);
+        }
+    }
+
+    removed = malloc((size_t)total + 1);
+
+    if (removed == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    for (row = top; row <= bottom; row++)
+    {
+        int start = (row == top) ? left : 0;
+        int end = (row == bottom) ? right : vted_buffer.rows[row].size;
+        int chunk = end - start;
+
+        if (chunk > 0)
+        {
+            memcpy(removed + at, &vted_buffer.rows[row].chars[start], (size_t)chunk);
+            at += chunk;
+        }
+
+        if (row < bottom)
+        {
+            removed[at++] = '\n';
+        }
+    }
+
+    UndoEntry entry = {
+        .kind = UndoKindRemoveText,
+        .row = top,
+        .cx = left,
+        .bytes = removed,
+        .length = total,
+        .eol = vted_buffer.rows[top].eol,
+        .made_row = 0,
+        .undo_y = bottom,
+        .undo_x = right,
+        .redo_y = top,
+        .redo_x = left,
+    };
+
+    UndoPush(&entry);
+    free(removed);
+
+    /* how much rides onto the top row from the bottom of the
+       selection (for a single-row selection it is the top row's own
+       tail); capture it before truncating the top row */
+    int tail_row = (bottom == top) ? top : bottom;
+    int tail_len = vted_buffer.rows[tail_row].size - right;
+
+    RowTruncate(&vted_buffer.rows[top], left);
+
+    if (tail_len > 0)
+    {
+        /* copy the tail out first: appending may reallocate the very
+           buffer we are reading when top == tail_row */
+        char *tail = malloc((size_t)tail_len);
+
+        if (tail == NULL)
+        {
+            KillApp("malloc");
+        }
+
+        memcpy(tail, &vted_buffer.rows[tail_row].chars[right], (size_t)tail_len);
+        RowAppendString(&vted_buffer.rows[top], tail, (size_t)tail_len);
+        free(tail);
+    }
+
+    /* drop the rows the selection spanned */
+    while (bottom-- > top)
+    {
+        RemoveRow(top + 1);
+    }
+
+    vted_editor_config.cursor_y = top;
+    vted_editor_config.cursor_x = left;
+
+    vted_buffer.dirty = 1;
+    EditClearSelection();
+}
+
+void EditorCopy(void)
+{
+    /* copies the selection to the clipboard; with nothing selected,
+       the whole current line goes instead */
+    int length = 0;
+    char *text = EditCopyText(&length);
+
+    if (text == NULL)
+    {
+        if (vted_buffer.num_rows == 0)
+        {
+            return;
+        }
+
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+        length = row->size + 1;
+        text = malloc((size_t)length + 1);
+
+        if (text == NULL)
+        {
+            KillApp("malloc");
+        }
+
+        memcpy(text, row->chars, (size_t)row->size);
+        text[row->size] = '\n';
+        text[length] = '\0';
+    }
+
+    TerminalCopy(text, length);
+    free(text);
+
+    SetStatusMessage("Copied %d bytes", length);
+}
+
+void EditorCut(void)
+{
+    if (EditSelectionActive())
+    {
+        int length = 0;
+        char *text = EditCopyText(&length);
+
+        if (text != NULL)
+        {
+            TerminalCopy(text, length);
+            free(text);
+        }
+
+        EditDeleteSelection();
+        SetStatusMessage("Cut %d bytes", length);
+        return;
+    }
+
+    /* nothing selected: cut the whole current line */
+    if (vted_editor_config.cursor_y == vted_buffer.num_rows ||
+        vted_buffer.num_rows == 0)
+    {
+        return;
+    }
+
+    {
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+        int length = row->size + 1;
+        char *text = malloc((size_t)length + 1);
+
+        if (text == NULL)
+        {
+            KillApp("malloc");
+        }
+
+        memcpy(text, row->chars, (size_t)row->size);
+        text[row->size] = '\n';
+        text[length] = '\0';
+
+        TerminalCopy(text, length);
+        free(text);
+
+        EditorDeleteLine();
+        SetStatusMessage("Cut %d bytes", length);
+    }
+}
