@@ -17,6 +17,9 @@
 
 int OpenFile(const char *filename)
 {
+    /* start from an empty buffer whatever it held before */
+    FreeBuffer();
+
     FILE *file = fopen(filename, "r");
 
     if (file == NULL)
@@ -44,62 +47,93 @@ int OpenFile(const char *filename)
         return -1;
     }
 
-    char *line = NULL;    /* getline() allocates and grows this buffer */
-    size_t line_cap = 0;  /* current allocation size of line */
-    ssize_t line_len;     /* bytes read by getline(), -1 at end of file */
-    int terminated = 1;   /* did the last line end with a terminator */
+    /* only regular files can be loaded this way; anything else
+       (a directory, a device, a pipe) is not a text file */
+    struct stat info;
 
-    while ((line_len = getline(&line, &line_cap, file)) != -1)
+    if (fstat(fileno(file), &info) == -1 || !S_ISREG(info.st_mode))
     {
+        fclose(file);
+        return -1;
+    }
+
+    /* read the whole file at once: fewer allocations than a line by
+       line loop, and NUL bytes or other binary content survive
+       intact instead of being truncated at the first NUL */
+    long file_size = (long)info.st_size;
+    char *content = malloc((size_t)file_size + 1);
+
+    if (content == NULL)
+    {
+        fclose(file);
+        return -1;
+    }
+
+    size_t got = fread(content, 1, (size_t)file_size, file);
+    int read_error = ferror(file);
+
+    fclose(file);
+
+    if (read_error != 0 || got != (size_t)file_size)
+    {
+        free(content);
+        return -1;
+    }
+
+    content[file_size] = '\0';
+
+    int terminated = 1; /* did the last line end with a terminator */
+    long pos = 0;
+
+    while (pos < file_size)
+    {
+        long end = pos;
+
+        while (end < file_size && content[end] != '\n')
+        {
+            end++;
+        }
+
         /* take exactly one terminator off the end: \n, \r\n, or a
-           lone \r (which can only end the final line of a file,
-           as getline() splits on \n alone). A \r anywhere else
-           stays in the row and shows as ^M instead of being
-           silently dropped */
+           lone \r on the final line. A \r anywhere else stays in
+           the row and shows as ^M instead of being silently dropped */
+        int line_len = (int)(end - pos);
         int eol = VTED_EOL_LF;
 
-        terminated = 0;
-
-        if (line_len > 0 && line[line_len - 1] == '\n')
+        if (end < file_size)
         {
-            line_len--;
             terminated = 1;
 
-            if (line_len > 0 && line[line_len - 1] == '\r')
+            if (line_len > 0 && content[end - 1] == '\r')
             {
                 line_len--;
                 eol = VTED_EOL_CRLF;
             }
+
+            end++; /* skip the \n itself */
         }
-        else if (line_len > 0 && line[line_len - 1] == '\r')
+        else
         {
-            line_len--;
-            terminated = 1;
-            eol = VTED_EOL_CR;
+            terminated = 0;
+
+            if (line_len > 0 && content[end - 1] == '\r')
+            {
+                line_len--;
+                eol = VTED_EOL_CR;
+                terminated = 1;
+            }
         }
 
-        if (AppendRow(line, (int)line_len, eol) == -1)
+        if (AppendRow(content + pos, line_len, eol) == -1)
         {
-            free(line);
-            fclose(file);
+            free(content);
             return -1;
         }
+
+        pos = end;
     }
 
-    free(line);
-
-    /* getline() also returns -1 on a read error (a directory fails
-       with EISDIR): do not pass a half-read file off as the whole */
-    if (ferror(file))
-    {
-        int saved_errno = errno;
-
-        fclose(file);
-        errno = saved_errno;
-        return -1;
-    }
-
-    fclose(file);
+    free(content);
 
     vted_buffer.final_newline = terminated;
 

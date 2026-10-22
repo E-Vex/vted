@@ -181,6 +181,19 @@ static void TestSaveWritesRowEndings(void)
     CHECK_STR(ReadBack(), "a\nb\r\nc");
 }
 
+static void TestBinaryFileRoundTrip(void)
+{
+    /* NUL bytes and other non-text bytes must survive load and save:
+       they are never treated as string terminators */
+    static const char binary[] = { 'a', '\x00', 'b', '\xFF', 'c', '\n', 'd', '\x1F', 'e', '\0' };
+    const char *back = RoundTrip(binary, (int)sizeof(binary));
+    CHECK_INT(memcmp(back, binary, sizeof(binary)), 0);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_INT(vted_buffer.rows[0].size, 5);
+    CHECK_INT(vted_buffer.rows[1].size, 4);
+    CHECK_INT(vted_buffer.final_newline, 0);
+}
+
 static void TestMissingAndSpecialFiles(void)
 {
     FreeBuffer();
@@ -308,6 +321,7 @@ int main(void)
     TestNoTrailingNewline();
     TestNoTrailingNewlineWindows();
     TestDegenerateFiles();
+    TestBinaryFileRoundTrip();
     TestSaveWritesRowEndings();
     TestMissingAndSpecialFiles();
     TestSaveKeepsTheMode();
