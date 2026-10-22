@@ -25,6 +25,7 @@ typedef enum
     UndoKindReplaceRow,  /* a row's whole text was replaced */
     UndoKindInsertText,  /* a text of several lines was placed (a paste) */
     UndoKindRemoveText,  /* a text of several lines was removed (a deletion) */
+    UndoKindReplaceBytes, /* old bytes were replaced with new bytes at one spot */
     UndoKindMoveRow      /* a whole row moved up or down */
 } UndoKind;
 
@@ -47,6 +48,10 @@ typedef struct
 
     /* for UndoKindMoveRow: +1 when the row moved down, -1 when up */
     int move_delta;
+
+    /* for UndoKindReplaceBytes: the bytes that replace bytes at cx */
+    char *new_bytes;
+    int new_length;
 
     int undo_y, undo_x; /* the cursor to restore on undo */
     int redo_y, redo_x; /* the cursor to restore on redo */

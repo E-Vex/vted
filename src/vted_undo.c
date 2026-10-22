@@ -17,21 +17,21 @@ static int undo_count;
 static UndoEntry redo_stack[UNDO_LIMIT];
 static int redo_count;
 
-static char *CopyBytes(const UndoEntry *entry)
+static char *CopyBytes(const char *src, int length)
 {
-    if (entry->length <= 0)
+    if (length <= 0)
     {
         return NULL;
     }
 
-    char *copy = malloc((size_t)entry->length);
+    char *copy = malloc((size_t)length);
 
     if (copy == NULL)
     {
         KillApp("malloc");
     }
 
-    memcpy(copy, entry->bytes, (size_t)entry->length);
+    memcpy(copy, src, (size_t)length);
     return copy;
 }
 
@@ -40,7 +40,11 @@ static void DropRedo(void)
 {
     while (redo_count > 0)
     {
-        free(redo_stack[--redo_count].bytes);
+        int index = --redo_count;
+
+        free(redo_stack[index].bytes);
+        free(redo_stack[index].new_bytes);
+        redo_stack[index].new_bytes = NULL;
     }
 }
 
@@ -52,13 +56,25 @@ void UndoPush(UndoEntry *entry)
     if (undo_count == UNDO_LIMIT)
     {
         free(undo_stack[0].bytes);
+        free(undo_stack[0].new_bytes);
         memmove(&undo_stack[0], &undo_stack[1],
                 (size_t)(UNDO_LIMIT - 1) * sizeof(UndoEntry));
         undo_count--;
     }
 
     undo_stack[undo_count] = *entry;
-    undo_stack[undo_count].bytes = CopyBytes(entry);
+    undo_stack[undo_count].bytes = CopyBytes(entry->bytes, entry->length);
+
+    if (entry->kind == UndoKindReplaceBytes)
+    {
+        undo_stack[undo_count].new_bytes =
+            CopyBytes(entry->new_bytes, entry->new_length);
+    }
+    else
+    {
+        undo_stack[undo_count].new_bytes = NULL;
+    }
+
     undo_count++;
 }
 
@@ -158,12 +174,20 @@ void UndoReset(void)
 {
     while (undo_count > 0)
     {
-        free(undo_stack[--undo_count].bytes);
+        int index = --undo_count;
+
+        free(undo_stack[index].bytes);
+        free(undo_stack[index].new_bytes);
+        undo_stack[index].new_bytes = NULL;
     }
 
     while (redo_count > 0)
     {
-        free(redo_stack[--redo_count].bytes);
+        int index = --redo_count;
+
+        free(redo_stack[index].bytes);
+        free(redo_stack[index].new_bytes);
+        redo_stack[index].new_bytes = NULL;
     }
 }
 
@@ -347,6 +371,14 @@ static void Apply(const UndoEntry *entry)
         }
         break;
     }
+    case UndoKindReplaceBytes:
+    {
+        /* redo: take out the old bytes and put the new ones in their
+           place, at the same column */
+        TakeBytes(entry->row, entry->cx, entry->length);
+        PlaceBytes(entry->row, entry->cx, entry->new_bytes, entry->new_length);
+        break;
+    }
     }
 }
 
@@ -426,6 +458,11 @@ static void Revert(const UndoEntry *entry)
         {
             KillApp("InsertText");
         }
+        break;
+    case UndoKindReplaceBytes:
+        /* undo: take out the new bytes and put the old ones back */
+        TakeBytes(entry->row, entry->cx, entry->new_length);
+        PlaceBytes(entry->row, entry->cx, entry->bytes, entry->length);
         break;
     }
 }
