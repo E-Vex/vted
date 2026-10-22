@@ -37,7 +37,8 @@ void SetupResizeSignal(void);
 int TerminalWantsExit(void);   /* 1 when the editor should leave */
 int TerminalSizeChanged(void); /* 1 once after a resize, then 0 */
 
-/* called by the keyboard module when stdin reaches end of file */
-void TerminalStdinEof(void);
+/* copies text to the terminal's clipboard with an OSC 52 escape
+   sequence; best effort, nothing is read back from the clipboard */
+void TerminalCopy(const char *text, int length);
 
 #endif

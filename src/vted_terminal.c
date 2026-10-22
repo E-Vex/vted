@@ -20,10 +20,6 @@ static volatile sig_atomic_t vted_wants_exit = 0;
 /* set by SIGWINCH: the next frame repaints at the new terminal size */
 static volatile sig_atomic_t vted_terminal_resized = 0;
 
-/* set when read() reaches end of file: stdin went away, so the editor
-   leaves instead of spinning on an empty input */
-static volatile sig_atomic_t vted_stdin_eof = 0;
-
 static void OnExitSignal(int signo)
 {
     (void)signo;
@@ -177,7 +173,7 @@ void SetupResizeSignal(void)
 
 int TerminalWantsExit(void)
 {
-    return vted_wants_exit || vted_stdin_eof;
+    return vted_wants_exit;
 }
 
 int TerminalSizeChanged(void)
@@ -188,10 +184,7 @@ int TerminalSizeChanged(void)
     return changed;
 }
 
-void TerminalStdinEof(void)
-{
-    vted_stdin_eof = 1;
-}
+
 
 void RestoreTerminalSettings(void)
 {
@@ -207,4 +200,68 @@ void RestoreTerminalSettings(void)
     {
         KillApp("tcsetattr");
     }
+}
+
+/* the Base64 alphabet, RFC 4648 */
+static const char base64_alphabet[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+void TerminalCopy(const char *text, int length)
+{
+    /* OSC 52: copy the text to the terminal's clipboard; the terminal
+       never answers, so this is best effort */
+    int encoded = ((length + 2) / 3) * 4;
+    char *buffer = malloc((size_t)encoded + 1);
+    int at = 0;
+    int i;
+
+    if (buffer == NULL)
+    {
+        return;
+    }
+
+    for (i = 0; i + 3 <= length; i += 3)
+    {
+        int value = ((int)(unsigned char)text[i] << 16) |
+                    ((int)(unsigned char)text[i + 1] << 8) |
+                    (int)(unsigned char)text[i + 2];
+
+        buffer[at++] = (char)base64_alphabet[(value >> 18) & 63];
+        buffer[at++] = (char)base64_alphabet[(value >> 12) & 63];
+        buffer[at++] = (char)base64_alphabet[(value >> 6) & 63];
+        buffer[at++] = (char)base64_alphabet[value & 63];
+    }
+
+    if (i < length)
+    {
+        int value = (int)(unsigned char)text[i] << 16;
+        int padding = 2;
+
+        if (i + 1 < length)
+        {
+            value |= (int)(unsigned char)text[i + 1] << 8;
+            padding = 1;
+        }
+
+        buffer[at++] = (char)base64_alphabet[(value >> 18) & 63];
+        buffer[at++] = (char)base64_alphabet[(value >> 12) & 63];
+
+        if (padding == 1)
+        {
+            buffer[at++] = (char)base64_alphabet[(value >> 6) & 63];
+        }
+
+        while (padding-- > 0)
+        {
+            buffer[at++] = '=';
+        }
+    }
+
+    buffer[at] = '\0';
+
+    write(STDOUT_FILENO, "\x1b]52;;", 6);
+    write(STDOUT_FILENO, buffer, (size_t)at);
+    write(STDOUT_FILENO, "\x1b\\", 2);
+
+    free(buffer);
 }
