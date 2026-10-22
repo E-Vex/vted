@@ -158,9 +158,13 @@ man vted        # the full manual
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
 | Ctrl-D          | duplicate the line under the cursor              |
+| Ctrl-Up/Down    | move the current line up or down                 |
+| Shift-Arrows    | start or extend a character selection            |
+| Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
+| Ctrl-R          | search and replace every occurrence              |
 | Ctrl-Z          | undo (a typing burst is one change)              |
 | Ctrl-Y          | redo the last undone change                      |
-| typing          | insert at the cursor                             |
+| typing          | insert at the cursor (replaces the selection)    |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-G          | go to a line number (ESC cancels)                |
 | Ctrl-F          | incremental search (arrows jump, ESC restores)   |
@@ -177,7 +181,12 @@ man vted        # the full manual
   is a run of letters, digits and underscores, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size
 - Insert and delete text, split lines with Enter, merge with Backspace
-- Delete the whole line with Ctrl-K, duplicate it with Ctrl-D
+- Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
+  or down with Ctrl-Up/Down
+- Select text with Shift-Arrows; copy or cut the selection (or the current
+  line) to the system clipboard with Ctrl-C / Ctrl-X via OSC 52
+- Search and replace every occurrence with Ctrl-R; each replacement is one
+  undo step
 - Undo and redo with Ctrl-Z and Ctrl-Y; the cursor follows along, and a
   run of typing or backspace keystrokes in one place undoes as one step
 - Line endings are preserved: LF, CRLF, CR and mixed files save back
@@ -186,14 +195,17 @@ man vted        # the full manual
 - Auto-indent: Enter starts the new line with the indent of the current one
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
   (CJK, emoji) and combining characters take the right number of cells
-- Tabs expand to tab stops of 8; control characters show as `^X` and
-  invalid bytes as `�`, so nothing odd ever reaches your terminal
+- Tabs expand to configurable tab stops (8 cells by default, set through
+  the buffer API); control characters show as `^X` and invalid bytes as
+  `�`, so nothing odd ever reaches your terminal
 - The cursor keeps its display column across short lines when moving
   up and down
 - Line numbers in a gutter, the current one in bold; Ctrl-N hides them and
   a terminal too narrow for them drops them on its own
 - Syntax highlighting picked from the file name: C, C++, Python, shell
-  scripts, Makefiles, JavaScript, TypeScript, Rust, Go and JSON
+  scripts, Makefiles, JavaScript, TypeScript, Rust, Go, JSON and
+  Markdown; truecolor when COLORTERM says so, with 256-color and
+  16-color fallbacks
 - Status bar with filename, line count, modified marker and the cursor's line
   and display column
 - Message bar for status and warnings

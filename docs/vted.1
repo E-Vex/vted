@@ -23,8 +23,10 @@ beside it drops the numbers.
 The text is colored by what it means: comments, strings, numbers,
 keywords, types and preprocessor lines. The language is picked from
 the file name; C, C++, Python, shell scripts, Makefiles, JavaScript,
-TypeScript, Rust, Go and JSON are known, and any other name is drawn
-plain. The colors are the terminal's own, so they follow its theme.
+TypeScript, Rust, Go, JSON and Markdown are known, and any other name
+is drawn plain. The colors are the terminal's own, so they follow its
+theme; COLORTERM=truecolor|24bit asks for RGB escapes, a 256-color
+terminal gets 256-color escapes, anything else uses the 16 colors.
 .PP
 The bottom line of the screen is a status bar showing the file name,
 line count, a modified marker and the cursor's line and display
@@ -64,6 +66,20 @@ empties it
 .TP
 .B Ctrl\-D
 duplicate the line under the cursor and move onto the copy
+.TP
+.B Ctrl\-Up / Ctrl\-Down
+move the current line up or down; the cursor rides the line
+.TP
+.B Shift\-Arrows
+start or extend a character selection
+.TP
+.B Ctrl\-C / Ctrl\-X
+copy or cut the selection (or the current line) to the system clipboard
+via an OSC 52 escape sequence
+.TP
+.B Ctrl\-R
+search and replace every occurrence of a string; each replacement is one
+undo step
 .TP
 .B Ctrl\-Z
 undo the last change and put the cursor back where it was; a run of
