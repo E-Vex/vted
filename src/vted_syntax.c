@@ -289,6 +289,19 @@ static const vted_language_t language_json = {
     NULL, NULL, NULL, "\"", 0};
 
 /*----------------------------------------------------------
+| Markdown
+----------------------------------------------------------*/
+
+static const char *const markdown_extensions[] = {
+    ".md", ".markdown", ".mdown", ".mkd", ".mkdn", NULL};
+
+/* headings (a '#' at the start of a line), fenced code blocks and
+   inline code spans; plain words are left alone */
+static const vted_language_t language_markdown = {
+    "Markdown", markdown_extensions, NULL, NULL, NULL,
+    NULL, "```", "```", "`", 1};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -303,6 +316,7 @@ static const vted_language_t *const languages[] = {
     &language_rust,
     &language_go,
     &language_json,
+    &language_markdown,
     NULL};
 
 static const vted_language_t *current_language;

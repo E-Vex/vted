@@ -304,6 +304,29 @@ static void TestInsertingAndRemovingRows(void)
     CHECK_STR(Classes(1), "tttnnn");
 }
 
+static void TestMarkdownHighlighting(void)
+{
+    const char *lines[4] = {
+        "# heading",
+        "text `code` more",
+        "```",
+        "fenced code",
+    };
+
+    SyntaxSelectForFile("note.md");
+    Load(lines, 4);
+
+    /* the heading line is treated like a preprocessor line */
+    CHECK_STR(Classes(0), "ppppppppp");
+    /* an inline code span is a string */
+    CHECK_STR(Classes(1), "nnnnn" "ssssss" "nnnnn");
+    /* a fenced block opens a block comment that spans rows */
+    CHECK_STR(Classes(2), "ccc");
+    CHECK_STR(Classes(3), "ccccccccccc");
+
+    SyntaxSelectForFile(NULL);
+}
+
 static void TestJavaScript(void)
 {
     SyntaxSelectForFile("app.js");
@@ -560,6 +583,7 @@ int main(void)
     TestRust();
     TestGo();
     TestJson();
+    TestMarkdownHighlighting();
     TestStyles();
 
     FreeBuffer();
