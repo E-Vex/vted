@@ -31,6 +31,20 @@ static void TestCharWidth(void)
     CHECK_INT(RowCharWidth(&row, 6, 13), 2); /* a wide ideograph */
 }
 
+static void TestTabWidth(void)
+{
+    vted_row_t row = MakeRow("a\tb");
+
+    RowSetTabWidth(4);
+    CHECK_INT(RowCharWidth(&row, 1, 0), 4); /* tab at cell 0 -> stop 4 */
+    CHECK_INT(RowCharWidth(&row, 1, 1), 3); /* tab at cell 1 -> stop 4 */
+    CHECK_INT(RowCxToRx(&row, 2), 4);       /* b sits on cell 4 */
+    CHECK_INT(RowRxToCx(&row, 4), 2);       /* cell 4 is where 'b' starts */
+
+    RowSetTabWidth(VTED_TAB_STOP);
+    CHECK_INT(RowCharWidth(&row, 1, 1), 7); /* back to the default stop */
+}
+
 static void TestTabs(void)
 {
     vted_row_t row = MakeRow("a\tb");
@@ -357,6 +371,7 @@ static void TestInsertAndRemoveText(void)
 int main(void)
 {
     TestCharWidth();
+    TestTabWidth();
     TestTabs();
     TestWideCharacters();
     TestMultibyteAndControls();

@@ -21,6 +21,9 @@ typedef struct
   int match_col; /* column where the highlighted match starts */
   int match_len; /* length of the highlighted match in bytes */
 
+  int tab_width;     /* cells between tab stops; RowCharWidth() uses it */
+  int insert_spaces; /* 1: the Tab key inserts spaces instead of a tab */
+
   char status_message[256]; /* most recent message shown in the message bar */
 } vted_editor_Config_t;
 

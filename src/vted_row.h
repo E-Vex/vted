@@ -114,4 +114,8 @@ int RowWordLeft(const vted_row_t *row, int cx);
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);
 
+/* sets the tab stop in cells used by RowCharWidth(); VTED_TAB_STOP by
+   default, clamped to at least one */
+void RowSetTabWidth(int width);
+
 #endif

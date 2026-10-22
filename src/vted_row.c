@@ -12,6 +12,10 @@
 
 vted_buffer_t vted_buffer;
 
+/* the tab stop in cells; RowCharWidth() converts byte positions to
+   display columns with it, so it is the single place tabs are sized */
+static int row_tab_stop = VTED_TAB_STOP;
+
 void InitBuffer(void)
 {
     vted_buffer.rows = NULL;
@@ -368,7 +372,7 @@ int RowCharWidth(const vted_row_t *row, int at, int cell)
 
     if (byte == '\t')
     {
-        return VTED_TAB_STOP - (cell % VTED_TAB_STOP);
+        return row_tab_stop - (cell % row_tab_stop);
     }
 
     if (byte < 0x20 || byte == 0x7F)
@@ -514,6 +518,16 @@ int RowWordLeft(const vted_row_t *row, int cx)
     }
 
     return at;
+}
+
+void RowSetTabWidth(int width)
+{
+    if (width < 1)
+    {
+        width = 1;
+    }
+
+    row_tab_stop = width;
 }
 
 void FreeRow(vted_row_t *row)
