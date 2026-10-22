@@ -169,6 +169,8 @@ man vted        # the full manual
 | Ctrl-G          | go to a line number (ESC cancels)                |
 | Ctrl-F          | incremental search (arrows jump, ESC restores)   |
 | Ctrl-N          | show or hide the line numbers                    |
+| Ctrl-T          | toggle Tab between spaces and a tab character    |
+| Ctrl-W          | set the tab width in cells                       |
 | Ctrl-Q          | quit (three extra presses when modified)         |
 
 ## Features
@@ -195,9 +197,10 @@ man vted        # the full manual
 - Auto-indent: Enter starts the new line with the indent of the current one
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
   (CJK, emoji) and combining characters take the right number of cells
-- Tabs expand to configurable tab stops (8 cells by default, set through
-  the buffer API); control characters show as `^X` and invalid bytes as
-  `�`, so nothing odd ever reaches your terminal
+- Tabs expand to configurable tab stops (8 cells by default; Ctrl-W sets
+  the width, Ctrl-T toggles Tab between spaces up to the next stop and a
+  real tab character); control characters show as `^X` and invalid bytes
+  as `�`, so nothing odd ever reaches your terminal
 - The cursor keeps its display column across short lines when moving
   up and down
 - Line numbers in a gutter, the current one in bold; Ctrl-N hides them and
