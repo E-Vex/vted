@@ -477,6 +477,71 @@ static void TestInsertTextBreakAtTheEndOfTheLastLine(void)
     CHECK_INT(vted_editor_config.cursor_x, 0);
 }
 
+static void TestDeleteSelectionSingleRowKeepsTail(void)
+{
+    Begin("abcdef");
+
+    /* select "bcd", columns 1..4, leaving "a" before and "ef" after */
+    EditSetAnchor(0, 1);
+    vted_editor_config.cursor_x = 4;
+
+    EditDeleteSelection();
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aef");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+    CHECK_INT(vted_buffer.dirty, 1);
+}
+
+static void TestDeleteSelectionMultiRowKeepsBottomTail(void)
+{
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("HEADtopTAIL", 12, VTED_EOL_LF);
+    AppendRow("MID1", 4, VTED_EOL_LF);
+    AppendRow("BOTbottom", 9, VTED_EOL_LF);
+
+    /* select from column 4 of row 0 to column 3 of row 2: the top
+       row's tail, the whole middle row and the bottom row's head
+       vanish; the bottom row's tail rides onto the top row */
+    EditSetAnchor(0, 4);
+    vted_editor_config.cursor_y = 2;
+    vted_editor_config.cursor_x = 3;
+
+    EditDeleteSelection();
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "HEADbottom");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+}
+
+static void TestDeleteSelectionRoundTrips(void)
+{
+    Begin("abcdef");
+
+    EditSetAnchor(0, 1);
+    vted_editor_config.cursor_x = 4;
+
+    EditDeleteSelection();
+    CHECK_STR(vted_buffer.rows[0].chars, "aef");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcdef");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aef");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcdef");
+}
+
 int main(void)
 {
     TestInsertChar();
@@ -496,6 +561,9 @@ int main(void)
     TestMoveLineUpRoundTrip();
     TestMoveLineDownRoundTrip();
     TestMoveLineAtTheEdgesDoesNothing();
+    TestDeleteSelectionSingleRowKeepsTail();
+    TestDeleteSelectionMultiRowKeepsBottomTail();
+    TestDeleteSelectionRoundTrips();
     TestInsertTextInsideALine();
     TestInsertTextSeveralLines();
     TestInsertTextAddsNoIndent();
