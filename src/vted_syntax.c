@@ -1,5 +1,6 @@
 /*===============================*/
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 /*===============================*/
@@ -752,21 +753,112 @@ void SyntaxHighlightRow(int at, unsigned char *hl)
     }
 }
 
+/* truecolor (RGB), 256-color or the terminal's 16 colors, in that
+   order of preference: COLORTERM=truecolor|24bit asks for RGB, a
+   256color terminal gets 38;5 escapes, anything else gets the 16
+   color escapes below */
+static int ColorMode(void)
+{
+    static int mode = -1;
+
+    if (mode == -1)
+    {
+        const char *colorterm = getenv("COLORTERM");
+        const char *term;
+
+        if (colorterm != NULL &&
+            (strcmp(colorterm, "truecolor") == 0 ||
+             strcmp(colorterm, "24bit") == 0))
+        {
+            mode = 2;
+        }
+        else
+        {
+            term = getenv("TERM");
+            mode = (term != NULL && strstr(term, "256color") != NULL) ? 1 : 0;
+        }
+    }
+
+    return mode;
+}
+
 const char *SyntaxStyle(int hl_class)
 {
+    static char escape[32];
+
     switch (hl_class)
     {
     case HlComment:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;128;128;128m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;245m");
+            return escape;
+        }
         return "\x1b[90m";
     case HlString:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;0;170;0m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;28m");
+            return escape;
+        }
         return "\x1b[32m";
     case HlNumber:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;170;0;170m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;127m");
+            return escape;
+        }
         return "\x1b[35m";
     case HlKeyword:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;170;130;0m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;220m");
+            return escape;
+        }
         return "\x1b[33m";
     case HlType:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;0;150;150m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;81m");
+            return escape;
+        }
         return "\x1b[36m";
     case HlPreproc:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;0;110;255m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;63m");
+            return escape;
+        }
         return "\x1b[94m";
     default:
         return "";
