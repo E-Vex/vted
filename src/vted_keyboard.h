@@ -22,7 +22,15 @@ typedef enum
     DeleteKey,
     WordLeft,   /* Ctrl or Alt with Left, Alt-b */
     WordRight,  /* Ctrl or Alt with Right, Alt-f */
-    PasteBegin  /* the terminal started a bracketed paste */
+    PasteBegin,   /* the terminal started a bracketed paste */
+    MoveLineUp,   /* Ctrl-Up: move the current line up */
+    MoveLineDown, /* Ctrl-Down: move the current line down */
+    ShiftArrowLeft,   /* Shift-Arrow: start or extend a selection */
+    ShiftArrowRight,
+    ShiftArrowUp,
+    ShiftArrowDown,
+    ShiftHome,
+    ShiftEnd,
 
 } EditorKey;
 

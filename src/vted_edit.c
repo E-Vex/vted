@@ -506,3 +506,72 @@ void EditorDuplicateLine(void)
     };
     UndoPush(&entry);
 }
+
+static void EditorMoveLine(int delta)
+{
+    /* moves the current line up (delta < 0) or down (delta > 0); the
+       cursor rides the line to its new row */
+
+    if (vted_buffer.num_rows < 2)
+    {
+        return; /* nothing to move it past */
+    }
+
+    int row = vted_editor_config.cursor_y;
+    int target = row + delta;
+
+    if (target < 0 || target >= vted_buffer.num_rows)
+    {
+        return; /* already at the edge */
+    }
+
+    vted_row_t *line = &vted_buffer.rows[row];
+    int length = line->size;
+    int eol = line->eol;
+    char *saved = malloc((size_t)(length > 0 ? length : 1));
+
+    if (saved == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    memcpy(saved, line->chars, (size_t)length);
+
+    RemoveRow(row);
+    InsertRow(target, saved, length, eol);
+
+    free(saved);
+
+    vted_editor_config.cursor_y = target;
+
+    if (vted_editor_config.cursor_x > vted_buffer.rows[target].size)
+    {
+        vted_editor_config.cursor_x = vted_buffer.rows[target].size;
+    }
+
+    vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindMoveRow,
+        .row = row,
+        .bytes = NULL,
+        .length = 0,
+        .eol = eol,
+        .move_delta = delta,
+        .undo_y = row,
+        .undo_x = vted_editor_config.cursor_x,
+        .redo_y = target,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPush(&entry);
+}
+
+void EditorMoveLineUp(void)
+{
+    EditorMoveLine(-1);
+}
+
+void EditorMoveLineDown(void)
+{
+    EditorMoveLine(+1);
+}

@@ -25,5 +25,7 @@ void EditorInsertText(const char *text, int length);
 void EditorDelChar(void);
 void EditorDeleteLine(void);
 void EditorDuplicateLine(void);
+void EditorMoveLineUp(void);
+void EditorMoveLineDown(void);
 
 #endif

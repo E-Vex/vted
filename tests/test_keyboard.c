@@ -121,23 +121,23 @@ static void TestAltLettersMoveByWord(void)
     CHECK_INT(ReadKeyPress(), 'f');
 }
 
-static void TestShiftArrowsStayPlain(void)
+static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
-    CHECK_INT(ReadKeyPress(), ArrowRight);
+    CHECK_INT(ReadKeyPress(), ShiftArrowRight);
     FeedInput("\x1b[1;2D"); /* Shift-Left */
-    CHECK_INT(ReadKeyPress(), ArrowLeft);
+    CHECK_INT(ReadKeyPress(), ShiftArrowLeft);
     FeedInput("\x1b[1C"); /* a leading 1 alone is no modifier */
     CHECK_INT(ReadKeyPress(), ArrowRight);
 }
 
-static void TestModifiedUpDownStayPlain(void)
+static void TestCtrlUpDownMoveLines(void)
 {
     /* only Left and Right have a word meaning */
-    FeedInput("\x1b[1;5A");
-    CHECK_INT(ReadKeyPress(), ArrowUp);
-    FeedInput("\x1b[1;5B");
-    CHECK_INT(ReadKeyPress(), ArrowDown);
+    FeedInput("\x1b[1;5A"); /* Ctrl-Up */
+    CHECK_INT(ReadKeyPress(), MoveLineUp);
+    FeedInput("\x1b[1;5B"); /* Ctrl-Down */
+    CHECK_INT(ReadKeyPress(), MoveLineDown);
 }
 
 static void TestSequencesDoNotLeakText(void)
@@ -268,8 +268,8 @@ int main(void)
     TestApplicationCursorKeys();
     TestCtrlAndAltArrowsMoveByWord();
     TestAltLettersMoveByWord();
-    TestShiftArrowsStayPlain();
-    TestModifiedUpDownStayPlain();
+    TestShiftArrowsStartSelections();
+    TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();
     TestCutShortSequences();
     TestBracketedPasteMarkers();

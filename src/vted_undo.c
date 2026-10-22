@@ -223,6 +223,26 @@ static void MergeRowIntoNext(int row)
     vted_buffer.rows[row].eol = eol;
 }
 
+/* moves rows[from] to rows[to], keeping its text and ending; the
+   caller clamps the cursor column to the row afterwards */
+static void MoveRowWithinBuffer(int from, int to)
+{
+    vted_row_t *line = &vted_buffer.rows[from];
+    int length = line->size;
+    int eol = line->eol;
+    char *saved = malloc((size_t)(length > 0 ? length : 1));
+
+    if (saved == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    memcpy(saved, line->chars, (size_t)length);
+    RemoveRow(from);
+    InsertRow(to, saved, length, eol);
+    free(saved);
+}
+
 /* puts a row's whole text back the way it was recorded */
 static void RestoreRowText(const UndoEntry *entry)
 {
@@ -277,6 +297,9 @@ static void Apply(const UndoEntry *entry)
         RowTruncate(&vted_buffer.rows[entry->row], 0);
         break;
     }
+    case UndoKindMoveRow:
+        MoveRowWithinBuffer(entry->row, entry->row + entry->move_delta);
+        break;
     case UndoKindInsertText:
         if (entry->made_row &&
             InsertRow(entry->row, "", 0, entry->eol) == -1)
@@ -345,6 +368,9 @@ static void Revert(const UndoEntry *entry)
         break;
     case UndoKindReplaceRow:
         RestoreRowText(entry);
+        break;
+    case UndoKindMoveRow:
+        MoveRowWithinBuffer(entry->row + entry->move_delta, entry->row);
         break;
     case UndoKindInsertText:
         if (RemoveText(entry->row, entry->cx,

@@ -4,6 +4,7 @@
 #include "src/vted_screen.h"
 #include "src/vted_row.h"
 #include "src/vted_edit.h"
+#include "src/vted_undo.h"
 /*===============================*/
 
 /* each check starts from a fresh buffer with the given rows */
@@ -206,6 +207,82 @@ static void TestDuplicateLine(void)
     CHECK_STR(vted_buffer.rows[1].chars, "ab");
     CHECK_INT(vted_editor_config.cursor_y, 1);
     CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestMoveLineUpRoundTrip(void)
+{
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("first", 5, VTED_EOL_LF);
+    AppendRow("second", 6, VTED_EOL_LF);
+    AppendRow("third", 5, VTED_EOL_LF);
+    CursorAt(2, 0); /* on "third" */
+
+    EditorMoveLineUp();
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "first");
+    CHECK_STR(vted_buffer.rows[1].chars, "third");
+    CHECK_STR(vted_buffer.rows[2].chars, "second");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[1].chars, "second");
+    CHECK_STR(vted_buffer.rows[2].chars, "third");
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[1].chars, "third");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+}
+
+static void TestMoveLineDownRoundTrip(void)
+{
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("first", 5, VTED_EOL_LF);
+    AppendRow("second", 6, VTED_EOL_LF);
+    AppendRow("third", 5, VTED_EOL_LF);
+    CursorAt(0, 0); /* on "first" */
+
+    EditorMoveLineDown();
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "second");
+    CHECK_STR(vted_buffer.rows[1].chars, "first");
+    CHECK_STR(vted_buffer.rows[2].chars, "third");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "first");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "second");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+}
+
+static void TestMoveLineAtTheEdgesDoesNothing(void)
+{
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("first", 5, VTED_EOL_LF);
+    AppendRow("second", 6, VTED_EOL_LF);
+    CursorAt(0, 0);
+
+    EditorMoveLineUp();
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "first");
+
+    CursorAt(1, 0);
+    EditorMoveLineDown();
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "second");
+
+    CHECK_INT(EditorUndo(), 0);
+    CHECK_INT(EditorRedo(), 0);
 }
 
 static void TestInsertTextInsideALine(void)
@@ -416,6 +493,9 @@ int main(void)
     TestDeleteLineClampsColumn();
     TestDeleteOnlyLine();
     TestDuplicateLine();
+    TestMoveLineUpRoundTrip();
+    TestMoveLineDownRoundTrip();
+    TestMoveLineAtTheEdgesDoesNothing();
     TestInsertTextInsideALine();
     TestInsertTextSeveralLines();
     TestInsertTextAddsNoIndent();

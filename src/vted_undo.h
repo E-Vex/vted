@@ -23,7 +23,8 @@ typedef enum
     UndoKindInsertRow,   /* a whole row appeared */
     UndoKindRemoveRow,   /* a whole row vanished */
     UndoKindReplaceRow,  /* a row's whole text was replaced */
-    UndoKindInsertText   /* a text of several lines was placed (a paste) */
+    UndoKindInsertText,  /* a text of several lines was placed (a paste) */
+    UndoKindMoveRow      /* a whole row moved up or down */
 } UndoKind;
 
 typedef struct
@@ -42,6 +43,9 @@ typedef struct
     int indent;   /* blanks auto-indent added to the new line */
     int fold;     /* a created row that may absorb the typing that follows it */
     int made_row; /* an inserted text went onto a row made just for it */
+
+    /* for UndoKindMoveRow: +1 when the row moved down, -1 when up */
+    int move_delta;
 
     int undo_y, undo_x; /* the cursor to restore on undo */
     int redo_y, redo_x; /* the cursor to restore on redo */

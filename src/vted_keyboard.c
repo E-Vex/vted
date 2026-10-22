@@ -31,13 +31,9 @@ int ReadRawByte(void)
         return user_input;
     }
 
-    if (read_return == 0)
-    {
-        /* end of file on stdin: the terminal went away, leave */
-        TerminalStdinEof();
-        return NO_KEY;
-    }
-
+    /* read_return == 0 is the idle timeout (VMIN = 0, VTIME = 1): no
+       key yet, not the end of the input. A terminal that is gone is
+       detected through the failing frame writes instead. */
     else if (read_return == -1)
     {
 
@@ -68,6 +64,7 @@ static int ReadSequenceByte(void)
 
 /* xterm style modifier bits, sent as 1 + the bits in the last
    parameter of a key sequence: ESC [ 1 ; 5 C is Ctrl-Right */
+#define MODIFIER_SHIFT 1
 #define MODIFIER_ALT 2
 #define MODIFIER_CTRL 4
 
@@ -136,18 +133,50 @@ static int ParseCsiSequence(void)
     switch (final_byte)
     {
     case 'A':
+        if (CsiModifierBits(parameters) == MODIFIER_CTRL)
+        {
+            return MoveLineUp;
+        }
+        if (CsiModifierBits(parameters) & MODIFIER_SHIFT)
+        {
+            return ShiftArrowUp;
+        }
         return ArrowUp;
     case 'B':
+        if (CsiModifierBits(parameters) == MODIFIER_CTRL)
+        {
+            return MoveLineDown;
+        }
+        if (CsiModifierBits(parameters) & MODIFIER_SHIFT)
+        {
+            return ShiftArrowDown;
+        }
         return ArrowDown;
     case 'C':
+        if (CsiModifierBits(parameters) & MODIFIER_SHIFT)
+        {
+            return ShiftArrowRight;
+        }
         /* Ctrl or Alt turns the arrow into a word move; Shift alone
            stays a plain arrow */
         return (CsiModifierBits(parameters) & (MODIFIER_CTRL | MODIFIER_ALT)) ? WordRight : ArrowRight;
     case 'D':
+        if (CsiModifierBits(parameters) & MODIFIER_SHIFT)
+        {
+            return ShiftArrowLeft;
+        }
         return (CsiModifierBits(parameters) & (MODIFIER_CTRL | MODIFIER_ALT)) ? WordLeft : ArrowLeft;
     case 'H':
+        if (CsiModifierBits(parameters) & MODIFIER_SHIFT)
+        {
+            return ShiftHome;
+        }
         return HomeKey;
     case 'F':
+        if (CsiModifierBits(parameters) & MODIFIER_SHIFT)
+        {
+            return ShiftEnd;
+        }
         return EndKey;
     case '~':
         switch (atoi(parameters))
