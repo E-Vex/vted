@@ -313,6 +313,12 @@ static void EditorFind(void)
 
         if (FindMatch(query, search_start, direction, &match_row, &match_col) == 0)
         {
+            /* drop the old highlight before the new one is painted */
+            if (vted_editor_config.match_row >= 0)
+            {
+                ScreenMarkRowDirty(vted_editor_config.match_row);
+            }
+
             last_match_row = match_row;
             vted_editor_config.cursor_y = match_row;
             vted_editor_config.cursor_x = match_col;
@@ -321,18 +327,30 @@ static void EditorFind(void)
             vted_editor_config.match_row = match_row;
             vted_editor_config.match_col = match_col;
             vted_editor_config.match_len = query_len;
+
+            ScreenMarkRowDirty(match_row);
         }
         else
         {
             last_match_row = -1;
 
             /* no match for the current query: drop the highlight */
+            if (vted_editor_config.match_row >= 0)
+            {
+                ScreenMarkRowDirty(vted_editor_config.match_row);
+            }
+
             vted_editor_config.match_row = -1;
             vted_editor_config.match_len = 0;
         }
     }
 
     /* leaving the search clears the highlight */
+    if (vted_editor_config.match_row >= 0)
+    {
+        ScreenMarkRowDirty(vted_editor_config.match_row);
+    }
+
     vted_editor_config.match_row = -1;
     vted_editor_config.match_len = 0;
 

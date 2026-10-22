@@ -39,6 +39,13 @@ void SetStatusMessage(const char *format, ...);
 void RefreshScreen(void);
 void InitVtedEditor(void);
 
+/* marks a buffer row as needing a repaint on the next frame; rows
+   that are not dirty keep whatever is already on the terminal screen,
+   so a frame only repaints what actually changed */
+void ScreenMarkRowDirty(int row);
+void ScreenMarkRowsDirtyFrom(int row);
+void ScreenMarkAllDirty(void);
+
 /* gives back the memory the module holds between frames */
 void ScreenFree(void);
 

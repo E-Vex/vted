@@ -5,6 +5,7 @@
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_row.h"
+#include "vted_screen.h"
 #include "vted_syntax.h"
 #include "vted_utf8.h"
 /*===============================*/
@@ -41,7 +42,15 @@ static void NoteRowChange(const vted_row_t *row)
 
     if (index < (uintptr_t)vted_buffer.num_rows)
     {
-        SyntaxInvalidate((int)index);
+        int row = (int)index;
+
+        SyntaxInvalidate(row);
+
+        /* this row changed, and a block comment started or ended here
+           can recolor every row below it, so repaint everything from
+           here down: the bytes are cheap, the redraw is only the
+           viewport rows that are actually on screen */
+        ScreenMarkRowsDirtyFrom(row);
     }
 }
 
@@ -92,6 +101,8 @@ int InsertRow(int at, const char *chars, int size, int eol)
 
     vted_buffer.num_rows++;
     SyntaxInvalidate(at);
+    /* rows below this one moved to a different screen line: repaint it all */
+    ScreenMarkAllDirty();
     return 0;
 }
 
@@ -115,6 +126,8 @@ void RemoveRow(int at)
 
     vted_buffer.num_rows--;
     SyntaxInvalidate(at);
+    /* rows below this one moved to a different screen line: repaint it all */
+    ScreenMarkAllDirty();
 }
 
 int RowInsertChar(vted_row_t *row, int at, int c)

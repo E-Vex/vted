@@ -5,6 +5,7 @@
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_row.h"
+#include "vted_screen.h"
 #include "vted_syntax.h"
 /*===============================*/
 
@@ -377,6 +378,8 @@ void SyntaxSelectForFile(const char *filename)
         if (MatchesName(languages[i], base, ext))
         {
             current_language = languages[i];
+            /* a new language recolors every row: repaint it all */
+            ScreenMarkAllDirty();
             return;
         }
     }

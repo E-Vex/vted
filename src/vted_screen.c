@@ -77,6 +77,71 @@ int GetWindowSize(int *rows, int *cols)
    text matters more than the numbers */
 #define GUTTER_MIN_TEXT_COLS 20
 
+/* one byte per buffer row: 1 while what is on the terminal for that
+   row is stale and must be repainted; 0 when the screen already shows
+   the row exactly as it is in the buffer */
+static unsigned char *dirty_rows;
+static int dirty_rows_capacity;
+
+/* set once the first frame has been painted: before that nothing is
+   on the screen, so edits while loading must not repaint row by row */
+static int screen_active = 0;
+
+static void EnsureDirtyRows(int rows)
+{
+    if (rows <= dirty_rows_capacity)
+    {
+        return;
+    }
+
+    unsigned char *grown = realloc(dirty_rows, (size_t)rows);
+
+    if (grown == NULL)
+    {
+        KillApp("realloc");
+    }
+
+    /* rows the array never held have never been drawn: mark them dirty */
+    memset(&grown[dirty_rows_capacity], 1, (size_t)(rows - dirty_rows_capacity));
+
+    dirty_rows = grown;
+    dirty_rows_capacity = rows;
+}
+
+void ScreenMarkRowDirty(int row)
+{
+    if (row < 0 || row >= vted_buffer.num_rows)
+    {
+        return;
+    }
+
+    EnsureDirtyRows(vted_buffer.num_rows);
+    dirty_rows[row] = 1;
+}
+
+void ScreenMarkRowsDirtyFrom(int row)
+{
+    if (row < 0 || row >= vted_buffer.num_rows)
+    {
+        return;
+    }
+
+    EnsureDirtyRows(vted_buffer.num_rows);
+    memset(&dirty_rows[(size_t)row], 1, (size_t)(vted_buffer.num_rows - row));
+}
+
+void ScreenMarkAllDirty(void)
+{
+    if (!screen_active)
+    {
+        return; /* nothing has been painted yet: the first frame
+                   repaints everything through InitVtedEditor */
+    }
+
+    EnsureDirtyRows(vted_buffer.num_rows);
+    memset(dirty_rows, 1, (size_t)vted_buffer.num_rows);
+}
+
 static int CountDigits(int number)
 {
     int digits = 1;
@@ -116,6 +181,7 @@ static void UpdateGutterWidth(int cols)
     vted_editor_config.text_cols = cols - width;
 }
 
+/* -1 on error, 0 when the size is unchanged, 1 when it changed */
 int RefreshWindowSize(void)
 {
     int rows;
@@ -126,6 +192,11 @@ int RefreshWindowSize(void)
         return -1;
     }
 
+    if (rows == vted_editor_config.screen_rows && cols == vted_editor_config.screen_cols)
+    {
+        return 0;
+    }
+
     /* the two bottom rows are reserved for the status bar and
        the message bar, so the text viewport is two rows shorter */
     vted_editor_config.screen_rows = rows - 2;
@@ -133,7 +204,7 @@ int RefreshWindowSize(void)
 
     UpdateGutterWidth(cols);
 
-    return 0;
+    return 1;
 }
 
 static void UpdateScroll(void)
@@ -368,13 +439,54 @@ static void DrawGutter(append_buffer_t *ab, int buffer_row)
     AppendToBuffer(ab, "\x1b[m", 3);
 }
 
+/* positions the terminal cursor at the start of screen line row, unless
+   the cursor is already there from the previous row drawn */
+static void GotoScreenRow(append_buffer_t *ab, int *at, int row)
+{
+    if (*at == row)
+    {
+        return;
+    }
+
+    char position[32];
+    int position_len = snprintf(position, sizeof(position), "\x1b[%d;1H", row + 1);
+
+    if (position_len > 0)
+    {
+        AppendToBuffer(ab, position, (size_t)position_len);
+    }
+
+    *at = row;
+}
+
 static void DrawRows(append_buffer_t *ab)
 {
-    int row;
+    int screen_row;
+    int at = 0; /* screen line the cursor sits on; it starts homed */
 
-    for (row = 0; row < vted_editor_config.screen_rows; row++)
+    GotoScreenRow(ab, &at, 0);
+
+    for (screen_row = 0; screen_row < vted_editor_config.screen_rows; screen_row++)
     {
-        int buffer_row = row + vted_editor_config.row_offset;
+        int buffer_row = screen_row + vted_editor_config.row_offset;
+        int draw;
+
+        if (buffer_row >= vted_buffer.num_rows)
+        {
+            /* tildes below the text and the welcome banner are drawn
+               every frame: they depend on nothing in the buffer */
+            draw = 1;
+        }
+        else
+        {
+            EnsureDirtyRows(vted_buffer.num_rows);
+            draw = dirty_rows[buffer_row] != 0;
+        }
+
+        if (!draw)
+        {
+            continue;
+        }
 
         if (buffer_row < vted_buffer.num_rows)
         {
@@ -384,6 +496,8 @@ static void DrawRows(append_buffer_t *ab)
             DrawRowText(ab, buffer_row, text_row,
                         buffer_row == vted_editor_config.match_row &&
                             vted_editor_config.match_len > 0);
+
+            dirty_rows[buffer_row] = 0; /* the screen now matches the buffer */
         }
         else if (buffer_row == vted_buffer.num_rows && vted_editor_config.cursor_y == buffer_row &&
                  vted_editor_config.gutter_width > 0)
@@ -397,7 +511,7 @@ static void DrawRows(append_buffer_t *ab)
         {
             /* empty buffer: show a welcome banner in the middle row;
                a loaded file only gets the tildes below its text */
-            if (vted_buffer.num_rows == 0 && row == vted_editor_config.screen_rows / 2)
+            if (vted_buffer.num_rows == 0 && screen_row == vted_editor_config.screen_rows / 2)
             {
                 char welcome[80];
                 int welcome_len = snprintf(welcome, sizeof(welcome),
@@ -443,6 +557,7 @@ static void DrawRows(append_buffer_t *ab)
         AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
 
         AppendToBuffer(ab, "\r\n", 2);
+        at++;
     }
 }
 
@@ -722,6 +837,11 @@ void ScreenFree(void)
     free(highlight_classes);
     highlight_classes = NULL;
     highlight_capacity = 0;
+
+    free(dirty_rows);
+    dirty_rows = NULL;
+    dirty_rows_capacity = 0;
+    screen_active = 0;
 }
 
 void RefreshScreen(void)
@@ -730,9 +850,17 @@ void RefreshScreen(void)
     char cursor_position_buffer[32];
     int cursor_position_len;
 
-    if (RefreshWindowSize() == -1)
+    int size_change = RefreshWindowSize();
+
+    if (size_change == -1)
     {
         KillApp("GetWindowSize");
+    }
+
+    if (size_change == 1)
+    {
+        /* the terminal was resized: nothing on screen lines up anymore */
+        ScreenMarkAllDirty();
     }
 
     UpdateScroll();
@@ -797,6 +925,10 @@ void InitVtedEditor(void)
     {
         KillApp("GetWindowSize");
     }
+
+    /* nothing has been painted yet: the first frame repaints everything */
+    screen_active = 1;
+    ScreenMarkAllDirty();
 
     SetStatusMessage("HELP: Ctrl-S save | Ctrl-F find | Ctrl-G go to line | Ctrl-Q quit");
 
