@@ -10,3 +10,6 @@ dist/
 
 # unit test programs
 tests/bin/
+
+# benchmark binary
+bench/bench
