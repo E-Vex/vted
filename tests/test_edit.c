@@ -542,6 +542,59 @@ static void TestDeleteSelectionRoundTrips(void)
     CHECK_STR(vted_buffer.rows[0].chars, "abcdef");
 }
 
+static void TestBufferReplaceAll(void)
+{
+    Begin("abcabc");
+
+    CHECK_INT(BufferReplaceAll("b", "B"), 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "aBcaBc");
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    /* each occurrence is its own step, undone in reverse order */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aBcabc");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcabc");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aBcabc");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aBcaBc");
+}
+
+static void TestBufferReplaceAllDeletesWithEmptyReplacement(void)
+{
+    Begin("axbxc");
+
+    CHECK_INT(BufferReplaceAll("x", ""), 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+}
+
+static void TestBufferReplaceAllAcrossRows(void)
+{
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("foo bar foo", 11, VTED_EOL_LF);
+    AppendRow("bar foo", 7, VTED_EOL_LF);
+
+    CHECK_INT(BufferReplaceAll("foo", "FOO"), 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "FOO bar FOO");
+    CHECK_STR(vted_buffer.rows[1].chars, "bar FOO");
+    CHECK_INT(vted_buffer.num_rows, 2);
+}
+
+static void TestBufferReplaceAllEmptyQueryDoesNothing(void)
+{
+    Begin("abc");
+
+    CHECK_INT(BufferReplaceAll("", "x"), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(vted_buffer.dirty, 0);
+}
+
 int main(void)
 {
     TestInsertChar();
@@ -564,6 +617,10 @@ int main(void)
     TestDeleteSelectionSingleRowKeepsTail();
     TestDeleteSelectionMultiRowKeepsBottomTail();
     TestDeleteSelectionRoundTrips();
+    TestBufferReplaceAll();
+    TestBufferReplaceAllDeletesWithEmptyReplacement();
+    TestBufferReplaceAllAcrossRows();
+    TestBufferReplaceAllEmptyQueryDoesNothing();
     TestInsertTextInsideALine();
     TestInsertTextSeveralLines();
     TestInsertTextAddsNoIndent();

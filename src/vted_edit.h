@@ -48,4 +48,9 @@ void EditDeleteSelection(void);
 void EditorCopy(void);
 void EditorCut(void);
 
+/* replaces every occurrence of query in the buffer with replacement,
+   one undoable step per occurrence, and returns the number of
+   replacements made. query must not contain a line break */
+int BufferReplaceAll(const char *query, const char *replacement);
+
 #endif

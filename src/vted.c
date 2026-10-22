@@ -362,6 +362,39 @@ static void EditorFind(void)
     SetStatusMessage("");
 }
 
+static void EditorReplace(void)
+{
+    /* search and replace every occurrence: the replacement is applied
+       as one undoable step per occurrence, so the whole operation can
+       be walked back with Ctrl-Z */
+    EditClearSelection();
+    ScreenSetSelection(-1, 0, -1, 0);
+
+    char *query = EditorPrompt("Replace: ");
+
+    if (query == NULL)
+    {
+        SetStatusMessage("Replace cancelled");
+        return;
+    }
+
+    char *replacement = EditorPrompt("with: ");
+
+    if (replacement == NULL)
+    {
+        free(query);
+        SetStatusMessage("Replace cancelled");
+        return;
+    }
+
+    int count = BufferReplaceAll(query, replacement);
+
+    free(query);
+    free(replacement);
+
+    SetStatusMessage("Replaced %d occurrence%s", count, count == 1 ? "" : "s");
+}
+
 /* gives back everything the editor holds: the undo history, the
    colors of the syntax module, the scratch space of the screen
    module and the text buffer itself. It runs once, on the way out,
@@ -593,6 +626,11 @@ int main(int argc, char *argv[])
             {
                 /* Ctrl-F searches the buffer incrementally */
                 EditorFind();
+            }
+            else if (c_in == CTRL_KEY('r') || c_in == CTRL_KEY('R'))
+            {
+                /* Ctrl-R searches and replaces every occurrence */
+                EditorReplace();
             }
             else if (c_in == CTRL_KEY('g') || c_in == CTRL_KEY('G'))
             {

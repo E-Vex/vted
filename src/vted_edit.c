@@ -887,3 +887,78 @@ void EditorCut(void)
         SetStatusMessage("Cut %d bytes", length);
     }
 }
+
+/* replaces every non-overlapping occurrence of query in the buffer with
+   replacement, one undoable step per occurrence, and returns the number
+   of replacements made. query must not contain a line break; an empty
+   query replaces nothing */
+int BufferReplaceAll(const char *query, const char *replacement)
+{
+    int count = 0;
+    int query_len = (int)strlen(query);
+    int replacement_len = (int)strlen(replacement);
+    int row_index;
+
+    if (query_len == 0)
+    {
+        return 0;
+    }
+
+    for (row_index = 0; row_index < vted_buffer.num_rows; row_index++)
+    {
+        vted_row_t *row = &vted_buffer.rows[row_index];
+        int start = 0; /* keep searching after the last replacement */
+
+        while (start + query_len <= row->size)
+        {
+            const char *found = strstr(&row->chars[start], query);
+            int hit;
+
+            if (found == NULL)
+            {
+                break;
+            }
+
+            hit = (int)(found - row->chars);
+
+            {
+                UndoEntry entry = {
+                    .kind = UndoKindReplaceBytes,
+                    .row = row_index,
+                    .cx = hit,
+                    .bytes = (char *)query,
+                    .length = query_len,
+                    .new_bytes = (char *)replacement,
+                    .new_length = replacement_len,
+                    .undo_y = row_index,
+                    .undo_x = hit,
+                    .redo_y = row_index,
+                    .redo_x = hit + replacement_len,
+                };
+
+                UndoPush(&entry);
+
+                { /* remove the old text at hit */
+                    int i;
+
+                    for (i = 0; i < query_len; i++)
+                    {
+                        RowRemoveChar(row, hit);
+                    }
+                }
+
+                RowInsertString(row, hit, replacement, replacement_len);
+            }
+
+            count++;
+            start = hit + replacement_len; /* continue after the new text */
+        }
+    }
+
+    if (count > 0)
+    {
+        vted_buffer.dirty = 1;
+    }
+
+    return count;
+}
