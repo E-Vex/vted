@@ -314,6 +314,39 @@ static void Apply(const UndoEntry *entry)
             KillApp("InsertText");
         }
         break;
+    case UndoKindRemoveText:
+    {
+        /* redo the deletion: truncate the top row at its left end,
+           ride the bottom row's tail onto it, then drop the spanned rows */
+        int top = entry->row;
+        int left = entry->cx;
+        int bottom = entry->undo_y;
+        int right = entry->undo_x;
+        int tail_row = (bottom == top) ? top : bottom;
+        int tail_len = vted_buffer.rows[tail_row].size - right;
+
+        RowTruncate(&vted_buffer.rows[top], left);
+
+        if (tail_len > 0)
+        {
+            char *tail = malloc((size_t)tail_len);
+
+            if (tail == NULL)
+            {
+                KillApp("malloc");
+            }
+
+            memcpy(tail, &vted_buffer.rows[tail_row].chars[right], (size_t)tail_len);
+            RowAppendString(&vted_buffer.rows[top], tail, (size_t)tail_len);
+            free(tail);
+        }
+
+        while (bottom-- > top)
+        {
+            RemoveRow(top + 1);
+        }
+        break;
+    }
     }
 }
 
@@ -383,6 +416,15 @@ static void Revert(const UndoEntry *entry)
         if (entry->made_row)
         {
             RemoveRow(entry->row);
+        }
+        break;
+    case UndoKindRemoveText:
+        /* undo the deletion: put the removed text back where it was */
+        if (InsertText(entry->row, entry->cx,
+                       entry->bytes != NULL ? entry->bytes : "",
+                       entry->length, entry->eol) == -1)
+        {
+            KillApp("InsertText");
         }
         break;
     }

@@ -24,6 +24,7 @@ typedef enum
     UndoKindRemoveRow,   /* a whole row vanished */
     UndoKindReplaceRow,  /* a row's whole text was replaced */
     UndoKindInsertText,  /* a text of several lines was placed (a paste) */
+    UndoKindRemoveText,  /* a text of several lines was removed (a deletion) */
     UndoKindMoveRow      /* a whole row moved up or down */
 } UndoKind;
 
