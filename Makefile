@@ -40,7 +40,7 @@ BR4 = \033[38;5;136m
 BR5 = \033[38;5;172m
 BR6 = \033[38;5;178m
 
-.PHONY: all banner clean install uninstall test
+.PHONY: all banner clean install uninstall test bench
 
 all: banner
 	@printf "$(GREEN)$(BOLD)Building VTED...$(RESET)\n\n"
@@ -72,7 +72,7 @@ banner:
 clean:
 	@printf "$(YELLOW)Cleaning VTED...$(RESET)\n"
 	rm -f $(TARGET)
-	rm -rf tests/bin
+	rm -rf tests/bin bench
 	@printf "$(GREEN)✓ Clean complete.$(RESET)\n"
 # Install locations (override with: make PREFIX=$HOME/.local install)
 PREFIX ?= /usr/local
@@ -106,3 +106,11 @@ test: $(TEST_BINS)
 	@printf "$(CYAN)Running unit tests:$(RESET)\n"
 	@for test_bin in $(TEST_BINS); do ./$$test_bin || exit 1; done
 	@printf "$(GREEN)$(BOLD)✓ All tests passed$(RESET)\n"
+
+# Benchmark: loading, saving and editing a ~100 MB file.
+bench: bench/bench
+	@./bench/bench
+
+bench/bench: bench/bench.c $(LIB_SRC)
+	@mkdir -p bench
+	$(CC) $(CFLAGS) -O2 -U_FORTIFY_SOURCE $< $(LIB_SRC) -o $@
