@@ -72,7 +72,8 @@ banner:
 clean:
 	@printf "$(YELLOW)Cleaning VTED...$(RESET)\n"
 	rm -f $(TARGET)
-	rm -rf tests/bin bench
+	rm -rf tests/bin
+	rm -f bench/bench
 	@printf "$(GREEN)✓ Clean complete.$(RESET)\n"
 # Install locations (override with: make PREFIX=$HOME/.local install)
 PREFIX ?= /usr/local
