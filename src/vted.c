@@ -240,6 +240,11 @@ static void EditorFind(void)
     /* remember where we were, ESC puts everything back */
     int saved_x = vted_editor_config.cursor_x;
     int saved_y = vted_editor_config.cursor_y;
+
+    /* the search moves the cursor on its own: the selection does not
+       survive it */
+    EditClearSelection();
+    ScreenSetSelection(-1, 0, -1, 0);
     int saved_row_offset = vted_editor_config.row_offset;
     int saved_col_offset = vted_editor_config.col_offset;
 
@@ -448,18 +453,57 @@ int main(int argc, char *argv[])
 
             /* one key, one action: the dispatch is a chain so special
                key codes are never mistaken for text bytes */
-            if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
-                c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey ||
-                c_in == WordLeft || c_in == WordRight)
+            if (c_in == ShiftArrowLeft || c_in == ShiftArrowRight || c_in == ShiftArrowUp ||
+                c_in == ShiftArrowDown || c_in == ShiftHome || c_in == ShiftEnd)
             {
+                /* shift movements start or extend the selection: the
+                   anchor is set where the run began, the cursor end
+                   follows the move */
+                if (!EditSelectionActive())
+                {
+                    EditSetAnchor(vted_editor_config.cursor_y,
+                                  vted_editor_config.cursor_x);
+                }
+
                 MoveCursor(c_in);
+
+                int top, left, bottom, right;
+
+                EditSelectionRange(&top, &left, &bottom, &right);
+                ScreenSetSelection(top, left, bottom, right);
+            }
+            else if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
+                     c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey ||
+                     c_in == WordLeft || c_in == WordRight)
+            {
+                /* anything else forgets the selection */
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+                MoveCursor(c_in);
+            }
+            else if (c_in == MoveLineUp || c_in == MoveLineDown)
+            {
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+
+                if (c_in == MoveLineUp)
+                {
+                    EditorMoveLineUp();
+                }
+                else
+                {
+                    EditorMoveLineDown();
+                }
             }
             else if (c_in == PasteBegin)
             {
-                /* a paste arrives whole, between two markers. It goes
-                   into the text as one block, so Enter's auto indent
-                   does not pile onto the indent it already carries,
-                   and a single Ctrl-Z takes all of it back */
+                /* a paste replaces the selection first, then arrives
+                   whole between its two markers */
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+
                 int pasted_length = 0;
                 char *pasted = ReadPastedText(&pasted_length);
 
@@ -471,34 +515,56 @@ int main(int argc, char *argv[])
             }
             else if (c_in == '\r' || c_in == '\n')
             {
-                /* Enter splits the current line at the cursor */
+                /* Enter replaces the selection first, then splits */
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+
                 EditorInsertNewline();
             }
             else if (c_in == 127)
             {
-                /* Backspace removes the character left of the cursor */
-                EditorDelChar();
-            }
-            else if (c_in == DeleteKey)
-            {
-                /* Delete removes the character at the cursor: stepping
-                   right first turns it into a delete-left operation.
-                   At the very end of the file the step does not move
-                   the cursor, and deleting then would remove the
-                   character on the left, so do nothing instead */
-                int before_x = vted_editor_config.cursor_x;
-                int before_y = vted_editor_config.cursor_y;
-
-                MoveCursor(ArrowRight);
-
-                if (vted_editor_config.cursor_x != before_x ||
-                    vted_editor_config.cursor_y != before_y)
+                /* Backspace removes the selection, or the character
+                   left of the cursor */
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+                else
                 {
                     EditorDelChar();
                 }
             }
+            else if (c_in == DeleteKey)
+            {
+                /* Delete removes the selection, or the character under
+                   the cursor */
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+                else
+                {
+                    int before_x = vted_editor_config.cursor_x;
+                    int before_y = vted_editor_config.cursor_y;
+
+                    MoveCursor(ArrowRight);
+
+                    if (vted_editor_config.cursor_x != before_x ||
+                        vted_editor_config.cursor_y != before_y)
+                    {
+                        EditorDelChar();
+                    }
+                }
+            }
             else if (c_in == '\t')
             {
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+
                 if (vted_editor_config.insert_spaces != 0)
                 {
                     /* Tab inserts spaces up to the next tab stop;
@@ -556,11 +622,23 @@ int main(int argc, char *argv[])
             else if (c_in == CTRL_KEY('k') || c_in == CTRL_KEY('K'))
             {
                 /* Ctrl-K deletes the whole line under the cursor */
+                if (EditSelectionActive())
+                {
+                    EditClearSelection();
+                    ScreenSetSelection(-1, 0, -1, 0);
+                }
+
                 EditorDeleteLine();
             }
             else if (c_in == CTRL_KEY('d') || c_in == CTRL_KEY('D'))
             {
                 /* Ctrl-D duplicates the line under the cursor */
+                if (EditSelectionActive())
+                {
+                    EditClearSelection();
+                    ScreenSetSelection(-1, 0, -1, 0);
+                }
+
                 EditorDuplicateLine();
             }
             else if (c_in == CTRL_KEY('z') || c_in == CTRL_KEY('Z'))
@@ -570,6 +648,9 @@ int main(int argc, char *argv[])
                 {
                     SetStatusMessage("Nothing to undo");
                 }
+
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
             }
             else if (c_in == CTRL_KEY('y') || c_in == CTRL_KEY('Y'))
             {
@@ -579,11 +660,31 @@ int main(int argc, char *argv[])
                 {
                     SetStatusMessage("Nothing to redo");
                 }
+
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+            }
+            else if (c_in == CTRL_KEY('c') || c_in == CTRL_KEY('C'))
+            {
+                /* Ctrl-C copies the selection (or the current line) to
+                   the clipboard with an OSC 52 escape sequence */
+                EditorCopy();
+            }
+            else if (c_in == CTRL_KEY('x') || c_in == CTRL_KEY('X'))
+            {
+                /* Ctrl-X cuts the selection (or the current line) to
+                   the clipboard */
+                EditorCut();
             }
             else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
             {
-                /* printable ASCII and UTF-8 bytes land in the text;
-                   key codes at 1000 and above never reach this branch */
+                /* printable ASCII and UTF-8 bytes land in the text,
+                   replacing the selection first */
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+
                 EditorInsertChar(c_in);
             }
         }
