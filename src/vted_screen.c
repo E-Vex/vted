@@ -110,6 +110,12 @@ static void EnsureDirtyRows(int rows)
 
 void ScreenMarkRowDirty(int row)
 {
+    if (!screen_active)
+    {
+        return; /* nothing has been painted yet: the first frame
+                   repaints everything through InitVtedEditor */
+    }
+
     if (row < 0 || row >= vted_buffer.num_rows)
     {
         return;
@@ -121,6 +127,12 @@ void ScreenMarkRowDirty(int row)
 
 void ScreenMarkRowsDirtyFrom(int row)
 {
+    if (!screen_active)
+    {
+        return; /* nothing has been painted yet: the first frame
+                   repaints everything through InitVtedEditor */
+    }
+
     if (row < 0 || row >= vted_buffer.num_rows)
     {
         return;
