@@ -96,6 +96,10 @@ static int last_col_offset = -1;
    -1 before the first frame */
 static int last_cursor_row = -1;
 
+/* the gutter width the last frame was drawn with; -1 before the first
+   frame */
+static int last_gutter_width = -1;
+
 static void EnsureDirtyRows(int rows)
 {
     if (rows <= dirty_rows_capacity)
@@ -222,8 +226,6 @@ int RefreshWindowSize(void)
        the message bar, so the text viewport is two rows shorter */
     vted_editor_config.screen_rows = rows - 2;
     vted_editor_config.screen_cols = cols;
-
-    UpdateGutterWidth(cols);
 
     return 1;
 }
@@ -955,6 +957,7 @@ void ScreenFree(void)
     last_row_offset = -1;
     last_col_offset = -1;
     last_cursor_row = -1;
+    last_gutter_width = -1;
 }
 
 void RefreshScreen(void)
@@ -973,6 +976,19 @@ void RefreshScreen(void)
     if (size_change == 1)
     {
         /* the terminal was resized: nothing on screen lines up anymore */
+        ScreenMarkAllDirty();
+    }
+
+    /* the gutter depends on the buffer as well: it widens when the
+       line count crosses a digit boundary and collapses when the
+       numbers are hidden, so its width is recomputed every frame,
+       before anything lays text out in the columns it leaves */
+    UpdateGutterWidth(vted_editor_config.screen_cols);
+
+    if (vted_editor_config.gutter_width != last_gutter_width)
+    {
+        last_gutter_width = vted_editor_config.gutter_width;
+        /* every row's number and text shifted left or right */
         ScreenMarkAllDirty();
     }
 
