@@ -166,6 +166,9 @@ static void EditorSetTabWidth(void)
 
     vted_editor_config.tab_width = (int)width;
     RowSetTabWidth(vted_editor_config.tab_width);
+    /* every tab on screen changes width with the new stop, so the
+       rows already drawn lay out differently now */
+    ScreenMarkAllDirty();
     SetStatusMessage("Tab width %d", vted_editor_config.tab_width);
 }
 
