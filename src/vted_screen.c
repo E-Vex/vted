@@ -547,12 +547,9 @@ static void GotoScreenRow(append_buffer_t *ab, int *at, int row)
     *at = row;
 }
 
-static void DrawRows(append_buffer_t *ab)
+static void DrawRows(append_buffer_t *ab, int *at)
 {
     int screen_row;
-    int at = 0; /* screen line the cursor sits on; it starts homed */
-
-    GotoScreenRow(ab, &at, 0);
 
     for (screen_row = 0; screen_row < vted_editor_config.screen_rows; screen_row++)
     {
@@ -575,6 +572,11 @@ static void DrawRows(append_buffer_t *ab)
         {
             continue;
         }
+
+        /* clean rows skipped above leave the terminal cursor wherever
+           the last drawn row ended: this row is placed explicitly, and
+           the common case of consecutive rows costs nothing */
+        GotoScreenRow(ab, at, screen_row);
 
         if (buffer_row < vted_buffer.num_rows)
         {
@@ -645,12 +647,16 @@ static void DrawRows(append_buffer_t *ab)
         AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
 
         AppendToBuffer(ab, "\r\n", 2);
-        at++;
+        (*at)++;
     }
 }
 
-static void DrawStatusBar(append_buffer_t *ab)
+static void DrawStatusBar(append_buffer_t *ab, int *at)
 {
+    /* with text rows skipped, the terminal cursor is not necessarily
+       at the top of the bar: place it there explicitly */
+    GotoScreenRow(ab, at, vted_editor_config.screen_rows);
+
     /* inverted video makes the bar stand out from the text */
     AppendToBuffer(ab, "\x1b[7m", 4);
 
@@ -724,6 +730,7 @@ static void DrawStatusBar(append_buffer_t *ab)
 
     AppendToBuffer(ab, "\x1b[m", 3); /* reset colors */
     AppendToBuffer(ab, "\r\n", 2);
+    *at = vted_editor_config.screen_rows + 1;
 }
 
 static void DrawMessageBar(append_buffer_t *ab)
@@ -967,6 +974,9 @@ void RefreshScreen(void)
     append_buffer_t ab = ABUF_INIT;
     char cursor_position_buffer[32];
     int cursor_position_len;
+    /* the screen line the terminal cursor sits on while the frame is
+       assembled; it starts homed to the top-left */
+    int at = 0;
 
     int size_change = RefreshWindowSize();
 
@@ -1024,9 +1034,9 @@ void RefreshScreen(void)
     /* home the cursor to the top-left, every row repaints from there */
     AppendToBuffer(&ab, "\x1b[H", 3);
 
-    DrawRows(&ab);
+    DrawRows(&ab, &at);
 
-    DrawStatusBar(&ab);
+    DrawStatusBar(&ab, &at);
 
     DrawMessageBar(&ab);
 
