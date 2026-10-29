@@ -37,19 +37,30 @@ ships it to the terminal:
 1. `RefreshWindowSize()` asks the terminal for its size with `ioctl()`
    (`TIOCGWINSZ` on `STDOUT_FILENO`). Two bottom rows are reserved for
    the status bar and the message bar, so the text viewport is
-   `screen_rows = rows - 2` and `screen_cols = cols`. The gutter width
-   and the text width (`text_cols = screen_cols - gutter_width`) are
-   recomputed. The function returns -1 on error, 0 when the size is
-   unchanged, and 1 when it changed.
+   `screen_rows = rows - 2` and `screen_cols = cols`. The size is
+   compared against the viewport the raw count produces, so it only
+   reports a change when the terminal really was resized. The function
+   returns -1 on error, 0 when the size is unchanged, and 1 when it
+   changed.
 2. If the size changed, `ScreenMarkAllDirty()` marks every text row for
    repainting.
-3. `UpdateScroll()` moves `row_offset` and `col_offset` so the cursor
+3. `UpdateGutterWidth()` recomputes the gutter and text width
+   (`text_cols = screen_cols - gutter_width`). The width depends on the
+   buffer as well as the terminal — it widens when the line count
+   crosses a digit boundary and collapses when line numbers are toggled
+   off — so this runs every frame; a width different from the last
+   frame marks everything dirty.
+4. `UpdateScroll()` moves `row_offset` and `col_offset` so the cursor
    stays inside the viewport, and computes `cursor_rx`, the cell column
-   the cursor is drawn at.
+   the cursor is drawn at. Offsets that moved mark the whole viewport
+   dirty (what every screen line shows has changed); a cursor that
+   changed line marks the rows it left and entered, so the bold line
+   number in the gutter follows it.
 4. The cursor is hidden (`ESC[?25l`) and homed to the top-left
    (`ESC[H`) so it does not visibly jump while the frame is assembled.
 5. `DrawRows()` renders the text viewport: text rows, tildes below the
-   buffer, and the welcome banner for an empty buffer.
+   buffer, and the welcome banner for an empty buffer. Only dirty rows
+   are drawn; each drawn row is placed explicitly (see below).
 6. `DrawStatusBar()` renders the status bar.
 7. `DrawMessageBar()` renders the message bar.
 8. The terminal cursor is moved to its viewport-relative position
@@ -65,9 +76,11 @@ matches the buffer. `ScreenMarkRowDirty()` marks one row,
 `ScreenMarkRowsDirtyFrom()` marks one row and every row below it, and
 `ScreenMarkAllDirty()` marks every row. The edit operations in
 `src/vted_row.c` call these when the buffer changes, `ScreenSetSelection()`
-marks the rows touched by a selection change, and the search code in
-`src/vted.c` marks the row of a search match. `DrawRows()` clears a
-row's flag after repainting it.
+marks the rows touched by a selection change, the search code in
+`src/vted.c` marks the row of a search match, and `RefreshScreen()`
+itself marks rows when the viewport moves (scrolling), when the cursor
+changes line (the bold gutter number), and when the gutter width
+changes. `DrawRows()` clears a row's flag after repainting it.
 
 Before the first frame nothing has been painted yet, so marks made while
 the editor starts up are dropped: `screen_active` is set to 1 in
@@ -79,19 +92,28 @@ drawn every frame: they depend on nothing in the buffer, so they are not
 tracked by the dirty flags. The status bar and message bar are likewise
 redrawn unconditionally on every cycle.
 
-That is the design. In the current build the whole text viewport is
-repainted on every cycle anyway: `RefreshWindowSize()` compares the raw
-terminal row count against `screen_rows`, which already holds `rows -
-2`, so it reports a size change on every call after the first, and
-`RefreshScreen()` answers by marking every row dirty. The dirty-row
-skip path exists in the code but is currently bypassed each cycle.
+### Placing a drawn row
+
+Skipping a clean row leaves the terminal cursor where the last drawn row
+ended, so the next drawn row cannot simply follow it. `DrawRows()` there
+fore positions every row it draws with `GotoScreenRow()`, which emits
+`ESC[<row>;1H` only when the cursor is not already on that screen line —
+the common case of consecutive dirty rows costs nothing. The status bar
+positions itself the same way, because a frame in which every text row
+was clean emits nothing above it.
+
+Such an all-clean frame — an idle tick with nothing changed — is small:
+the cursor hidden and homed, the two bars, the cursor placement, the
+cursor shown again. A few hundred bytes, against a full repaint of the
+viewport when the buffer or the viewport moves.
 
 ### What a cycle touches
 
-Per cycle, in order: terminal size query, scroll adjustment, text
-viewport, status bar, message bar, terminal cursor placement. Nothing
-outside the screen module is rendered here: file loading, saving, undo,
-and editing happen between cycles and only mark rows dirty.
+Per cycle, in order: terminal size query, gutter width, scroll
+adjustment, text viewport, status bar, message bar, terminal cursor
+placement. Nothing outside the screen module is rendered here: file
+loading, saving, undo, and editing happen between cycles and only mark
+rows dirty.
 
 The viewport and scrolling
 --------------------------
@@ -110,7 +132,9 @@ width is `max(3, digits(num_rows + 1)) + 1`: at least three digits so it
 does not jump when a file grows past 9 or 99 lines, and one more row
 beyond the last so a line about to be created fits too. Line numbers are
 hidden (`show_line_numbers == 0`) or the gutter collapses to 0 when
-`cols - width < 20`.
+`cols - width < 20`. The width is recomputed every frame from the
+current line count and terminal width; a change marks everything dirty,
+since every row's number and text shifted left or right.
 
 ### Offsets
 
@@ -274,8 +298,10 @@ Escape sequences used while drawing a frame:
   (DECTCEM), so the cursor does not visibly jump while a frame is
   assembled.
 - `ESC[H` — home the cursor to the top-left corner (1-based `ESC[1;1H`).
-- `ESC[<row>;<col>H` — absolute cursor position (CUP) for the text
-  cursor after the bars.
+- `ESC[<row>;<col>H` — absolute cursor position (CUP): `GotoScreenRow()`
+  uses it to place each drawn row whose predecessor was skipped, the
+  status bar uses it to reach its own line, and `RefreshScreen()` uses
+  it for the text cursor after the bars.
 - `ESC[K` — erase from the cursor to the end of the line (EL), used
   after every text row and at the start of the message bar.
 - `ESC[m` — reset all graphic attributes (SGR 0).
