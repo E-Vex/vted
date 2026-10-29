@@ -217,13 +217,15 @@ int RefreshWindowSize(void)
         return -1;
     }
 
-    if (rows == vted_editor_config.screen_rows && cols == vted_editor_config.screen_cols)
+    /* the two bottom rows are reserved for the status bar and the
+       message bar, so the text viewport is two rows shorter; the raw
+       terminal size is compared against the viewport it would
+       produce, not against screen_rows as stored */
+    if (rows - 2 == vted_editor_config.screen_rows && cols == vted_editor_config.screen_cols)
     {
         return 0;
     }
 
-    /* the two bottom rows are reserved for the status bar and
-       the message bar, so the text viewport is two rows shorter */
     vted_editor_config.screen_rows = rows - 2;
     vted_editor_config.screen_cols = cols;
 
