@@ -87,6 +87,10 @@ static int dirty_rows_capacity;
    on the screen, so edits while loading must not repaint row by row */
 static int screen_active = 0;
 
+/* the offsets the last frame was drawn at; -1 before the first frame */
+static int last_row_offset = -1;
+static int last_col_offset = -1;
+
 static void EnsureDirtyRows(int rows)
 {
     if (rows <= dirty_rows_capacity)
@@ -943,6 +947,8 @@ void ScreenFree(void)
     dirty_rows = NULL;
     dirty_rows_capacity = 0;
     screen_active = 0;
+    last_row_offset = -1;
+    last_col_offset = -1;
 }
 
 void RefreshScreen(void)
@@ -965,6 +971,17 @@ void RefreshScreen(void)
     }
 
     UpdateScroll();
+
+    /* scrolling moved the viewport over the buffer: what each screen
+       line shows changed even though no buffer row was edited, so
+       everything on screen repaints */
+    if (vted_editor_config.row_offset != last_row_offset ||
+        vted_editor_config.col_offset != last_col_offset)
+    {
+        last_row_offset = vted_editor_config.row_offset;
+        last_col_offset = vted_editor_config.col_offset;
+        ScreenMarkAllDirty();
+    }
 
     /* hide the cursor while the frame is repainted, otherwise it
        visibly jumps around between the old and the new position */
