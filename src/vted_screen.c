@@ -91,6 +91,11 @@ static int screen_active = 0;
 static int last_row_offset = -1;
 static int last_col_offset = -1;
 
+/* the line the cursor stood on when the last frame was drawn: the
+   gutter draws that row's number bold, so a move repaints both rows;
+   -1 before the first frame */
+static int last_cursor_row = -1;
+
 static void EnsureDirtyRows(int rows)
 {
     if (rows <= dirty_rows_capacity)
@@ -949,6 +954,7 @@ void ScreenFree(void)
     screen_active = 0;
     last_row_offset = -1;
     last_col_offset = -1;
+    last_cursor_row = -1;
 }
 
 void RefreshScreen(void)
@@ -981,6 +987,16 @@ void RefreshScreen(void)
         last_row_offset = vted_editor_config.row_offset;
         last_col_offset = vted_editor_config.col_offset;
         ScreenMarkAllDirty();
+    }
+
+    if (vted_editor_config.cursor_y != last_cursor_row)
+    {
+        /* the bold line number follows the cursor between rows: the
+           row it leaves and the row it enters repaint, even though
+           their text did not change */
+        ScreenMarkRowDirty(last_cursor_row);
+        ScreenMarkRowDirty(vted_editor_config.cursor_y);
+        last_cursor_row = vted_editor_config.cursor_y;
     }
 
     /* hide the cursor while the frame is repainted, otherwise it
