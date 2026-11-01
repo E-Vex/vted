@@ -406,6 +406,27 @@ static int sel_x1;
 static int bracket_row = -1;
 static int bracket_col;
 
+/* the menu the editor core shows over the bottom of the viewport, if
+   any: its lines are borrowed from the core and only the pointers are
+   kept here, valid until the next ScreenShowMenu() call */
+static const char *const *menu_lines;
+static int menu_count;
+static int menu_selected;
+
+void ScreenShowMenu(const char *const *lines, int count, int selected)
+{
+    /* rows the menu covered were skipped by their own dirty flags
+       while it was up: once it is gone they have to be painted again */
+    if (menu_count > 0 && count == 0)
+    {
+        ScreenMarkAllDirty();
+    }
+
+    menu_lines = lines;
+    menu_count = count;
+    menu_selected = selected;
+}
+
 void ScreenSetBracketMatch(int row, int col)
 {
     /* the row the old highlight was on is repainted without it and
@@ -674,6 +695,70 @@ static void DrawRows(append_buffer_t *ab, int *at)
 
         AppendToBuffer(ab, "\r\n", 2);
         (*at)++;
+    }
+}
+
+/* draws the menu over the bottom rows of the viewport: one borrowed
+   line per row, the selected one inverted over the full width. It is
+   drawn every frame, whatever the dirty flags say, because the rows
+   underneath it do not know they are covered */
+static void DrawMenu(append_buffer_t *ab, int *at)
+{
+    int shown = menu_count;
+    int first;
+    int i;
+
+    if (shown <= 0)
+    {
+        return;
+    }
+
+    /* more lines than viewport rows: the last ones are the ones drawn */
+    if (shown > vted_editor_config.screen_rows)
+    {
+        shown = vted_editor_config.screen_rows;
+    }
+
+    first = menu_count - shown;
+
+    for (i = 0; i < shown; i++)
+    {
+        const char *line = menu_lines[first + i] != NULL ? menu_lines[first + i] : "";
+        int len = (int)strlen(line);
+        int screen_row = vted_editor_config.screen_rows - shown + i;
+
+        if (len > vted_editor_config.screen_cols)
+        {
+            len = vted_editor_config.screen_cols;
+        }
+
+        GotoScreenRow(ab, at, screen_row);
+
+        /* every line starts plain, so no attribute of the row drawn
+           before it can linger */
+        AppendToBuffer(ab, "\x1b[m", 3);
+
+        if (first + i == menu_selected)
+        {
+            AppendToBuffer(ab, "\x1b[7m", 4);
+        }
+
+        AppendToBuffer(ab, line, len);
+
+        if (first + i == menu_selected)
+        {
+            /* the selection stands out over the whole width */
+            int padding = vted_editor_config.screen_cols - len;
+
+            while (padding-- > 0)
+            {
+                AppendToBuffer(ab, " ", 1);
+            }
+
+            AppendToBuffer(ab, "\x1b[m", 3);
+        }
+
+        AppendToBuffer(ab, "\x1b[K", 3);
     }
 }
 
@@ -1016,6 +1101,11 @@ void ScreenFree(void)
     last_col_offset = -1;
     last_cursor_row = -1;
     last_gutter_width = -1;
+
+    /* the menu only borrows its lines, so only the borrowing ends */
+    menu_lines = NULL;
+    menu_count = 0;
+    menu_selected = 0;
 }
 
 void RefreshScreen(void)
@@ -1084,6 +1174,8 @@ void RefreshScreen(void)
     AppendToBuffer(&ab, "\x1b[H", 3);
 
     DrawRows(&ab, &at);
+
+    DrawMenu(&ab, &at);
 
     DrawStatusBar(&ab, &at);
 

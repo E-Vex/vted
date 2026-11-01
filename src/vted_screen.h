@@ -59,6 +59,13 @@ void ScreenSetSelection(int top, int left, int bottom, int right);
    clears it */
 void ScreenSetBracketMatch(int row, int col);
 
+/* shows a menu of lines over the bottom of the viewport: the line at
+   the selected index is drawn inverted, and lines beyond what fits
+   are the last ones. The lines are borrowed, not copied, and have to
+   stay valid until the next call; a count of 0 (or NULL) turns the
+   menu off again */
+void ScreenShowMenu(const char *const *lines, int count, int selected);
+
 /* gives back the memory the module holds between frames */
 void ScreenFree(void);
 
