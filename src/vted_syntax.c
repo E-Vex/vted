@@ -322,6 +322,19 @@ static const vted_language_t language_html = {
     NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0};
 
 /*----------------------------------------------------------
+| XML
+----------------------------------------------------------*/
+
+static const char *const xml_extensions[] = {
+    ".xml", ".svg", ".xsd", ".xsl", ".xslt", ".rss", ".atom", NULL};
+
+/* the same treatment HTML gets: the comments and the attribute
+   strings color, the tags themselves stay plain */
+static const vted_language_t language_xml = {
+    "XML", xml_extensions, NULL, NULL, NULL,
+    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0};
+
+/*----------------------------------------------------------
 | CSS
 ----------------------------------------------------------*/
 
@@ -510,6 +523,7 @@ static const vted_language_t *const languages[] = {
     &language_json,
     &language_markdown,
     &language_html,
+    &language_xml,
     &language_css,
     &language_lua,
     &language_ruby,

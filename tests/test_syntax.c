@@ -599,6 +599,42 @@ static void TestHtml(void)
     CHECK_STR(SyntaxLanguageName(), "HTML");
 }
 
+static void TestXml(void)
+{
+    SyntaxSelectForFile("pom.xml");
+    CHECK_STR(SyntaxLanguageName(), "XML");
+
+    SyntaxSelectForFile("icons/arrow.svg");
+    CHECK_STR(SyntaxLanguageName(), "XML");
+
+    SyntaxSelectForFile("schema.xsd");
+    CHECK_STR(SyntaxLanguageName(), "XML");
+
+    SyntaxSelectForFile("feed.atom");
+    CHECK_STR(SyntaxLanguageName(), "XML");
+
+    /* an XML comment runs to its marker, over rows when it must */
+    {
+        const char *lines[2] = {"<!-- one", "two -->"};
+
+        Load(lines, 2);
+        CHECK_STR(Classes(0), "cccccccc");
+        CHECK_STR(Classes(1), "ccccccc");
+    }
+
+    /* the attribute strings color, the tags themselves stay plain */
+    LoadOne("<node attr=\"value\"/>");
+    CHECK_STR(Classes(0), "nnnnnnnnnnn" "sssssss" "nn");
+
+    /* the declaration colors the same way */
+    LoadOne("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnnn" "sssss" "nnnnnnnnnn" "sssssss" "nn");
+
+    /* an empty element is plain apart from its strings */
+    LoadOne("<br/>");
+    CHECK_STR(Classes(0), "nnnnn");
+}
+
 static void TestCss(void)
 {
     SyntaxSelectForFile("style.css");
@@ -895,6 +931,7 @@ int main(void)
     TestJson();
     TestMarkdownHighlighting();
     TestHtml();
+    TestXml();
     TestCss();
     TestLua();
     TestRuby();
