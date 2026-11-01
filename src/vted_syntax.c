@@ -316,6 +316,29 @@ static const vted_language_t language_html = {
     NULL, "<!--", "-->", "\"'", 0};
 
 /*----------------------------------------------------------
+| CSS
+----------------------------------------------------------*/
+
+static const char *const css_extensions[] = {".css", NULL};
+
+/* the words of an at-rule, drawn the way types are */
+static const char *const css_types[] = {
+    "charset", "import", "media", "supports", "page", "font-face",
+    "keyframes", "counter-style", "font-feature-values", "property",
+    "namespace", "layer", "scope", "container", "root", NULL};
+
+/* the values that stand for themselves, drawn the way numbers are */
+static const char *const css_constants[] = {
+    "inherit", "initial", "unset", "revert", "important", "none",
+    NULL};
+
+/* comments, strings, and the numbers of sizes and colors color; the
+   selectors and properties stay plain */
+static const vted_language_t language_css = {
+    "CSS", css_extensions, NULL, css_types, css_constants,
+    NULL, "/*", "*/", "\"'", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -332,6 +355,7 @@ static const vted_language_t *const languages[] = {
     &language_json,
     &language_markdown,
     &language_html,
+    &language_css,
     NULL};
 
 static const vted_language_t *current_language;

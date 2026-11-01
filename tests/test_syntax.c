@@ -114,6 +114,9 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("index.html");
     CHECK_STR(SyntaxLanguageName(), "HTML");
 
+    SyntaxSelectForFile("style.css");
+    CHECK_STR(SyntaxLanguageName(), "CSS");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -590,6 +593,35 @@ static void TestHtml(void)
     CHECK_STR(SyntaxLanguageName(), "HTML");
 }
 
+static void TestCss(void)
+{
+    SyntaxSelectForFile("style.css");
+
+    /* a comment runs to its marker, over rows when it must */
+    {
+        const char *lines[2] = {"/* a note", "still comment */ a {"};
+
+        Load(lines, 2);
+        CHECK_STR(Classes(0), "ccccccccc");
+        CHECK_STR(Classes(1), "cccccccccccccccc" "nnnn");
+    }
+
+    /* a url string colors, and the size after it is a number */
+    LoadOne("background: url(\"x.png\") no-repeat 10px;");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnnnnn" "sssssss" "nnnnnnnnnnnn" "dddd" "n");
+
+    /* the words of an at-rule draw the way types do */
+    LoadOne("@media (min-width: 40em)");
+    CHECK_STR(Classes(0), "n" "ttttt" "nnnnnnnnnnnnn" "dddd" "n");
+
+    /* the values that stand for themselves draw like numbers */
+    LoadOne("color: inherit !important;");
+    CHECK_STR(Classes(0), "nnnnnnn" "ddddddd" "nn" "ddddddddd" "n");
+
+    SyntaxSelectForFile("print.css");
+    CHECK_STR(SyntaxLanguageName(), "CSS");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -625,6 +657,7 @@ int main(void)
     TestJson();
     TestMarkdownHighlighting();
     TestHtml();
+    TestCss();
     TestStyles();
 
     FreeBuffer();
