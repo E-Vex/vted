@@ -45,6 +45,11 @@ void MoveCursor(int key);
    with wrapping on also the lines of a row taller than the viewport */
 void UpdateScroll(void);
 
+/* puts the cursor mid-viewport: a cursor that is already on screen
+   keeps the viewport where it is, one that is not gets the middle
+   of it instead of an edge */
+void ScreenCenterCursor(void);
+
 void SetStatusMessage(const char *format, ...);
 
 void RefreshScreen(void);

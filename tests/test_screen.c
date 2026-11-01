@@ -335,6 +335,53 @@ static void TestNormalRowsKeepALineOffsetOfZero(void)
     CHECK_INT(vted_editor_config.line_offset, 0);
 }
 
+/* rows of one line each, no wrapping: the plain layout */
+static void BeginPlain(int rows)
+{
+    int i;
+
+    FreeBuffer();
+    InitBuffer();
+
+    for (i = 0; i < rows; i++)
+    {
+        AppendRow("row", 3, VTED_EOL_LF);
+    }
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 40;
+    vted_editor_config.wrap = 0;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+}
+
+static void TestCenteringPutsTheCursorMidViewport(void)
+{
+    BeginPlain(10);
+
+    /* a cursor below the viewport: the top goes up until the cursor
+       sits on the middle line */
+    CursorAt(8, 1);
+    ScreenCenterCursor();
+    CHECK_INT(vted_editor_config.row_offset, 6);
+
+    /* a cursor already on screen keeps the viewport where it is */
+    CursorAt(7, 1);
+    ScreenCenterCursor();
+    CHECK_INT(vted_editor_config.row_offset, 6);
+
+    /* one above puts its row on top */
+    CursorAt(1, 1);
+    ScreenCenterCursor();
+    CHECK_INT(vted_editor_config.row_offset, 0);
+
+    /* the screen never opens empty below the last row */
+    CursorAt(9, 1);
+    ScreenCenterCursor();
+    CHECK_INT(vted_editor_config.row_offset, 6);
+}
+
 int main(void)
 {
     TestHomeStartsTheScreenLine();
@@ -351,6 +398,7 @@ int main(void)
     TestTallRowFallsAwayForARowBelow();
     TestStaleLineOffsetResets();
     TestNormalRowsKeepALineOffsetOfZero();
+    TestCenteringPutsTheCursorMidViewport();
 
     return TestSummary("screen");
 }
