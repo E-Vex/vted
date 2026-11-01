@@ -831,10 +831,23 @@ int main(int argc, char *argv[])
 
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
-            if (vted_buffer.dirty != 0 && quit_confirmations > 0)
+            /* every buffer is checked, not just the live one: leaving
+               loses them all, so unsaved changes anywhere hold the
+               quit back */
+            int dirty_buffers = BuffersDirtyCount();
+
+            if (dirty_buffers > 0 && quit_confirmations > 0)
             {
-                SetStatusMessage("WARNING! Unsaved changes. Press Ctrl-Q %d more times to quit.",
-                                 quit_confirmations);
+                if (dirty_buffers == 1)
+                {
+                    SetStatusMessage("WARNING! Unsaved changes. Press Ctrl-Q %d more times to quit.",
+                                     quit_confirmations);
+                }
+                else
+                {
+                    SetStatusMessage("WARNING! Unsaved changes in %d buffers. Press Ctrl-Q %d more times to quit.",
+                                     dirty_buffers, quit_confirmations);
+                }
                 quit_confirmations--;
             }
             else
