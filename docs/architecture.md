@@ -75,6 +75,7 @@ modules:
   vted_file.c      OpenFile / ReadStream / SaveFile
   vted_syntax.c    coloring text by the language of the file
   vted_config.c    the vtedrc settings file
+  vted_buffers.c   the open files, switching between them
   vted_cli.c       the command line: options, usage, version
   vted.c           editor core: key dispatch, editing, search
 

@@ -141,6 +141,7 @@ That is the whole list.
 ```
 vted                    # start with an empty buffer
 vted file.c             # open a file
+vted a.c b.c c.c        # open several files, one buffer each
 vted +42 file.c         # open it with the cursor on line 42
 grep TODO *.c | vted -  # edit what another command prints
 vted --help             # the command line in short
@@ -149,7 +150,8 @@ man vted                # the full manual
 ```
 
 Text piped in on standard input becomes an unnamed buffer: Ctrl-S
-then asks where to save it.
+then asks where to save it. It can sit beside named files
+(`vted - notes.txt`), each in a buffer of its own.
 
 ## Settings
 
@@ -189,6 +191,9 @@ set while editing.
 | Ctrl-Y          | redo the last undone change                      |
 | typing          | insert at the cursor (replaces the selection)    |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
+| Ctrl-O          | open another file as a buffer of its own         |
+| Alt-, / Alt-.   | step through the open buffers (wraps around)     |
+| Alt-1 .. Alt-9  | jump to the buffer with that number               |
 | Ctrl-G          | go to a line number (ESC cancels)                |
 | Ctrl-F          | incremental search (arrows jump, ESC restores)   |
 | Ctrl-N          | show or hide the line numbers                    |
@@ -196,8 +201,19 @@ set while editing.
 | Ctrl-W          | set the tab width in cells                       |
 | Ctrl-Q          | quit (three extra presses when modified)         |
 
+With several buffers open, Alt-, and Alt-. step through them and
+Alt-1 to Alt-9 jump to one by number, while the status bar shows
+which one is being edited ("2/3, Ln 5/120, Col 12").
+
 ## Features
 
+- Several files in one session: every file named on the command line
+  opens in a buffer of its own, Ctrl-O opens another from within the
+  editor, and Alt-, / Alt-. or Alt-1 to Alt-9 move between them. A
+  buffer keeps its cursor, viewport and undo history while it waits,
+  the status bar says which one is on, and opening a path that is
+  already open switches to that buffer instead of opening it twice;
+  unsaved changes in any buffer hold a quit back
 - Raw terminal mode with automatic settings restore on exit
 - Alternate screen buffer: your shell history stays untouched
 - Open files from the command line, edit, and save them back
@@ -265,6 +281,7 @@ set while editing.
 | `vted_file`       | loading and saving files                    |
 | `vted_syntax`     | coloring text by the language of the file   |
 | `vted_config`     | the settings file                           |
+| `vted_buffers`    | the open files and switching between them  |
 | `vted_cli`        | the command line: options, usage, version   |
 | `vted`            | the editor core: key dispatch and editing   |
 
