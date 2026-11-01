@@ -5,17 +5,29 @@
 #include "vted_cli.h"
 /*===============================*/
 
+/* the Makefile passes the real version; a hand compile without it
+   says so instead of inventing a number */
+#ifndef VTED_VERSION
+#define VTED_VERSION "unknown"
+#endif
+
 static const char *const usage_text =
     "usage: vted [file]\n"
     "\n"
     "Open file in the vex terminal text editor, or start with an\n"
     "empty buffer when no file is given.\n"
     "\n"
-    "  -h, --help    print this help and exit\n";
+    "  -h, --help     print this help and exit\n"
+    "  -V, --version  print the version and exit\n";
 
 void CliPrintUsage(FILE *out)
 {
     fputs(usage_text, out);
+}
+
+void CliPrintVersion(FILE *out)
+{
+    fprintf(out, "vted %s\n", VTED_VERSION);
 }
 
 void CliParse(int argc, char *argv[], vted_cli_options_t *options)
@@ -24,6 +36,7 @@ void CliParse(int argc, char *argv[], vted_cli_options_t *options)
 
     options->file = NULL;
     options->want_help = 0;
+    options->want_version = 0;
     options->error = 0;
 
     for (i = 1; i < argc; i++)
@@ -36,6 +49,13 @@ void CliParse(int argc, char *argv[], vted_cli_options_t *options)
             if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
             {
                 options->want_help = 1;
+                continue;
+            }
+
+            /* so do the two spellings of the version option */
+            if (strcmp(argv[i], "-V") == 0 || strcmp(argv[i], "--version") == 0)
+            {
+                options->want_version = 1;
                 continue;
             }
 

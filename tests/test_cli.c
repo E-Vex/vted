@@ -120,6 +120,42 @@ static void TestNoArgumentsDoesNotAskForHelp(void)
     CHECK_INT(options.want_help, 0);
 }
 
+static void TestLongVersionAsksForTheVersion(void)
+{
+    char *argv[] = {"vted", "--version", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_version, 1);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestShortVersionAsksForTheVersion(void)
+{
+    char *argv[] = {"vted", "-V", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_version, 1);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestHelpAndVersionCanBeAskedTogether(void)
+{
+    char *argv[] = {"vted", "-h", "-V", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_help, 1);
+    CHECK_INT(options.want_version, 1);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestNoArgumentsDoesNotAskForTheVersion(void)
+{
+    char *argv[] = {"vted", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_version, 0);
+}
+
 int main(void)
 {
     TestNoArguments();
@@ -133,5 +169,9 @@ int main(void)
     TestShortHelpAsksForTheUsage();
     TestHelpWinsOverAFile();
     TestNoArgumentsDoesNotAskForHelp();
+    TestLongVersionAsksForTheVersion();
+    TestShortVersionAsksForTheVersion();
+    TestHelpAndVersionCanBeAskedTogether();
+    TestNoArgumentsDoesNotAskForTheVersion();
     return TestSummary("cli");
 }

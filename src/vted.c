@@ -581,6 +581,13 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    /* so is the version; when both are asked for, the usage wins */
+    if (options.want_version)
+    {
+        CliPrintVersion(stdout);
+        return 0;
+    }
+
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     SetupExitSignals();
