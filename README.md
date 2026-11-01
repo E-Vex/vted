@@ -270,8 +270,8 @@ does, and closing the last buffer starts a fresh empty one.
   farther than a megabyte away counts as missing
 - Syntax highlighting picked from the file name: C, C++, Python, shell
   scripts, Makefiles, JavaScript, TypeScript, Rust, Go, JSON,
-  Markdown, HTML, CSS, Lua and Ruby; truecolor when COLORTERM says so,
-  with 256-color and 16-color fallbacks
+  Markdown, HTML, CSS, Lua, Ruby, YAML, TOML, INI and SQL; truecolor
+  when COLORTERM says so, with 256-color and 16-color fallbacks
 - Status bar with filename, line count, modified marker and the cursor's line
   and display column
 - Message bar for status and warnings
