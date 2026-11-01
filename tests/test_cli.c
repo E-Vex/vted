@@ -27,7 +27,7 @@ static void TestNoArguments(void)
     char *argv[] = {"vted", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK(options.file == NULL);
+    CHECK_INT(options.file_count, 0);
     CHECK_INT(options.error, 0);
 }
 
@@ -36,7 +36,8 @@ static void TestFileOperand(void)
     char *argv[] = {"vted", "file.c", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.file_count, 1);
+    CHECK_STR(options.files[0], "file.c");
     CHECK_INT(options.error, 0);
 }
 
@@ -45,36 +46,50 @@ static void TestDashAloneMeansStandardInput(void)
     char *argv[] = {"vted", "-", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_INT(options.read_stdin, 1);
-    CHECK(options.file == NULL);
+    CHECK_INT(options.file_count, 1);
+    CHECK_STR(options.files[0], "-");
     CHECK_INT(options.error, 0);
 }
 
-static void TestFileBeforeADashWins(void)
+static void TestAFileAndADashAreBothOperands(void)
 {
     char *argv[] = {"vted", "file.c", "-", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_STR(options.file, "file.c");
-    CHECK_INT(options.read_stdin, 0);
+    CHECK_INT(options.file_count, 2);
+    CHECK_STR(options.files[0], "file.c");
+    CHECK_STR(options.files[1], "-");
     CHECK_INT(options.error, 0);
 }
 
-static void TestNoStdinByDefault(void)
+static void TestNoDashByDefault(void)
 {
     char *argv[] = {"vted", "file.c", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_INT(options.read_stdin, 0);
+    CHECK_INT(options.file_count, 1);
+    CHECK_STR(options.files[0], "file.c");
 }
 
-static void TestOnlyTheFirstOperandCounts(void)
+static void TestEveryFileOperandCounts(void)
 {
-    char *argv[] = {"vted", "first.c", "second.c", NULL};
+    char *argv[] = {"vted", "first.c", "second.c", "third.c", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_STR(options.file, "first.c");
+    CHECK_INT(options.file_count, 3);
+    CHECK_STR(options.files[0], "first.c");
+    CHECK_STR(options.files[1], "second.c");
+    CHECK_STR(options.files[2], "third.c");
     CHECK_INT(options.error, 0);
+}
+
+static void TestTwoDashesAreRejected(void)
+{
+    char *argv[] = {"vted", "-", "-", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.error, 1);
+    CHECK_INT(options.file_count, 0);
 }
 
 static void TestUnknownLongOptionIsRejected(void)
@@ -82,7 +97,7 @@ static void TestUnknownLongOptionIsRejected(void)
     char *argv[] = {"vted", "--no-such-option", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK(options.file == NULL);
+    CHECK_INT(options.file_count, 0);
     CHECK_INT(options.error, 1);
 }
 
@@ -91,7 +106,7 @@ static void TestUnknownShortOptionIsRejected(void)
     char *argv[] = {"vted", "-x", "file.c", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK(options.file == NULL);
+    CHECK_INT(options.file_count, 0);
     CHECK_INT(options.error, 1);
 }
 
@@ -127,7 +142,8 @@ static void TestHelpWinsOverAFile(void)
     vted_cli_options_t options = ParseArgs(argv);
 
     CHECK_INT(options.want_help, 1);
-    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.file_count, 1);
+    CHECK_STR(options.files[0], "file.c");
     CHECK_INT(options.error, 0);
 }
 
@@ -189,7 +205,8 @@ static void TestStartLineAfterAFile(void)
     char *argv[] = {"vted", "file.c", "+12", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.file_count, 1);
+    CHECK_STR(options.files[0], "file.c");
     CHECK_INT(options.start_line, 12);
     CHECK_INT(options.error, 0);
 }
@@ -199,7 +216,8 @@ static void TestStartLineBeforeAFile(void)
     char *argv[] = {"vted", "+12", "file.c", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.file_count, 1);
+    CHECK_STR(options.files[0], "file.c");
     CHECK_INT(options.start_line, 12);
     CHECK_INT(options.error, 0);
 }
@@ -274,9 +292,10 @@ int main(void)
     TestNoArguments();
     TestFileOperand();
     TestDashAloneMeansStandardInput();
-    TestFileBeforeADashWins();
-    TestNoStdinByDefault();
-    TestOnlyTheFirstOperandCounts();
+    TestAFileAndADashAreBothOperands();
+    TestNoDashByDefault();
+    TestEveryFileOperandCounts();
+    TestTwoDashesAreRejected();
     TestUnknownLongOptionIsRejected();
     TestUnknownShortOptionIsRejected();
     TestOptionAfterAFileIsRejected();

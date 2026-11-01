@@ -15,14 +15,14 @@
 #endif
 
 static const char *const usage_text =
-    "usage: vted [+LINE] [file | -]\n"
+    "usage: vted [+LINE] [FILE | -]...\n"
     "\n"
-    "Open file in the vex terminal text editor, or start with an\n"
-    "empty buffer when no file is given.\n"
+    "Open every FILE in its own buffer, or start with an empty buffer\n"
+    "when no file is given.\n"
     "\n"
     "  -h, --help     print this help and exit\n"
     "  -V, --version  print the version and exit\n"
-    "  +LINE          start the cursor on that line\n"
+    "  +LINE          start the cursor on that line of the first file\n"
     "  -              read the text from standard input\n";
 
 static void HintUsage(void)
@@ -63,16 +63,47 @@ static int ParseStartLine(const char *arg, int *line)
     return 0;
 }
 
+/* the file operands of the current parse, in the order they were
+   given. The options struct hands the array out and the next parse
+   rebuilds it */
+static const char **open_files;
+static int open_files_count;
+static int open_files_capacity;
+
+/* remembers one more file operand, in order */
+static void RememberFile(const char *file)
+{
+    if (open_files_count == open_files_capacity)
+    {
+        int capacity = open_files_capacity > 0 ? open_files_capacity * 2 : 4;
+        const char **grown = realloc(open_files, (size_t)capacity * sizeof *grown);
+
+        if (grown == NULL)
+        {
+            fputs("vted: out of memory\n", stderr);
+            exit(1);
+        }
+
+        open_files = grown;
+        open_files_capacity = capacity;
+    }
+
+    open_files[open_files_count++] = file;
+}
+
 void CliParse(int argc, char *argv[], vted_cli_options_t *options)
 {
     int i;
+    int read_stdin = 0;
 
-    options->file = NULL;
-    options->read_stdin = 0;
+    options->files = NULL;
+    options->file_count = 0;
     options->start_line = 0;
     options->want_help = 0;
     options->want_version = 0;
     options->error = 0;
+
+    open_files_count = 0;
 
     for (i = 1; i < argc; i++)
     {
@@ -124,19 +155,24 @@ void CliParse(int argc, char *argv[], vted_cli_options_t *options)
             return;
         }
 
-        /* the first operand is the file to open; "-" alone in its
-           place means the text comes from standard input. Further
-           operands keep being ignored the way they always were */
-        if (options->file == NULL && !options->read_stdin)
+        /* a lone "-" is the text on standard input; it can be named
+           only once, for there is only one stream */
+        if (strcmp(argv[i], "-") == 0)
         {
-            if (strcmp(argv[i], "-") == 0)
+            if (read_stdin)
             {
-                options->read_stdin = 1;
+                fprintf(stderr, "vted: '-' given twice: %s\n", argv[i]);
+                HintUsage();
+                options->error = 1;
+                return;
             }
-            else
-            {
-                options->file = argv[i];
-            }
+
+            read_stdin = 1;
         }
+
+        RememberFile(argv[i]);
     }
+
+    options->files = open_files;
+    options->file_count = open_files_count;
 }

@@ -17,8 +17,12 @@
 
 typedef struct
 {
-    const char *file; /* the operand naming the file to open, NULL when absent */
-    int read_stdin;   /* the operand "-": the text comes from standard input */
+    /* the operands naming files to open, in the order they were
+       given; a "-" among them names the text on standard input. The
+       array belongs to the module and stays valid until the next
+       CliParse() */
+    const char **files;
+    int file_count;   /* how many entries files holds */
     int start_line;   /* the +LINE operand, 1-based; 0 when absent */
     int want_help;    /* -h or --help was given: print the usage and leave */
     int want_version; /* -V or --version was given: print the version and leave */

@@ -736,11 +736,22 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* "-" as the file reads the text from standard input; a terminal
+    /* "-" as an operand reads the text from standard input; a terminal
        there has no text coming, so it is refused instead of hung on.
        The tty fallback in the terminal module keeps the keys flowing
        from /dev/tty while the pipe is drained */
-    if (options.read_stdin && isatty(STDIN_FILENO))
+    int read_stdin = 0;
+    int i;
+
+    for (i = 0; i < options.file_count; i++)
+    {
+        if (strcmp(options.files[i], "-") == 0)
+        {
+            read_stdin = 1;
+        }
+    }
+
+    if (read_stdin && isatty(STDIN_FILENO))
     {
         fprintf(stderr, "vted: -: standard input is a terminal\n");
         fputs("Try 'vted --help' for more information.\n", stderr);
@@ -759,29 +770,37 @@ int main(int argc, char *argv[])
        released even when a fatal error ends the editor early */
     atexit(FreeEditorState);
 
-    if (options.read_stdin)
+    /* every file named on the command line becomes a buffer of its own */
+    for (i = 0; i < options.file_count; i++)
     {
-        /* the pipe is read before the terminal goes raw: nothing of
-           the interface depends on it, and a huge pipe is drained in
-           one go the way a file is */
-        if (BuffersOpenStream(stdin) == -1)
+        if (strcmp(options.files[i], "-") == 0)
         {
-            KillApp("ReadStream");
+            /* the pipe is read before the terminal goes raw: nothing
+               of the interface depends on it, and a huge pipe is
+               drained in one go the way a file is */
+            if (BuffersOpenStream(stdin) == -1)
+            {
+                KillApp("ReadStream");
+            }
         }
-    }
-    else if (options.file != NULL)
-    {
-        if (BuffersOpen(options.file) == -1)
+        else if (BuffersOpen(options.files[i]) == -1)
         {
             KillApp("OpenFile");
         }
     }
-    else
+
+    if (options.file_count == 0)
     {
         /* no file named: an unnamed empty buffer to type into, taking
            a slot like any other so opening and switching treat it the
            same */
         BuffersStartEmpty();
+    }
+    else if (BuffersCount() > 1)
+    {
+        /* with several files the editor starts in the first one, the
+           way vim and less take a list; a +LINE lands on its line */
+        BuffersSwitch(0);
     }
 
     InitVtedEditor();
