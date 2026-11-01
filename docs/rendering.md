@@ -219,13 +219,20 @@ Text styling
 
 Each byte of the drawn row gets a class from the `HlClass` enum:
 `HlNormal`, `HlComment`, `HlString`, `HlNumber`, `HlKeyword`, `HlType`,
-`HlPreproc`. `SyntaxHighlightRow()` scans the row when it is drawn; the
-language is chosen from the file name (extensions, or exact names such
-as `Makefile`), and a block comment that crosses rows carries its state
-forward, so a `/* ... */` comment stays colored across lines. Editing a
-row invalidates the scanned state of that row and the rows below it
-(`SyntaxInvalidate()`), and they are recolored the next time they are
-drawn.
+`HlPreproc`, `HlRemoved`, `HlContext` and `HlFunction`. `HlRemoved` is
+the minus lines of a diff and `HlContext` the lines a hunk carries
+unmodified; `HlFunction` is the name a function is defined by, colored
+at the sites a function is defined at: a word in no list, followed
+after blanks by the open of a parameter list, when what stands before
+it on the row could be a return type - a run of the language's type
+words, or a word the tables do not know that ends in a star - in the
+languages that ask for it, the C-like ones. `SyntaxHighlightRow()` scans
+the row when it is drawn; the language is chosen from the file name
+(extensions, or exact names such as `Makefile`), and a block comment
+that crosses rows carries its state forward, so a `/* ... */` comment
+stays colored across lines. Editing a row invalidates the scanned
+state of that row and the rows below it (`SyntaxInvalidate()`), and
+they are recolored the next time they are drawn.
 
 When the style changes mid-row, `AppendStyle()` emits `ESC[m` to reset
 every attribute, then `ESC[7m` when the run is inverted, then the color
@@ -237,8 +244,9 @@ Colors depend on what the terminal advertises: `COLORTERM=truecolor` or
 `24bit` asks for truecolor escapes (`ESC[38;2;r;g;bm`), a `*256color*`
 terminal gets 256-color escapes (`ESC[38;5;nm`), and anything else gets
 the 16-color escapes (comments bright black, strings green, numbers
-magenta, keywords yellow, types cyan, preprocessor lines bright blue;
-normal text has no color escape).
+magenta, keywords yellow, types cyan, preprocessor lines bright blue,
+the removed lines of a diff bright red, its context lines bright black
+and function names bright yellow; normal text has no color escape).
 
 ### Selection
 

@@ -282,8 +282,10 @@ does, and closing the last buffer starts a fresh empty one.
 - Syntax highlighting picked from the file name: C, C++, Python, shell
   scripts, Makefiles, JavaScript, TypeScript, Rust, Go, JSON,
   Markdown, HTML, XML, CSS, Lua, Ruby, YAML, TOML, INI, SQL,
-  Dockerfiles, C#, Java, PHP, dotenv files and diffs; truecolor when
-  COLORTERM says so, with 256-color and 16-color fallbacks
+  Dockerfiles, C#, Java, PHP, dotenv files and diffs; the name a
+  function is defined by colors at its definition sites in the C-like
+  languages; truecolor when COLORTERM says so, with 256-color and
+  16-color fallbacks
 - Status bar with filename, line count, modified marker and the cursor's line
   and display column
 - Message bar for status and warnings
