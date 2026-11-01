@@ -13,14 +13,20 @@
 | module.                                                   |
 ==========================================================*/
 
+#include <stdio.h>
+
 typedef struct
 {
     const char *file; /* the operand naming the file to open, NULL when absent */
+    int want_help;    /* -h or --help was given: print the usage and leave */
     int error;        /* 1 when the arguments were rejected on stderr */
 } vted_cli_options_t;
 
 /* scans argv and fills options; a rejected argument is reported on
-   stderr together with a usage hint */
+   stderr with a hint toward --help */
 void CliParse(int argc, char *argv[], vted_cli_options_t *options);
+
+/* the usage text: what the editor takes on the command line */
+void CliPrintUsage(FILE *out);
 
 #endif

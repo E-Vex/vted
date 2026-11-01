@@ -1,27 +1,46 @@
 /*===============================*/
 #include <stdio.h>
+#include <string.h>
 /*===============================*/
 #include "vted_cli.h"
 /*===============================*/
 
+static const char *const usage_text =
+    "usage: vted [file]\n"
+    "\n"
+    "Open file in the vex terminal text editor, or start with an\n"
+    "empty buffer when no file is given.\n"
+    "\n"
+    "  -h, --help    print this help and exit\n";
+
+void CliPrintUsage(FILE *out)
+{
+    fputs(usage_text, out);
+}
+
 void CliParse(int argc, char *argv[], vted_cli_options_t *options)
 {
-    /* an argument that starts with '-' but is longer than that alone
-       is an option; no option exists yet, so it is rejected right
-       here on the standard error stream, with a usage hint, before
-       any terminal mode is entered. "-" by itself is not an option:
-       it is the file operand it has always been */
     int i;
 
     options->file = NULL;
+    options->want_help = 0;
     options->error = 0;
 
     for (i = 1; i < argc; i++)
     {
         if (argv[i][0] == '-' && argv[i][1] != '\0')
         {
+            /* the two spellings of the help option answer with the
+               usage text instead of an error, and win over everything
+               else on the line */
+            if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
+            {
+                options->want_help = 1;
+                continue;
+            }
+
             fprintf(stderr, "vted: unknown option: %s\n", argv[i]);
-            fputs("usage: vted [file]\n", stderr);
+            fputs("Try 'vted --help' for more information.\n", stderr);
             options->error = 1;
             return;
         }

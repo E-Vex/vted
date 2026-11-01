@@ -60,7 +60,7 @@ static void TestOnlyTheFirstOperandCounts(void)
 
 static void TestUnknownLongOptionIsRejected(void)
 {
-    char *argv[] = {"vted", "--help", NULL};
+    char *argv[] = {"vted", "--no-such-option", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
     CHECK(options.file == NULL);
@@ -78,10 +78,46 @@ static void TestUnknownShortOptionIsRejected(void)
 
 static void TestOptionAfterAFileIsRejected(void)
 {
-    char *argv[] = {"vted", "file.c", "--version", NULL};
+    char *argv[] = {"vted", "file.c", "-x", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
     CHECK_INT(options.error, 1);
+}
+
+static void TestLongHelpAsksForTheUsage(void)
+{
+    char *argv[] = {"vted", "--help", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_help, 1);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestShortHelpAsksForTheUsage(void)
+{
+    char *argv[] = {"vted", "-h", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_help, 1);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestHelpWinsOverAFile(void)
+{
+    char *argv[] = {"vted", "-h", "file.c", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_help, 1);
+    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.error, 0);
+}
+
+static void TestNoArgumentsDoesNotAskForHelp(void)
+{
+    char *argv[] = {"vted", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.want_help, 0);
 }
 
 int main(void)
@@ -93,5 +129,9 @@ int main(void)
     TestUnknownLongOptionIsRejected();
     TestUnknownShortOptionIsRejected();
     TestOptionAfterAFileIsRejected();
+    TestLongHelpAsksForTheUsage();
+    TestShortHelpAsksForTheUsage();
+    TestHelpWinsOverAFile();
+    TestNoArgumentsDoesNotAskForHelp();
     return TestSummary("cli");
 }

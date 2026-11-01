@@ -573,6 +573,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* the usage text is printed on the standard output stream the
+       normal way, before any terminal mode is entered */
+    if (options.want_help)
+    {
+        CliPrintUsage(stdout);
+        return 0;
+    }
+
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     SetupExitSignals();
