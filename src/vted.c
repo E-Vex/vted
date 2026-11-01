@@ -936,6 +936,25 @@ int main(int argc, char *argv[])
                 /* Alt-, and Alt-. step through the open buffers */
                 EditorStepBuffer(c_in == BufferNext ? 1 : -1);
             }
+            else if (c_in >= BufferSelect1 && c_in <= BufferSelect9)
+            {
+                /* Alt-1 through Alt-9 land on the buffer with that
+                   number; a number past the end says there is none */
+                int wanted = c_in - BufferSelect1 + 1;
+
+                if (wanted > BuffersCount())
+                {
+                    SetStatusMessage("No buffer %d: %d open", wanted,
+                                     BuffersCount());
+                }
+                else if (BuffersSwitch(wanted - 1))
+                {
+                    SetStatusMessage("%s (buffer %d of %d)",
+                                     vted_buffer.filename != NULL ? vted_buffer.filename
+                                                                  : "[No Name]",
+                                     wanted, BuffersCount());
+                }
+            }
             else if (c_in == PasteBegin)
             {
                 /* a paste replaces the selection first, then arrives

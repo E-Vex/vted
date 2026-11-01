@@ -134,6 +134,28 @@ static void TestAltCommaAndPeriodSwitchBuffers(void)
     CHECK_INT(ReadKeyPress(), '.');
 }
 
+static void TestAltDigitsSelectBuffers(void)
+{
+    /* Alt-1 through Alt-9, one key code per number */
+    FeedInput("\x1b" "1");
+    CHECK_INT(ReadKeyPress(), BufferSelect1);
+    FeedInput("\x1b" "2");
+    CHECK_INT(ReadKeyPress(), BufferSelect2);
+    FeedInput("\x1b" "5");
+    CHECK_INT(ReadKeyPress(), BufferSelect5);
+    FeedInput("\x1b" "9");
+    CHECK_INT(ReadKeyPress(), BufferSelect9);
+
+    /* the number zero is not a buffer and stays unbound */
+    FeedInput("\x1b" "0");
+    CHECK_INT(ReadKeyPress(), 0);
+
+    /* plain digits are still text */
+    FeedInput("17");
+    CHECK_INT(ReadKeyPress(), '1');
+    CHECK_INT(ReadKeyPress(), '7');
+}
+
 static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -282,6 +304,7 @@ int main(void)
     TestCtrlAndAltArrowsMoveByWord();
     TestAltLettersMoveByWord();
     TestAltCommaAndPeriodSwitchBuffers();
+    TestAltDigitsSelectBuffers();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();

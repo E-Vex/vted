@@ -276,6 +276,13 @@ int ParseArrowKey(void)
         return BufferNext;
     }
 
+    /* Alt-1 through Alt-9 land on the buffer with that number; the
+       digits above nine would need two keystrokes and are not bound */
+    if (introducer >= '1' && introducer <= '9')
+    {
+        return BufferSelect1 + (introducer - '1');
+    }
+
     /* any other Alt+key is not bound: swallowed */
     return NO_KEY;
 }

@@ -33,6 +33,15 @@ typedef enum
     ShiftEnd,
     BufferPrev, /* Alt-, : the buffer before the current one */
     BufferNext, /* Alt-. : the buffer after the current one */
+    BufferSelect1, /* Alt-1..Alt-9: the buffer with that number */
+    BufferSelect2,
+    BufferSelect3,
+    BufferSelect4,
+    BufferSelect5,
+    BufferSelect6,
+    BufferSelect7,
+    BufferSelect8,
+    BufferSelect9,
 
 } EditorKey;
 
