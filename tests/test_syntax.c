@@ -696,6 +696,48 @@ static void TestRuby(void)
     CHECK_STR(SyntaxLanguageName(), "Ruby");
 }
 
+static void TestYaml(void)
+{
+    SyntaxSelectForFile("config.yaml");
+    CHECK_STR(SyntaxLanguageName(), "YAML");
+
+    SyntaxSelectForFile("config.yml");
+    CHECK_STR(SyntaxLanguageName(), "YAML");
+
+    /* a # comment runs to the end of the row */
+    LoadOne("# a comment");
+    CHECK_STR(Classes(0), "ccccccccccc");
+
+    LoadOne("key: value  # a comment");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnn" "ccccccccccc");
+
+    /* a # inside a plain value is no comment: it needs a blank
+       before it */
+    LoadOne("url: http://x/#frag");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnnnnnnnn");
+
+    /* strings in both quotes */
+    LoadOne("name: \"vted\"");
+    CHECK_STR(Classes(0), "nnnnnnssssss");
+
+    LoadOne("name: 'vted'");
+    CHECK_STR(Classes(0), "nnnnnnssssss");
+
+    /* the booleans and the empty value draw the way numbers do */
+    LoadOne("on: true");
+    CHECK_STR(Classes(0), "dd" "nn" "dddd");
+
+    LoadOne("set: off");
+    CHECK_STR(Classes(0), "nnn" "nn" "ddd");
+
+    LoadOne("empty: null");
+    CHECK_STR(Classes(0), "nnnnn" "nn" "dddd");
+
+    /* a number draws the way numbers do everywhere */
+    LoadOne("port: 8080");
+    CHECK_STR(Classes(0), "nnnn" "nn" "dddd");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -734,6 +776,7 @@ int main(void)
     TestCss();
     TestLua();
     TestRuby();
+    TestYaml();
     TestStyles();
 
     FreeBuffer();
