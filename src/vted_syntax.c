@@ -598,8 +598,8 @@ static const char *const java_keywords[] = {
     "default", "do", "else", "enum", "extends", "final", "finally",
     "for", "if", "implements", "import", "instanceof", "interface",
     "native", "new", "package", "private", "protected", "public",
-    "return", "strictfp", "super", "switch", "synchronized", "this",
-    "throw", "throws", "transient", "try", "volatile", "while",
+    "return", "static", "strictfp", "super", "switch", "synchronized",
+    "this", "throw", "throws", "transient", "try", "volatile", "while",
     "yield", NULL};
 
 /* var sits with the types the way C# spells it; the JDK staples

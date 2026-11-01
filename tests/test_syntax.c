@@ -1121,6 +1121,10 @@ static void TestJava(void)
     /* a type, a char literal and a line comment */
     LoadOne("char c = 'x'; // one");
     CHECK_STR(Classes(0), "ttttnnnnnsssnncccccc");
+
+    /* a keyword the tables missed: static colors now */
+    LoadOne("static int counter = 1;");
+    CHECK_STR(Classes(0), "kkkkkkntttnnnnnnnnnnndn");
 }
 
 static void TestPhp(void)
