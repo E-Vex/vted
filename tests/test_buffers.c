@@ -272,6 +272,49 @@ static void TestDirtyCountsAcrossBuffers(void)
     CHECK_INT(BuffersDirtyCount(), 2); /* switching does not forget */
 }
 
+static void TestNamesAndDirtyFlags(void)
+{
+    Begin();
+    WriteFile(first_path, "one\n");
+    WriteFile(second_path, "two\n");
+
+    /* out of range answers nothing, unsaved or not */
+    CHECK(BuffersName(-1) == NULL);
+    CHECK(BuffersName(0) == NULL);
+    CHECK_INT(BuffersDirty(0), 0);
+
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+
+    /* the live buffer's name is the one in the globals, the waiting
+       one's is in its slot */
+    CHECK_STR(BuffersName(0), first_path);
+    CHECK_STR(BuffersName(1), second_path);
+    CHECK_INT(BuffersDirty(1), 0);
+
+    EditorInsertChar('X'); /* the live buffer changes */
+
+    CHECK_INT(BuffersDirty(1), 1);
+    CHECK_INT(BuffersDirty(0), 0);
+
+    BuffersSwitch(0); /* the changed one waits, the other is live */
+
+    CHECK_INT(BuffersDirty(1), 1);
+    CHECK_INT(BuffersDirty(0), 0);
+
+    /* an unnamed buffer has no name, modified or not */
+    {
+        FILE *stream = fmemopen((char *)"piped\n", 6, "r");
+
+        BuffersOpenStream(stream);
+        fclose(stream);
+    }
+    CHECK(BuffersName(2) == NULL);
+    CHECK_INT(BuffersDirty(2), 0);
+    EditorInsertChar('Y');
+    CHECK_INT(BuffersDirty(2), 1);
+}
+
 static void TestCloseBounds(void)
 {
     Begin();
@@ -403,6 +446,7 @@ int main(void)
     TestAStreamOpensAsAnUnnamedBuffer();
     TestSwitchBounds();
     TestDirtyCountsAcrossBuffers();
+    TestNamesAndDirtyFlags();
     TestCloseBounds();
     TestCloseRemovesAWaitingBuffer();
     TestCloseSwitchesToTheNeighbor();

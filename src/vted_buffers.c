@@ -290,6 +290,29 @@ int BuffersCurrent(void)
     return current;
 }
 
+const char *BuffersName(int index)
+{
+    if (index < 0 || index >= slot_count)
+    {
+        return NULL;
+    }
+
+    /* the live buffer's name lives in the globals; a suspended one's
+       lives in its slot */
+    return index == current ? vted_buffer.filename : slots[index].text.filename;
+}
+
+int BuffersDirty(int index)
+{
+    if (index < 0 || index >= slot_count)
+    {
+        return 0;
+    }
+
+    /* the same split for the unsaved marker */
+    return index == current ? vted_buffer.dirty : slots[index].text.dirty;
+}
+
 int BuffersDirtyCount(void)
 {
     int count = 0;
@@ -297,11 +320,7 @@ int BuffersDirtyCount(void)
 
     for (i = 0; i < slot_count; i++)
     {
-        /* the live buffer's flags live in the globals; a suspended
-           one's live in its slot */
-        int dirty = i == current ? vted_buffer.dirty : slots[i].text.dirty;
-
-        if (dirty != 0)
+        if (BuffersDirty(i))
         {
             count++;
         }

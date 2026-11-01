@@ -37,6 +37,14 @@ int BuffersSwitch(int index);
 int BuffersCount(void);   /* buffers open, 0 before the first one */
 int BuffersCurrent(void); /* index of the buffer being edited, -1 before the first */
 
+/* the name of the buffer at index: its path, or NULL when it is
+   unnamed or the index is out of range */
+const char *BuffersName(int index);
+
+/* whether the buffer at index has unsaved changes; 0 when the index
+   is out of range */
+int BuffersDirty(int index);
+
 /* how many buffers have unsaved changes */
 int BuffersDirtyCount(void);
 
