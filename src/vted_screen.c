@@ -233,6 +233,18 @@ int RefreshWindowSize(void)
     return 1;
 }
 
+/* how many screen lines the buffer row takes: one, or as many as it
+   wraps into at the text width */
+static int RowLines(int buffer_row)
+{
+    if (vted_editor_config.wrap == 0)
+    {
+        return 1;
+    }
+
+    return RowWrapCount(&vted_buffer.rows[buffer_row], vted_editor_config.text_cols);
+}
+
 static void UpdateScroll(void)
 {
     /* keep the cursor inside the viewport by moving the offsets;
@@ -246,6 +258,59 @@ static void UpdateScroll(void)
     {
         vted_editor_config.cursor_rx = RowCxToRx(&vted_buffer.rows[vted_editor_config.cursor_y],
                                                  vted_editor_config.cursor_x);
+    }
+
+    if (vted_editor_config.wrap != 0)
+    {
+        /* a wrapped viewport has no sideways scrolling: every row
+           flows from the left edge */
+        vted_editor_config.col_offset = 0;
+
+        if (vted_editor_config.cursor_y < vted_editor_config.row_offset)
+        {
+            vted_editor_config.row_offset = vted_editor_config.cursor_y;
+            return;
+        }
+
+        /* the screen lines the rows from the top of the viewport down
+           to the cursor take: walk up from the cursor until the
+           viewport would overflow, and start it below the row that
+           does not fit. A row that was already visible leaves the
+           offset alone */
+        {
+            int cursor_line = 0;
+            int taken;
+            int row;
+
+            if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+            {
+                int cursor_col;
+
+                RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
+                               vted_editor_config.cursor_x,
+                               vted_editor_config.text_cols,
+                               &cursor_line, &cursor_col);
+            }
+
+            taken = cursor_line;
+
+            for (row = vted_editor_config.cursor_y - 1;
+                 row >= vted_editor_config.row_offset;
+                 row--)
+            {
+                int lines = RowLines(row);
+
+                if (taken + lines > vted_editor_config.screen_rows - 1)
+                {
+                    vted_editor_config.row_offset = row + 1;
+                    break;
+                }
+
+                taken += lines;
+            }
+        }
+
+        return;
     }
 
     if (vted_editor_config.cursor_y < vted_editor_config.row_offset)
@@ -473,16 +538,14 @@ void ScreenSetSelection(int top, int left, int bottom, int right)
     }
 }
 
-static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *row, int has_match)
+static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *row,
+                        int has_match, int left, int right)
 {
     /* one pass over the row: every character is laid out in terminal
-       cells, then clipped to the viewport [col_offset, col_offset +
-       text_cols). Syntax colors come from the highlight classes;
-       control characters and the active search match are drawn in
-       inverted video */
+       cells, then clipped to the cells [left, right). Syntax colors
+       come from the highlight classes; control characters and the
+       active search match are drawn in inverted video */
     const unsigned char *classes = ClassesOfRow(buffer_row, row->size);
-    int left = vted_editor_config.col_offset;
-    int right = left + vted_editor_config.text_cols;
     int match_end = vted_editor_config.match_col + vted_editor_config.match_len;
     int cell = 0;
     int at = 0;
@@ -521,6 +584,19 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
         unsigned char byte = (unsigned char)row->chars[at];
         int next = Utf8NextBoundary(row->chars, row->size, at);
         int width = RowCharWidth(row, at, cell);
+        int line_end;
+
+        /* a wrapped line is never cut in half: a glyph that would
+           cross its line's right edge starts the next one instead,
+           the same move WrapWalk makes, so every line of the row lays
+           the glyphs out the same way. A tab may cross the edge,
+           being blank space */
+        line_end = (cell / vted_editor_config.text_cols + 1) * vted_editor_config.text_cols;
+
+        if (vted_editor_config.wrap != 0 && byte != '\t' && cell + width > line_end)
+        {
+            cell = line_end;
+        }
 
         int is_control = (byte < 0x20 && byte != '\t') || byte == 0x7F;
         int in_match = has_match && at >= vted_editor_config.match_col && at < match_end;
@@ -574,6 +650,23 @@ static void DrawGutter(append_buffer_t *ab, int buffer_row)
     AppendToBuffer(ab, "\x1b[m", 3);
 }
 
+/* the lines a wrapped row continues on get the gutter's width in
+   blanks, so the text lines up under the first line's */
+static void DrawGutterBlank(append_buffer_t *ab)
+{
+    int cell;
+
+    if (vted_editor_config.gutter_width == 0)
+    {
+        return;
+    }
+
+    for (cell = 0; cell < vted_editor_config.gutter_width; cell++)
+    {
+        AppendToBuffer(ab, " ", 1);
+    }
+}
+
 /* positions the terminal cursor at the start of screen line row, unless
    the cursor is already there from the previous row drawn */
 static void GotoScreenRow(append_buffer_t *ab, int *at, int row)
@@ -596,60 +689,32 @@ static void GotoScreenRow(append_buffer_t *ab, int *at, int row)
 
 static void DrawRows(append_buffer_t *ab, int *at)
 {
-    int screen_row;
+    int screen_row = 0;
+    int buffer_row = vted_editor_config.row_offset;
 
-    for (screen_row = 0; screen_row < vted_editor_config.screen_rows; screen_row++)
+    while (screen_row < vted_editor_config.screen_rows)
     {
-        int buffer_row = screen_row + vted_editor_config.row_offset;
-        int draw;
-
         if (buffer_row >= vted_buffer.num_rows)
         {
             /* tildes below the text and the welcome banner are drawn
                every frame: they depend on nothing in the buffer */
-            draw = 1;
-        }
-        else
-        {
-            EnsureDirtyRows(vted_buffer.num_rows);
-            draw = dirty_rows[buffer_row] != 0;
-        }
+            GotoScreenRow(ab, at, screen_row);
 
-        if (!draw)
-        {
-            continue;
-        }
-
-        /* clean rows skipped above leave the terminal cursor wherever
-           the last drawn row ended: this row is placed explicitly, and
-           the common case of consecutive rows costs nothing */
-        GotoScreenRow(ab, at, screen_row);
-
-        if (buffer_row < vted_buffer.num_rows)
-        {
-            vted_row_t *text_row = &vted_buffer.rows[buffer_row];
-
-            DrawGutter(ab, buffer_row);
-            DrawRowText(ab, buffer_row, text_row,
-                        buffer_row == vted_editor_config.match_row &&
-                            vted_editor_config.match_len > 0);
-
-            dirty_rows[buffer_row] = 0; /* the screen now matches the buffer */
-        }
-        else if (buffer_row == vted_buffer.num_rows && vted_editor_config.cursor_y == buffer_row &&
-                 vted_editor_config.gutter_width > 0)
-        {
-            /* the line the cursor stands on past the end of the text:
-               it gets its number too, so the cursor never sits in an
-               empty gutter */
-            DrawGutter(ab, buffer_row);
-        }
-        else
-        {
-            /* empty buffer: show a welcome banner in the middle row;
-               a loaded file only gets the tildes below its text */
-            if (vted_buffer.num_rows == 0 && screen_row == vted_editor_config.screen_rows / 2)
+            if (buffer_row == vted_buffer.num_rows &&
+                vted_editor_config.cursor_y == buffer_row &&
+                vted_editor_config.gutter_width > 0)
             {
+                /* the line the cursor stands on past the end of the
+                   text: it gets its number too, so the cursor never
+                   sits in an empty gutter */
+                DrawGutter(ab, buffer_row);
+            }
+            else if (vted_buffer.num_rows == 0 &&
+                     screen_row == vted_editor_config.screen_rows / 2)
+            {
+                /* empty buffer: show a welcome banner in the middle
+                   row; a loaded file only gets the tildes below its
+                   text */
                 char welcome[80];
                 int welcome_len = snprintf(welcome, sizeof(welcome),
                                            "vted -- version %s", VTED_VERSION);
@@ -689,12 +754,78 @@ static void DrawRows(append_buffer_t *ab, int *at)
             {
                 AppendToBuffer(ab, "~", 1);
             }
+
+            AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
+
+            AppendToBuffer(ab, "\r\n", 2);
+            (*at)++;
+            screen_row++;
+            buffer_row++;
+            continue;
         }
 
-        AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
+        EnsureDirtyRows(vted_buffer.num_rows);
 
-        AppendToBuffer(ab, "\r\n", 2);
-        (*at)++;
+        if (dirty_rows[buffer_row] == 0)
+        {
+            /* a clean row is not painted, but the screen lines it
+               takes still scroll by */
+            screen_row += RowLines(buffer_row);
+            buffer_row++;
+            continue;
+        }
+
+        /* the row paints on one screen line, or on as many as it
+           wraps into */
+        {
+            vted_row_t *text_row = &vted_buffer.rows[buffer_row];
+            int has_match = buffer_row == vted_editor_config.match_row &&
+                            vted_editor_config.match_len > 0;
+            int lines = RowLines(buffer_row);
+            int line;
+
+            for (line = 0; line < lines && screen_row < vted_editor_config.screen_rows; line++)
+            {
+                /* clean rows skipped above leave the terminal cursor
+                   wherever the last drawn row ended: this line is
+                   placed explicitly, and the common case of
+                   consecutive rows costs nothing */
+                GotoScreenRow(ab, at, screen_row);
+
+                if (line == 0)
+                {
+                    DrawGutter(ab, buffer_row);
+                }
+                else
+                {
+                    DrawGutterBlank(ab);
+                }
+
+                if (vted_editor_config.wrap != 0)
+                {
+                    /* line k of the wrapped row is the cells
+                       [k*text_cols, (k+1)*text_cols) */
+                    DrawRowText(ab, buffer_row, text_row, has_match,
+                                line * vted_editor_config.text_cols,
+                                (line + 1) * vted_editor_config.text_cols);
+                }
+                else
+                {
+                    DrawRowText(ab, buffer_row, text_row, has_match,
+                                vted_editor_config.col_offset,
+                                vted_editor_config.col_offset + vted_editor_config.text_cols);
+                }
+
+                AppendToBuffer(ab, "\x1b[K", 3); /* erase from cursor to end of line */
+
+                AppendToBuffer(ab, "\r\n", 2);
+                (*at)++;
+                screen_row++;
+            }
+
+            dirty_rows[buffer_row] = 0; /* the screen now matches the buffer */
+            buffer_row++;
+        }
     }
 }
 
@@ -1184,11 +1315,57 @@ void RefreshScreen(void)
     /* display the cursor position on terminal screen */
 
     /* offsets translate the absolute buffer coordinates into viewport
-       coordinates; + 1 because the terminal starts from 1,1 not 0,0 */
-    cursor_position_len = snprintf(cursor_position_buffer, sizeof(cursor_position_buffer), "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
-                                   vted_editor_config.cursor_y - vted_editor_config.row_offset + 1,
-                                   vted_editor_config.cursor_rx - vted_editor_config.col_offset +
-                                       vted_editor_config.gutter_width + 1);
+       coordinates; + 1 because the terminal starts from 1,1 not 0,0.
+       A wrapped row sits on as many screen lines as it takes, so the
+       cursor's line counts the wrapped lines of the rows above it */
+    {
+        int cursor_screen_row;
+        int cursor_screen_col;
+
+        if (vted_editor_config.wrap != 0)
+        {
+            int cursor_line = 0;
+            int cursor_col = 0;
+            int above = 0;
+            int row;
+
+            for (row = vted_editor_config.row_offset;
+                 row < vted_editor_config.cursor_y && row < vted_buffer.num_rows;
+                 row++)
+            {
+                above += RowLines(row);
+            }
+
+            if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+            {
+                RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
+                               vted_editor_config.cursor_x,
+                               vted_editor_config.text_cols,
+                               &cursor_line, &cursor_col);
+            }
+
+            cursor_screen_row = above + cursor_line;
+
+            /* a row with more lines than the whole viewport cannot
+               show them all: the cursor waits at the bottom edge */
+            if (cursor_screen_row > vted_editor_config.screen_rows - 1)
+            {
+                cursor_screen_row = vted_editor_config.screen_rows - 1;
+            }
+
+            cursor_screen_col = cursor_col;
+        }
+        else
+        {
+            cursor_screen_row = vted_editor_config.cursor_y - vted_editor_config.row_offset;
+            cursor_screen_col = vted_editor_config.cursor_rx - vted_editor_config.col_offset;
+        }
+
+        cursor_position_len = snprintf(cursor_position_buffer, sizeof(cursor_position_buffer),
+                                       "\x1b[%d;%dH", /* ESC + [ + <row> + ; + <col> */
+                                       cursor_screen_row + 1,
+                                       cursor_screen_col + vted_editor_config.gutter_width + 1);
+    }
 
     if (cursor_position_len > 0)
     {
