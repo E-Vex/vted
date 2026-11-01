@@ -310,6 +310,84 @@ int BuffersDirtyCount(void)
     return count;
 }
 
+/* frees what a waiting buffer holds: its rows, its name and its undo
+   history */
+static void FreeSlot(int index)
+{
+    int row_index;
+
+    UndoDiscard(slots[index].history);
+
+    for (row_index = 0; row_index < slots[index].text.num_rows; row_index++)
+    {
+        FreeRow(&slots[index].text.rows[row_index]);
+    }
+
+    free(slots[index].text.rows);
+    free(slots[index].text.filename);
+}
+
+int BuffersClose(int index)
+{
+    if (index < 0 || index >= slot_count)
+    {
+        return 0;
+    }
+
+    if (index == current)
+    {
+        /* the live buffer's text, name and history sit in the editor's
+           globals: give those back the way the editor core does on its
+           way out */
+        UndoReset();
+        FreeBuffer();
+    }
+    else
+    {
+        FreeSlot(index);
+    }
+
+    /* the slots above slide down over the closed one */
+    memmove(&slots[index], &slots[index + 1],
+            (size_t)(slot_count - index - 1) * sizeof *slots);
+    slot_count--;
+
+    if (index != current)
+    {
+        /* a buffer before the live one closed: the live one's index
+           slid down with it, and the live one itself is untouched */
+        if (index < current)
+        {
+            current--;
+        }
+
+        return 1;
+    }
+
+    /* the live buffer closed: nothing is live until another one takes
+       its place */
+    current = -1;
+
+    if (slot_count == 0)
+    {
+        /* the last buffer closed: the editor goes on with a fresh empty
+           one, the way it starts */
+        BuffersStartEmpty();
+        return 1;
+    }
+
+    /* the neighbor takes the closed one's place; the last slot's
+       neighbor is the one before it */
+    if (index == slot_count)
+    {
+        index = slot_count - 1;
+    }
+
+    Install(index);
+
+    return 1;
+}
+
 void BuffersFreeOthers(void)
 {
     int i;

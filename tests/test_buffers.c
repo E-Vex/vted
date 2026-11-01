@@ -272,6 +272,106 @@ static void TestDirtyCountsAcrossBuffers(void)
     CHECK_INT(BuffersDirtyCount(), 2); /* switching does not forget */
 }
 
+static void TestCloseBounds(void)
+{
+    Begin();
+    WriteFile(first_path, "one\n");
+    BuffersOpen(first_path);
+
+    CHECK_INT(BuffersClose(-1), 0);
+    CHECK_INT(BuffersClose(1), 0);
+    CHECK_INT(BuffersClose(BuffersCurrent()), 1); /* in range it works */
+}
+
+static void TestCloseRemovesAWaitingBuffer(void)
+{
+    Begin();
+    WriteFile(first_path, "one\n");
+    WriteFile(second_path, "two\n");
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+
+    /* the live buffer is untouched when a waiting one closes */
+    CHECK_INT(BuffersClose(0), 1);
+
+    CHECK_INT(BuffersCount(), 1);
+    CHECK_INT(BuffersCurrent(), 0); /* its index slid down */
+    CHECK_STR(vted_buffer.filename, second_path);
+    CHECK_STR(vted_buffer.rows[0].chars, "two");
+
+    /* a waiting buffer with unsaved changes takes its warning with it */
+    BuffersOpen(first_path);
+    EditorInsertChar('X');
+    BuffersSwitch(0); /* the changed one waits now */
+    CHECK_INT(BuffersDirtyCount(), 1);
+
+    CHECK_INT(BuffersClose(1), 1);
+    CHECK_INT(BuffersDirtyCount(), 0); /* the unsaved change went with it */
+    CHECK_STR(vted_buffer.filename, second_path);
+}
+
+static void TestCloseSwitchesToTheNeighbor(void)
+{
+    Begin();
+    WriteFile(first_path, "one\ntwo\nthree\n");
+    WriteFile(second_path, "other\n");
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+
+    /* the live one closes: the neighbor comes back into view */
+    CHECK_INT(BuffersClose(1), 1);
+
+    CHECK_INT(BuffersCount(), 1);
+    CHECK_INT(BuffersCurrent(), 0);
+    CHECK_STR(vted_buffer.filename, first_path);
+    CHECK_STR(vted_buffer.rows[2].chars, "three");
+    CHECK_INT(vted_buffer.dirty, 0);
+
+    /* the first buffer closed instead: the one after it takes its
+       place and becomes the live one */
+    BuffersOpen(second_path);
+    CHECK_INT(BuffersClose(0), 1);
+    CHECK_INT(BuffersCurrent(), 0);
+    CHECK_STR(vted_buffer.filename, second_path);
+}
+
+static void TestCloseTheLastBufferStartsAnEmptyOne(void)
+{
+    Begin();
+    WriteFile(first_path, "one\n");
+    BuffersOpen(first_path);
+
+    CHECK_INT(BuffersClose(0), 1);
+
+    CHECK_INT(BuffersCount(), 1);
+    CHECK_INT(BuffersCurrent(), 0);
+    CHECK(vted_buffer.filename == NULL);
+    CHECK_INT(vted_buffer.num_rows, 0);
+    CHECK_INT(vted_buffer.dirty, 0);
+    CHECK_INT(EditorUndo(), 0); /* nothing to undo in a fresh buffer */
+}
+
+static void TestCloseForgetsTheHistory(void)
+{
+    Begin();
+    WriteFile(first_path, "ab\n");
+    BuffersOpen(first_path);
+
+    EditorInsertChar('X');
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    /* the buffer with its unsaved change closes, and with it the
+       history of the change */
+    CHECK_INT(BuffersClose(0), 1);
+    CHECK_INT(BuffersCount(), 1); /* the fresh empty buffer */
+
+    /* the file comes back the way it is on disk, with no history */
+    CHECK_INT(BuffersOpen(first_path), 0);
+    CHECK_INT(BuffersCount(), 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(EditorUndo(), 0);
+}
+
 int main(void)
 {
     /* the files every check reuses, created once */
@@ -303,6 +403,11 @@ int main(void)
     TestAStreamOpensAsAnUnnamedBuffer();
     TestSwitchBounds();
     TestDirtyCountsAcrossBuffers();
+    TestCloseBounds();
+    TestCloseRemovesAWaitingBuffer();
+    TestCloseSwitchesToTheNeighbor();
+    TestCloseTheLastBufferStartsAnEmptyOne();
+    TestCloseForgetsTheHistory();
 
     /* put the editor back the way the next test binary expects it */
     Begin();

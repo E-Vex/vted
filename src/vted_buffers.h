@@ -40,6 +40,13 @@ int BuffersCurrent(void); /* index of the buffer being edited, -1 before the fir
 /* how many buffers have unsaved changes */
 int BuffersDirtyCount(void);
 
+/* closes the buffer at index: its text, undo history and name are
+   given back and the slots above slide down. The neighbor takes its
+   place and becomes the one being edited when the live one closed;
+   closing the last buffer starts a fresh empty one. Returns 1 when a
+   buffer was closed, 0 when the index is out of range */
+int BuffersClose(int index);
+
 /* frees every buffer but the live one, which the editor core frees
    the usual way; runs once, on the way out */
 void BuffersFreeOthers(void);
