@@ -382,6 +382,140 @@ static void TestCenteringPutsTheCursorMidViewport(void)
     CHECK_INT(vted_editor_config.row_offset, 6);
 }
 
+/* a tall first row (12 lines of 4 cells) over two short ones */
+static void BeginTallAndShort(void)
+{
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 48, VTED_EOL_LF);
+    AppendRow("short", 5, VTED_EOL_LF);
+    AppendRow("row", 3, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 10;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+}
+
+static void TestCenteringCountsTallRows(void)
+{
+    /* a wrapped viewport centers in screen lines: the tall row above
+       the cursor takes its real height, so the cursor lands mid
+       viewport instead of off screen below it */
+    BeginTallAndShort();
+
+    CursorAt(2, 1);
+    ScreenCenterCursor();
+
+    /* the middle of 10 is 5: the short row's two lines and three
+       more from the tall row, entered at line 9 */
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 9);
+}
+
+static void TestCenteringWhenTheHalfEndsAtARowEdge(void)
+{
+    /* half a viewport of lines ending exactly where a row ends
+       leaves the rows whole: the top is the next one down, or the
+       first row when the buffer runs out above */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("xxxxxxxxxxxx", 12, VTED_EOL_LF); /* 3 lines */
+    AppendRow("a", 1, VTED_EOL_LF);              /* 1 line */
+    AppendRow("row", 3, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 8;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+
+    /* the 3 lines plus the 'a' line are exactly the half of 8: both
+       rows stay whole and the cursor sits on the middle line */
+    CursorAt(2, 1);
+    ScreenCenterCursor();
+
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+
+    /* one more row above than the half holds: the walk stops inside
+       the tall row */
+    {
+        FreeBuffer();
+        InitBuffer();
+        AppendRow("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 48, VTED_EOL_LF); /* 12 lines */
+        AppendRow("a", 1, VTED_EOL_LF);              /* 1 line */
+        AppendRow("xxxxxxxxxxxxxxxx", 16, VTED_EOL_LF); /* 4 lines */
+        AppendRow("row", 3, VTED_EOL_LF);
+
+        vted_editor_config.screen_rows = 10;
+        vted_editor_config.text_cols = 4;
+        vted_editor_config.wrap = 1;
+        vted_editor_config.preferred_rx = -1;
+        vted_editor_config.row_offset = 0;
+        vted_editor_config.line_offset = 0;
+
+        /* the 'a' and the 4-line row are exactly the half of 10:
+           they are the top and the tall row above falls away */
+        CursorAt(3, 1);
+        ScreenCenterCursor();
+
+        CHECK_INT(vted_editor_config.row_offset, 1);
+        CHECK_INT(vted_editor_config.line_offset, 0);
+    }
+}
+
+static void TestCenteringSeesWhatATallRowHides(void)
+{
+    /* a row number inside the viewport is not on screen when a tall
+       row above eats the lines: the goto still centers on it */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 40, VTED_EOL_LF); /* 10 lines */
+    AppendRow("a", 1, VTED_EOL_LF);
+    AppendRow("b", 1, VTED_EOL_LF);
+    AppendRow("c", 1, VTED_EOL_LF);
+    AppendRow("d", 1, VTED_EOL_LF);
+    AppendRow("e", 1, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 10;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+
+    CursorAt(5, 0);
+    ScreenCenterCursor();
+
+    /* the four one-line rows and one line of the tall row are above
+       the cursor, so it sits on the middle line */
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 9);
+}
+
+static void TestAWrappedCursorOnScreenStays(void)
+{
+    /* a viewport already showing the cursor keeps its place, also
+       when the cursor sits inside a tall row */
+    BeginTallRow(240); /* 60 lines for a viewport of 10 */
+    AppendRow("tail", 4, VTED_EOL_LF);
+
+    /* the way UpdateScroll left it: the tall row on top, entered at
+       line 31, the cursor on its line 32 */
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 31;
+
+    CursorAt(0, 128);
+    ScreenCenterCursor();
+
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 31);
+}
+
 int main(void)
 {
     TestHomeStartsTheScreenLine();
@@ -399,6 +533,10 @@ int main(void)
     TestStaleLineOffsetResets();
     TestNormalRowsKeepALineOffsetOfZero();
     TestCenteringPutsTheCursorMidViewport();
+    TestCenteringCountsTallRows();
+    TestCenteringWhenTheHalfEndsAtARowEdge();
+    TestCenteringSeesWhatATallRowHides();
+    TestAWrappedCursorOnScreenStays();
 
     return TestSummary("screen");
 }

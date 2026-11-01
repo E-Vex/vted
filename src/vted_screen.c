@@ -398,13 +398,130 @@ void UpdateScroll(void)
     }
 }
 
+/* the cursor's own screen line inside its row; the position past the
+   row's last glyph rests on its last line, and the phantom row past
+   the end has the one line it has */
+static int CursorLineInRow(void)
+{
+    int line = 0;
+
+    if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+    {
+        int col;
+        int lines = RowLines(vted_editor_config.cursor_y);
+
+        RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
+                       vted_editor_config.cursor_x,
+                       vted_editor_config.text_cols, &line, &col);
+
+        if (line >= lines)
+        {
+            line = lines - 1;
+        }
+    }
+
+    return line;
+}
+
+/* is the cursor's own screen line inside the viewport: the rows
+   between the top and the cursor count at their real heights, so a
+   tall row above can push the cursor off screen even when its row
+   number alone says otherwise */
+static int CursorOnScreen(void)
+{
+    int used = CursorLineInRow() - vted_editor_config.line_offset;
+    int row;
+
+    if (vted_editor_config.cursor_y < vted_editor_config.row_offset)
+    {
+        return 0;
+    }
+
+    for (row = vted_editor_config.row_offset;
+         row < vted_editor_config.cursor_y && row < vted_buffer.num_rows;
+         row++)
+    {
+        used += RowLines(row);
+
+        if (used >= vted_editor_config.screen_rows)
+        {
+            return 0;
+        }
+    }
+
+    return used >= 0 && used < vted_editor_config.screen_rows;
+}
+
 /* a line that is already on screen stays where it is; one that is
    not gets the middle of the viewport, so there is context around
-   it instead of the line sitting on the very edge */
+   it instead of the line sitting on the very edge. With wrapping on
+   the rows count at their real heights: a tall row above the cursor
+   pushes the top up line by line, and may be entered mid-row */
 void ScreenCenterCursor(void)
 {
     int first = vted_editor_config.row_offset;
     int last = first + vted_editor_config.screen_rows;
+
+    if (vted_editor_config.wrap != 0)
+    {
+        int above = vted_editor_config.screen_rows / 2;
+        int line = CursorLineInRow();
+        int remaining = above - line;
+        int row = vted_editor_config.cursor_y - 1;
+
+        if (CursorOnScreen())
+        {
+            return;
+        }
+
+        /* half a viewport of screen lines belongs above the cursor's
+           own line: when its own row already has that many lines
+           above it, that row is the top, entered at the line the
+           half ended on */
+        if (line >= above)
+        {
+            vted_editor_config.row_offset = vted_editor_config.cursor_y;
+            vted_editor_config.line_offset = line - above;
+            return;
+        }
+
+        /* whole rows above, while they fit in the half */
+        while (row >= 0)
+        {
+            int lines = RowLines(row);
+
+            if (remaining < lines)
+            {
+                break;
+            }
+
+            remaining -= lines;
+            row--;
+        }
+
+        if (row < 0)
+        {
+            /* the buffer ran out above: the first row is the top */
+            vted_editor_config.row_offset = 0;
+            vted_editor_config.line_offset = 0;
+        }
+        else if (remaining == 0)
+        {
+            /* the rows above filled the half exactly: the next one
+               down is the top, from its own first line */
+            vted_editor_config.row_offset = row + 1;
+            vted_editor_config.line_offset = 0;
+        }
+        else
+        {
+            /* the half ends inside this row: the viewport enters it
+               mid-row */
+            vted_editor_config.row_offset = row;
+            vted_editor_config.line_offset = RowLines(row) - remaining;
+        }
+
+        return;
+    }
 
     if (vted_editor_config.cursor_y < first || vted_editor_config.cursor_y >= last)
     {
