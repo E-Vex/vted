@@ -1138,7 +1138,8 @@ int main(int argc, char *argv[])
             }
             else if (c_in == ArrowUp || c_in == ArrowDown || c_in == ArrowLeft || c_in == ArrowRight ||
                      c_in == PageUp || c_in == PageDown || c_in == HomeKey || c_in == EndKey ||
-                     c_in == WordLeft || c_in == WordRight)
+                     c_in == WordLeft || c_in == WordRight ||
+                     c_in == ViewportTop || c_in == ViewportMiddle || c_in == ViewportBottom)
             {
                 /* anything else forgets the selection */
                 EditClearSelection();
