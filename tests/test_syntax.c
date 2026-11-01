@@ -896,6 +896,65 @@ static void TestSql(void)
     CHECK_STR(Classes(0), "kkkkk" "nnnnnn" "dddd" "n" "kkk" "nnnnnnnn" "dddd");
 }
 
+static void TestDockerfile(void)
+{
+    SyntaxSelectForFile("Dockerfile");
+    CHECK_STR(SyntaxLanguageName(), "Dockerfile");
+
+    SyntaxSelectForFile("docker/Dockerfile");
+    CHECK_STR(SyntaxLanguageName(), "Dockerfile");
+
+    SyntaxSelectForFile("dockerfile");
+    CHECK_STR(SyntaxLanguageName(), "Dockerfile");
+
+    /* a dotted suffix belongs to the base name */
+    SyntaxSelectForFile("Dockerfile.prod");
+    CHECK_STR(SyntaxLanguageName(), "Dockerfile");
+
+    SyntaxSelectForFile("build/Dockerfile.dev");
+    CHECK_STR(SyntaxLanguageName(), "Dockerfile");
+
+    /* a longer name that merely starts with it does not */
+    SyntaxSelectForFile("Dockerfileish");
+    CHECK(SyntaxLanguageName() == NULL);
+
+    /* the podman spelling of the same format */
+    SyntaxSelectForFile("Containerfile");
+    CHECK_STR(SyntaxLanguageName(), "Dockerfile");
+
+    SyntaxSelectForFile("app.dockerfile");
+    CHECK_STR(SyntaxLanguageName(), "Dockerfile");
+
+    /* the instructions color either way they are spelled */
+    LoadOne("FROM ubuntu:24.04");
+    CHECK_STR(Classes(0), "kkkk" "n" "nnnnnn" "n" "ddddd");
+
+    LoadOne("from ubuntu:24.04");
+    CHECK_STR(Classes(0), "kkkk" "n" "nnnnnn" "n" "ddddd");
+
+    LoadOne("RUN echo hello");
+    CHECK_STR(Classes(0), "kkk" "n" "nnnn" "n" "nnnnn");
+
+    /* a '#' opens a comment at the start of a row or after a blank */
+    LoadOne("# a comment");
+    CHECK_STR(Classes(0), "ccccccccccc");
+
+    LoadOne("  # note");
+    CHECK_STR(Classes(0), "nn" "cccccc");
+
+    /* mid-word it belongs to the word, a URL fragment say */
+    LoadOne("RUN wget http://x#frag");
+    CHECK_STR(Classes(0), "kkk" "nnnnnnnnnnnnnnnnnnn");
+
+    /* the JSON argument form carries strings */
+    LoadOne("CMD [\"npm\", \"start\"]");
+    CHECK_STR(Classes(0), "kkk" "nn" "sssss" "nn" "sssssss" "n");
+
+    /* the words after an instruction stay plain */
+    LoadOne("ENV PATH=/usr/bin");
+    CHECK_STR(Classes(0), "kkk" "nnnnnnnnnnnnnn");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -939,6 +998,7 @@ int main(void)
     TestToml();
     TestIni();
     TestSql();
+    TestDockerfile();
     TestStyles();
 
     FreeBuffer();

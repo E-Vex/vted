@@ -29,6 +29,9 @@ typedef struct
                                        ';' besides '#'), or NULL */
     int case_insensitive;            /* 1: the words match either way they are spelled
                                        (SQL) */
+    const char *const *name_prefixes; /* base names that also claim a dotted
+                                         suffix: "Dockerfile" claims
+                                         Dockerfile.prod too, or NULL */
 } vted_language_t;
 
 /*----------------------------------------------------------
@@ -55,7 +58,7 @@ static const char *const c_constants[] = {
 
 static const vted_language_t language_c = {
     "C", c_extensions, c_keywords, c_types, c_constants,
-    "//", "/*", "*/", "\"'", 1, 0, NULL, 0};
+    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | C++
@@ -91,7 +94,7 @@ static const char *const cpp_constants[] = {
 
 static const vted_language_t language_cpp = {
     "C++", cpp_extensions, cpp_keywords, cpp_types, cpp_constants,
-    "//", "/*", "*/", "\"'", 1, 0, NULL, 0};
+    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Python
@@ -117,7 +120,7 @@ static const char *const python_constants[] = {
 
 static const vted_language_t language_python = {
     "Python", python_extensions, python_keywords, python_types,
-    python_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0};
+    python_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Shell
@@ -140,7 +143,7 @@ static const char *const shell_constants[] = {
 
 static const vted_language_t language_shell = {
     "Shell", shell_extensions, shell_keywords, shell_types,
-    shell_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0};
+    shell_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Makefile
@@ -166,7 +169,7 @@ static const char *const makefile_types[] = {
 
 static const vted_language_t language_makefile = {
     "Makefile", makefile_names, makefile_keywords, makefile_types, NULL,
-    "#", NULL, NULL, "\"'", 0, 0, NULL, 0};
+    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | JavaScript
@@ -195,7 +198,7 @@ static const char *const js_constants[] = {
 /* the quotes carry a backtick: a template literal is a string */
 static const vted_language_t language_js = {
     "JavaScript", js_extensions, js_keywords, js_types, js_constants,
-    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | TypeScript
@@ -223,7 +226,7 @@ static const char *const ts_types[] = {
 
 static const vted_language_t language_ts = {
     "TypeScript", ts_extensions, ts_keywords, ts_types, js_constants,
-    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Rust
@@ -253,7 +256,7 @@ static const char *const rust_constants[] = {
    rest of the row */
 static const vted_language_t language_rust = {
     "Rust", rust_extensions, rust_keywords, rust_types, rust_constants,
-    "//", "/*", "*/", "\"", 0, 0, NULL, 0};
+    "//", "/*", "*/", "\"", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Go
@@ -279,7 +282,7 @@ static const char *const go_constants[] = {
 /* a raw string is a string too: the backtick opens one */
 static const vted_language_t language_go = {
     "Go", go_extensions, go_keywords, go_types, go_constants,
-    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | JSON
@@ -293,7 +296,7 @@ static const char *const json_constants[] = {
 /* no comments exist in JSON, and only the double quote is a string */
 static const vted_language_t language_json = {
     "JSON", json_extensions, NULL, NULL, json_constants,
-    NULL, NULL, NULL, "\"", 0, 0, NULL, 0};
+    NULL, NULL, NULL, "\"", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Markdown
@@ -306,7 +309,7 @@ static const char *const markdown_extensions[] = {
    inline code spans; plain words are left alone */
 static const vted_language_t language_markdown = {
     "Markdown", markdown_extensions, NULL, NULL, NULL,
-    NULL, "```", "```", "`", 1, 0, NULL, 0};
+    NULL, "```", "```", "`", 1, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | HTML
@@ -319,7 +322,7 @@ static const char *const html_extensions[] = {
    plain, the way Markdown's text does */
 static const vted_language_t language_html = {
     "HTML", html_extensions, NULL, NULL, NULL,
-    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0};
+    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | XML
@@ -332,7 +335,7 @@ static const char *const xml_extensions[] = {
    strings color, the tags themselves stay plain */
 static const vted_language_t language_xml = {
     "XML", xml_extensions, NULL, NULL, NULL,
-    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0};
+    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | CSS
@@ -355,7 +358,7 @@ static const char *const css_constants[] = {
    selectors and properties stay plain */
 static const vted_language_t language_css = {
     "CSS", css_extensions, NULL, css_types, css_constants,
-    NULL, "/*", "*/", "\"'", 0, 0, NULL, 0};
+    NULL, "/*", "*/", "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Lua
@@ -381,7 +384,7 @@ static const char *const lua_constants[] = {
    comment does elsewhere */
 static const vted_language_t language_lua = {
     "Lua", lua_extensions, lua_keywords, lua_types, lua_constants,
-    "--", "--[[", "]]", "\"'", 0, 0, NULL, 0};
+    "--", "--[[", "]]", "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | Ruby
@@ -411,7 +414,7 @@ static const char *const ruby_constants[] = {
 
 static const vted_language_t language_ruby = {
     "Ruby", ruby_files, ruby_keywords, ruby_types, ruby_constants,
-    "#", NULL, NULL, "\"'", 0, 0, NULL, 0};
+    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | YAML
@@ -433,7 +436,7 @@ static const char *const yaml_constants[] = {
    and single quotes both open a string */
 static const vted_language_t language_yaml = {
     "YAML", yaml_extensions, NULL, NULL, yaml_constants,
-    "#", NULL, NULL, "\"'", 0, 1, NULL, 0};
+    "#", NULL, NULL, "\"'", 0, 1, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | TOML
@@ -449,7 +452,7 @@ static const char *const toml_constants[] = {
    down to its first dash, the way the number scan runs */
 static const vted_language_t language_toml = {
     "TOML", toml_extensions, NULL, NULL, toml_constants,
-    "#", NULL, NULL, "\"'", 0, 0, NULL, 0};
+    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL};
 
 /*----------------------------------------------------------
 | INI
@@ -467,7 +470,7 @@ static const char *const ini_constants[] = {
    way, and strings color in either quote; the [sections] stay plain */
 static const vted_language_t language_ini = {
     "INI", ini_extensions, NULL, NULL, ini_constants,
-    "#", NULL, NULL, "\"'", 0, 0, ";", 0};
+    "#", NULL, NULL, "\"'", 0, 0, ";", 0, NULL};
 
 /*----------------------------------------------------------
 | SQL
@@ -504,7 +507,35 @@ static const char *const sql_constants[] = {
    identifier, and coloring one as a string would mislead */
 static const vted_language_t language_sql = {
     "SQL", sql_extensions, sql_keywords, sql_types, sql_constants,
-    "--", "/*", "*/", "'", 0, 0, NULL, 1};
+    "--", "/*", "*/", "'", 0, 0, NULL, 1, NULL};
+
+/*----------------------------------------------------------
+| Dockerfile
+----------------------------------------------------------*/
+
+/* the base names a Dockerfile goes by, either case, the podman
+   spelling of the same format among them; a dotted suffix
+   (Dockerfile.prod) belongs to them too */
+static const char *const dockerfile_names[] = {
+    "Dockerfile", "dockerfile", "Containerfile", "containerfile", NULL};
+
+static const char *const dockerfile_extensions[] = {
+    ".dockerfile", ".containerfile", NULL};
+
+/* the instructions, spelled the upper way: they match either way
+   they are written */
+static const char *const dockerfile_keywords[] = {
+    "FROM", "RUN", "CMD", "LABEL", "MAINTAINER", "EXPOSE", "ENV",
+    "ADD", "COPY", "ENTRYPOINT", "VOLUME", "USER", "WORKDIR", "ARG",
+    "ONBUILD", "STOPSIGNAL", "HEALTHCHECK", "SHELL", NULL};
+
+/* a '#' opens a comment at the start of a row or after a blank,
+   which is where the parser accepts one; the strings of the JSON
+   argument form color, and the words after an instruction stay
+   plain */
+static const vted_language_t language_dockerfile = {
+    "Dockerfile", dockerfile_extensions, dockerfile_keywords, NULL, NULL,
+    "#", NULL, NULL, "\"'", 0, 1, NULL, 1, dockerfile_names};
 
 /*----------------------------------------------------------
 | the table
@@ -531,6 +562,7 @@ static const vted_language_t *const languages[] = {
     &language_toml,
     &language_ini,
     &language_sql,
+    &language_dockerfile,
     NULL};
 
 static const vted_language_t *current_language;
@@ -571,6 +603,23 @@ static int MatchesName(const vted_language_t *language, const char *base, const 
         if (candidate[0] == '.' && ext != NULL && strcmp(candidate, ext) == 0)
         {
             return 1;
+        }
+    }
+
+    /* a name prefix claims the base name itself and any dotted
+       suffix it carries: Dockerfile.prod is a Dockerfile */
+    if (language->name_prefixes != NULL)
+    {
+        for (i = 0; language->name_prefixes[i] != NULL; i++)
+        {
+            const char *candidate = language->name_prefixes[i];
+            size_t length = strlen(candidate);
+
+            if (strncmp(base, candidate, length) == 0 &&
+                (base[length] == '\0' || base[length] == '.'))
+            {
+                return 1;
+            }
         }
     }
 
