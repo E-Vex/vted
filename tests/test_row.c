@@ -1,5 +1,10 @@
+/* _exit() is POSIX, not ISO C11 */
+#define _POSIX_C_SOURCE 200809L
+/*===============================*/
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 /*===============================*/
 #include "tests/vted_test.h"
 #include "src/vted_row.h"
@@ -368,6 +373,168 @@ static void TestInsertAndRemoveText(void)
     FreeBuffer();
 }
 
+/* builds a buffer of rows from a NULL-terminated list of texts */
+static void MakeBuffer(const char *const *texts)
+{
+    int i;
+
+    FreeBuffer();
+
+    for (i = 0; texts[i] != NULL; i++)
+    {
+        InsertRow(i, texts[i], (int)strlen(texts[i]), VTED_EOL_LF);
+    }
+}
+
+/* runs one match query and checks where it landed */
+static int MatchAt(int cy, int cx, int *out_y, int *out_x)
+{
+    *out_y = -2;
+    *out_x = -2;
+    return BufferFindBracketMatch(cy, cx, out_y, out_x);
+}
+
+static void TestBracketForwardMatch(void)
+{
+    const char *const texts[] = {"f(a, b)", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(MatchAt(0, 1, &y, &x), 1); /* cursor on ( */
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 6);
+    CHECK_INT(MatchAt(0, 6, &y, &x), 1); /* cursor on ) */
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 1);
+}
+
+static void TestBracketBeforeTheCursor(void)
+{
+    const char *const texts[] = {"f(a)", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    /* the cursor rests right after the closing bracket */
+    CHECK_INT(MatchAt(0, 4, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 1);
+}
+
+static void TestBracketNesting(void)
+{
+    const char *const texts[] = {"f(g(x))", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    /* the outer pair: its closer is the last one */
+    CHECK_INT(MatchAt(0, 1, &y, &x), 1);
+    CHECK_INT(x, 6);
+    /* the inner pair */
+    CHECK_INT(MatchAt(0, 3, &y, &x), 1);
+    CHECK_INT(x, 5);
+}
+
+static void TestBracketOtherPairs(void)
+{
+    const char *const texts[] = {"a [b] {c} (d)", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(MatchAt(0, 2, &y, &x), 1);
+    CHECK_INT(x, 4);
+    CHECK_INT(MatchAt(0, 6, &y, &x), 1);
+    CHECK_INT(x, 8);
+    CHECK_INT(MatchAt(0, 10, &y, &x), 1);
+    CHECK_INT(x, 12);
+}
+
+static void TestBracketAcrossRows(void)
+{
+    const char *const texts[] = {"f(", "  a,", "  b)", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(MatchAt(0, 1, &y, &x), 1);
+    CHECK_INT(y, 2);
+    CHECK_INT(x, 3);
+    /* and backwards from the closer */
+    CHECK_INT(MatchAt(2, 3, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 1);
+}
+
+static void TestBracketMixedPairs(void)
+{
+    /* a ] between the parentheses does not close them, but a stray )
+       does: only brackets of the pair are counted */
+    const char *const texts[] = {"(a]", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(MatchAt(0, 0, &y, &x), 0);
+}
+
+static void TestBracketUnmatched(void)
+{
+    const char *const texts[] = {"abc(", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(MatchAt(0, 3, &y, &x), 0);
+    CHECK_INT(MatchAt(0, 4, &y, &x), 0); /* resting after it neither */
+}
+
+static void TestBracketWithoutABracket(void)
+{
+    const char *const texts[] = {"plain words", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(MatchAt(0, 3, &y, &x), 0);
+    CHECK_INT(MatchAt(0, 0, &y, &x), 0);
+    CHECK_INT(MatchAt(0, 11, &y, &x), 0);
+}
+
+static void TestBracketOutOfTheBuffer(void)
+{
+    const char *const texts[] = {"()", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(MatchAt(-1, 0, &y, &x), 0);
+    CHECK_INT(MatchAt(5, 0, &y, &x), 0);
+    CHECK_INT(MatchAt(0, -1, &y, &x), 0);
+    CHECK_INT(MatchAt(0, 9, &y, &x), 0);
+}
+
+static void TestBracketScanStopsAtTheLimit(void)
+{
+    /* a row far past the scan limit: the match at its end counts as
+       missing, and the query still answers quickly */
+    int size = VTED_BRACKET_SCAN_BYTES + 64;
+    char *text = malloc((size_t)size + 2);
+    int y, x;
+
+    if (text == NULL)
+    {
+        fprintf(stderr, "  malloc failed\n");
+        _exit(2);
+    }
+
+    memset(text, 'x', (size_t)size);
+    text[0] = '(';
+    text[size] = ')';
+    text[size + 1] = '\0';
+
+    FreeBuffer();
+    InsertRow(0, text, size + 1, VTED_EOL_LF);
+
+    CHECK_INT(MatchAt(0, 0, &y, &x), 0);
+
+    free(text);
+    FreeBuffer();
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -387,6 +554,16 @@ int main(void)
     TestInsertString();
     TestSplitRow();
     TestInsertAndRemoveText();
+    TestBracketForwardMatch();
+    TestBracketBeforeTheCursor();
+    TestBracketNesting();
+    TestBracketOtherPairs();
+    TestBracketAcrossRows();
+    TestBracketMixedPairs();
+    TestBracketUnmatched();
+    TestBracketWithoutABracket();
+    TestBracketOutOfTheBuffer();
+    TestBracketScanStopsAtTheLimit();
 
     return TestSummary("row");
 }

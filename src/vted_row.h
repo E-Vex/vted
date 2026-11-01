@@ -14,6 +14,10 @@
 /* a tab advances the text to the next multiple of this many cells */
 #define VTED_TAB_STOP 8
 
+/* how far the bracket match scan reaches, in bytes: a match beyond it
+   counts as missing, so one keystroke on a huge file stays cheap */
+#define VTED_BRACKET_SCAN_BYTES (1 << 20)
+
 /* how a row is terminated when the buffer is written back out */
 enum
 {
@@ -110,6 +114,15 @@ int RowIndentLength(const vted_row_t *row, int limit);
    word, and the caller decides whether to wrap to another line */
 int RowWordRight(const vted_row_t *row, int cx);
 int RowWordLeft(const vted_row_t *row, int cx);
+
+/* looks for the bracket under the cursor, or the one right before
+   it, and scans the buffer for the bracket that closes it: the scan
+   counts brackets of the same pair so nesting comes out right, and
+   it stops after VTED_BRACKET_SCAN_BYTES bytes, so a match farther
+   away than that counts as missing. Returns 1 with the byte index
+   and row of the matching bracket in *match_cx and *match_cy, 0 when
+   the cursor is not on a bracket or no match is there to be found */
+int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
 
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);

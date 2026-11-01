@@ -552,3 +552,118 @@ void FreeBuffer(void)
 
     InitBuffer();
 }
+
+/* the three bracket pairs the match works on */
+static const char bracket_openers[] = "([{";
+static const char bracket_closers[] = ")]}";
+
+/* which pair a byte belongs to, -1 when it is no bracket; NUL never
+   counts, or strchr() would find the string terminator */
+static int BracketIndex(char c)
+{
+    const char *at;
+
+    if (c == '\0')
+    {
+        return -1;
+    }
+
+    at = strchr(bracket_openers, c);
+
+    if (at != NULL)
+    {
+        return (int)(at - bracket_openers);
+    }
+
+    at = strchr(bracket_closers, c);
+
+    if (at != NULL)
+    {
+        return (int)(at - bracket_closers);
+    }
+
+    return -1;
+}
+
+int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx)
+{
+    if (cy < 0 || cy >= vted_buffer.num_rows)
+    {
+        return 0;
+    }
+
+    const vted_row_t *row = &vted_buffer.rows[cy];
+
+    if (cx < 0 || cx > row->size)
+    {
+        return 0;
+    }
+
+    /* the bracket under the cursor decides; when there is none, the
+       one right before it does, so the cursor resting after a closing
+       bracket still shows its partner */
+    int at = cx;
+    int pair = -1;
+
+    if (at < row->size)
+    {
+        pair = BracketIndex(row->chars[at]);
+    }
+
+    if (pair == -1 && at > 0)
+    {
+        at--;
+        pair = BracketIndex(row->chars[at]);
+    }
+
+    if (pair == -1)
+    {
+        return 0;
+    }
+
+    char open = bracket_openers[pair];
+    char close = bracket_closers[pair];
+    int forward = row->chars[at] == open; /* an opener looks ahead */
+    int depth = 1;                        /* the bracket itself counts */
+    long scanned = 0;
+    int y = cy;
+    int x;
+
+    while (y >= 0 && y < vted_buffer.num_rows && scanned < VTED_BRACKET_SCAN_BYTES)
+    {
+        const vted_row_t *scan_row = &vted_buffer.rows[y];
+
+        x = (y == cy) ? (forward ? at + 1 : at - 1)
+                      : (forward ? 0 : scan_row->size - 1);
+
+        while (x >= 0 && x < scan_row->size && scanned < VTED_BRACKET_SCAN_BYTES)
+        {
+            char c = scan_row->chars[x];
+
+            if (c == open)
+            {
+                depth += forward ? 1 : -1;
+            }
+            else if (c == close)
+            {
+                depth += forward ? -1 : 1;
+            }
+
+            if (depth == 0)
+            {
+                *match_cy = y;
+                *match_cx = x;
+                return 1;
+            }
+
+            x += forward ? 1 : -1;
+            scanned++;
+        }
+
+        /* the line break between rows counts toward the limit as well */
+        y += forward ? 1 : -1;
+        scanned++;
+    }
+
+    return 0;
+}
