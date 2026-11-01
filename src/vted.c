@@ -831,6 +831,12 @@ static void EditorFind(void)
             vted_editor_config.cursor_y = match_row;
             vted_editor_config.cursor_x = match_col;
 
+            /* a match that left the viewport comes back mid-viewport,
+               the wrapped rows around it counted at their real
+               heights, the way Ctrl-G lands a line; one still on
+               screen keeps the viewport where it is */
+            ScreenCenterCursor();
+
             /* highlight the match on screen */
             vted_editor_config.match_row = match_row;
             vted_editor_config.match_col = match_col;
