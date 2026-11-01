@@ -25,6 +25,8 @@ typedef struct
     int preprocessor;               /* 1: '#' directives at the start of a line */
     int comment_after_blank;        /* 1: the line comment opens only at the start of a
                                        row or after a blank (YAML), anywhere (C) */
+    const char *line_comment2;      /* a second spelling of the line comment (INI knows
+                                       ';' besides '#'), or NULL */
 } vted_language_t;
 
 /*----------------------------------------------------------
@@ -51,7 +53,7 @@ static const char *const c_constants[] = {
 
 static const vted_language_t language_c = {
     "C", c_extensions, c_keywords, c_types, c_constants,
-    "//", "/*", "*/", "\"'", 1, 0};
+    "//", "/*", "*/", "\"'", 1, 0, NULL};
 
 /*----------------------------------------------------------
 | C++
@@ -87,7 +89,7 @@ static const char *const cpp_constants[] = {
 
 static const vted_language_t language_cpp = {
     "C++", cpp_extensions, cpp_keywords, cpp_types, cpp_constants,
-    "//", "/*", "*/", "\"'", 1, 0};
+    "//", "/*", "*/", "\"'", 1, 0, NULL};
 
 /*----------------------------------------------------------
 | Python
@@ -113,7 +115,7 @@ static const char *const python_constants[] = {
 
 static const vted_language_t language_python = {
     "Python", python_extensions, python_keywords, python_types,
-    python_constants, "#", NULL, NULL, "\"'", 0, 0};
+    python_constants, "#", NULL, NULL, "\"'", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | Shell
@@ -136,7 +138,7 @@ static const char *const shell_constants[] = {
 
 static const vted_language_t language_shell = {
     "Shell", shell_extensions, shell_keywords, shell_types,
-    shell_constants, "#", NULL, NULL, "\"'", 0, 0};
+    shell_constants, "#", NULL, NULL, "\"'", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | Makefile
@@ -162,7 +164,7 @@ static const char *const makefile_types[] = {
 
 static const vted_language_t language_makefile = {
     "Makefile", makefile_names, makefile_keywords, makefile_types, NULL,
-    "#", NULL, NULL, "\"'", 0, 0};
+    "#", NULL, NULL, "\"'", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | JavaScript
@@ -191,7 +193,7 @@ static const char *const js_constants[] = {
 /* the quotes carry a backtick: a template literal is a string */
 static const vted_language_t language_js = {
     "JavaScript", js_extensions, js_keywords, js_types, js_constants,
-    "//", "/*", "*/", "\"'`", 0, 0};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | TypeScript
@@ -219,7 +221,7 @@ static const char *const ts_types[] = {
 
 static const vted_language_t language_ts = {
     "TypeScript", ts_extensions, ts_keywords, ts_types, js_constants,
-    "//", "/*", "*/", "\"'`", 0, 0};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | Rust
@@ -249,7 +251,7 @@ static const char *const rust_constants[] = {
    rest of the row */
 static const vted_language_t language_rust = {
     "Rust", rust_extensions, rust_keywords, rust_types, rust_constants,
-    "//", "/*", "*/", "\"", 0, 0};
+    "//", "/*", "*/", "\"", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | Go
@@ -275,7 +277,7 @@ static const char *const go_constants[] = {
 /* a raw string is a string too: the backtick opens one */
 static const vted_language_t language_go = {
     "Go", go_extensions, go_keywords, go_types, go_constants,
-    "//", "/*", "*/", "\"'`", 0, 0};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | JSON
@@ -289,7 +291,7 @@ static const char *const json_constants[] = {
 /* no comments exist in JSON, and only the double quote is a string */
 static const vted_language_t language_json = {
     "JSON", json_extensions, NULL, NULL, json_constants,
-    NULL, NULL, NULL, "\"", 0, 0};
+    NULL, NULL, NULL, "\"", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | Markdown
@@ -302,7 +304,7 @@ static const char *const markdown_extensions[] = {
    inline code spans; plain words are left alone */
 static const vted_language_t language_markdown = {
     "Markdown", markdown_extensions, NULL, NULL, NULL,
-    NULL, "```", "```", "`", 1, 0};
+    NULL, "```", "```", "`", 1, 0, NULL};
 
 /*----------------------------------------------------------
 | HTML
@@ -315,7 +317,7 @@ static const char *const html_extensions[] = {
    plain, the way Markdown's text does */
 static const vted_language_t language_html = {
     "HTML", html_extensions, NULL, NULL, NULL,
-    NULL, "<!--", "-->", "\"'", 0, 0};
+    NULL, "<!--", "-->", "\"'", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | CSS
@@ -338,7 +340,7 @@ static const char *const css_constants[] = {
    selectors and properties stay plain */
 static const vted_language_t language_css = {
     "CSS", css_extensions, NULL, css_types, css_constants,
-    NULL, "/*", "*/", "\"'", 0, 0};
+    NULL, "/*", "*/", "\"'", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | Lua
@@ -364,7 +366,7 @@ static const char *const lua_constants[] = {
    comment does elsewhere */
 static const vted_language_t language_lua = {
     "Lua", lua_extensions, lua_keywords, lua_types, lua_constants,
-    "--", "--[[", "]]", "\"'", 0, 0};
+    "--", "--[[", "]]", "\"'", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | Ruby
@@ -394,7 +396,7 @@ static const char *const ruby_constants[] = {
 
 static const vted_language_t language_ruby = {
     "Ruby", ruby_files, ruby_keywords, ruby_types, ruby_constants,
-    "#", NULL, NULL, "\"'", 0, 0};
+    "#", NULL, NULL, "\"'", 0, 0, NULL};
 
 /*----------------------------------------------------------
 | YAML
@@ -416,7 +418,7 @@ static const char *const yaml_constants[] = {
    and single quotes both open a string */
 static const vted_language_t language_yaml = {
     "YAML", yaml_extensions, NULL, NULL, yaml_constants,
-    "#", NULL, NULL, "\"'", 0, 1};
+    "#", NULL, NULL, "\"'", 0, 1, NULL};
 
 /*----------------------------------------------------------
 | TOML
@@ -432,7 +434,25 @@ static const char *const toml_constants[] = {
    down to its first dash, the way the number scan runs */
 static const vted_language_t language_toml = {
     "TOML", toml_extensions, NULL, NULL, toml_constants,
-    "#", NULL, NULL, "\"'", 0, 0};
+    "#", NULL, NULL, "\"'", 0, 0, NULL};
+
+/*----------------------------------------------------------
+| INI
+----------------------------------------------------------*/
+
+static const char *const ini_extensions[] = {
+    ".ini", ".cfg", ".conf", ".cnf", NULL};
+
+/* the values that stand for themselves, the way config files spell
+   their booleans; drawn the way numbers are */
+static const char *const ini_constants[] = {
+    "true", "false", "yes", "no", "on", "off", NULL};
+
+/* a comment opens with ';' the classic way or with '#' the shell
+   way, and strings color in either quote; the [sections] stay plain */
+static const vted_language_t language_ini = {
+    "INI", ini_extensions, NULL, NULL, ini_constants,
+    "#", NULL, NULL, "\"'", 0, 0, ";"};
 
 /*----------------------------------------------------------
 | the table
@@ -456,6 +476,7 @@ static const vted_language_t *const languages[] = {
     &language_ruby,
     &language_yaml,
     &language_toml,
+    &language_ini,
     NULL};
 
 static const vted_language_t *current_language;
@@ -562,6 +583,26 @@ static int StartsWith(const vted_row_t *row, int at, const char *prefix)
     size_t length = strlen(prefix);
 
     return (size_t)(row->size - at) >= length && memcmp(&row->chars[at], prefix, length) == 0;
+}
+
+/* does a line comment open at byte at: either spelling, and under
+   the blank rule the language asks for */
+static int CommentOpensHere(const vted_language_t *language, const vted_row_t *row, int at)
+{
+    const char *const spellings[2] = {language->line_comment, language->line_comment2};
+    int s;
+
+    for (s = 0; s < 2; s++)
+    {
+        if (spellings[s] != NULL && StartsWith(row, at, spellings[s]) &&
+            (language->comment_after_blank == 0 ||
+             at == 0 || row->chars[at - 1] == ' ' || row->chars[at - 1] == '\t'))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 static int InList(const char *const *list, const char *word, int length)
@@ -711,9 +752,7 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
             continue;
         }
 
-        if (language->line_comment != NULL && StartsWith(row, i, language->line_comment) &&
-            (language->comment_after_blank == 0 ||
-             i == 0 || row->chars[i - 1] == ' ' || row->chars[i - 1] == '\t'))
+        if (CommentOpensHere(language, row, i))
         {
             Mark(hl, i, row->size, HlComment);
             break;

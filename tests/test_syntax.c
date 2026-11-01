@@ -776,6 +776,50 @@ static void TestToml(void)
     CHECK_STR(Classes(0), "nnnn" "nnn" "dddd");
 }
 
+static void TestIni(void)
+{
+    SyntaxSelectForFile("php.ini");
+    CHECK_STR(SyntaxLanguageName(), "INI");
+
+    SyntaxSelectForFile("smb.conf");
+    CHECK_STR(SyntaxLanguageName(), "INI");
+
+    SyntaxSelectForFile("tool.cfg");
+    CHECK_STR(SyntaxLanguageName(), "INI");
+
+    SyntaxSelectForFile("my.cnf");
+    CHECK_STR(SyntaxLanguageName(), "INI");
+
+    /* a comment opens with ';' the classic way */
+    LoadOne("; a comment");
+    CHECK_STR(Classes(0), "ccccccccccc");
+
+    /* or with '#' the shell way */
+    LoadOne("# a comment");
+    CHECK_STR(Classes(0), "ccccccccccc");
+
+    LoadOne("key = value ; a comment");
+    CHECK_STR(Classes(0), "nnn" "nnn" "nnnnn" "n" "ccccccccccc");
+
+    /* strings in either quote, and the [section] stays plain */
+    LoadOne("path = \"/usr/bin\"");
+    CHECK_STR(Classes(0), "nnnn" "nnn" "ssssssssss");
+
+    LoadOne("[database]");
+    CHECK_STR(Classes(0), "nnnnnnnnnn");
+
+    /* the boolean spellings draw the way numbers do */
+    LoadOne("enabled = yes");
+    CHECK_STR(Classes(0), "nnnnnnn" "nnn" "ddd");
+
+    LoadOne("debug = false");
+    CHECK_STR(Classes(0), "nnnnn" "nnn" "ddddd");
+
+    /* a number draws the way numbers do everywhere */
+    LoadOne("port = 8080");
+    CHECK_STR(Classes(0), "nnnn" "nnn" "dddd");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -816,6 +860,7 @@ int main(void)
     TestRuby();
     TestYaml();
     TestToml();
+    TestIni();
     TestStyles();
 
     FreeBuffer();
