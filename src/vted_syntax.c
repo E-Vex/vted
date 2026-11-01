@@ -339,6 +339,32 @@ static const vted_language_t language_css = {
     NULL, "/*", "*/", "\"'", 0};
 
 /*----------------------------------------------------------
+| Lua
+----------------------------------------------------------*/
+
+static const char *const lua_extensions[] = {".lua", NULL};
+
+static const char *const lua_keywords[] = {
+    "and", "break", "do", "else", "elseif", "end", "for", "function",
+    "goto", "if", "in", "local", "not", "or", "repeat", "return",
+    "then", "until", "while", NULL};
+
+/* the standard library is where the interesting names live, drawn
+   the way types are */
+static const char *const lua_types[] = {
+    "string", "table", "math", "io", "os", "coroutine", "package",
+    "debug", "utf8", NULL};
+
+static const char *const lua_constants[] = {
+    "nil", "true", "false", "self", NULL};
+
+/* a long comment opens with --[[ and runs to ]], the way a block
+   comment does elsewhere */
+static const vted_language_t language_lua = {
+    "Lua", lua_extensions, lua_keywords, lua_types, lua_constants,
+    "--", "--[[", "]]", "\"'", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -356,6 +382,7 @@ static const vted_language_t *const languages[] = {
     &language_markdown,
     &language_html,
     &language_css,
+    &language_lua,
     NULL};
 
 static const vted_language_t *current_language;
@@ -598,12 +625,9 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
             continue;
         }
 
-        if (language->line_comment != NULL && StartsWith(row, i, language->line_comment))
-        {
-            Mark(hl, i, row->size, HlComment);
-            break;
-        }
-
+        /* a block opener is looked for before a line comment: a
+           language can spell both from the same start (Lua's -- and
+           --[[), and the longer one has to win */
         if (language->block_start != NULL && StartsWith(row, i, language->block_start))
         {
             int length = (int)strlen(language->block_start);
@@ -612,6 +636,12 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
             i += length;
             state = StateBlockComment;
             continue;
+        }
+
+        if (language->line_comment != NULL && StartsWith(row, i, language->line_comment))
+        {
+            Mark(hl, i, row->size, HlComment);
+            break;
         }
 
         if (language->quotes != NULL && strchr(language->quotes, c) != NULL)
