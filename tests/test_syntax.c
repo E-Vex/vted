@@ -738,6 +738,44 @@ static void TestYaml(void)
     CHECK_STR(Classes(0), "nnnn" "nn" "dddd");
 }
 
+static void TestToml(void)
+{
+    SyntaxSelectForFile("Cargo.toml");
+    CHECK_STR(SyntaxLanguageName(), "TOML");
+
+    SyntaxSelectForFile("pyproject.toml");
+    CHECK_STR(SyntaxLanguageName(), "TOML");
+
+    /* a # comment runs to the end of the row, anywhere it starts */
+    LoadOne("# a comment");
+    CHECK_STR(Classes(0), "ccccccccccc");
+
+    LoadOne("key = 1 # a comment");
+    CHECK_STR(Classes(0), "nnn" "nnn" "d" "n" "ccccccccccc");
+
+    LoadOne("x = 1#c");
+    CHECK_STR(Classes(0), "n" "nnn" "d" "cc");
+
+    /* strings in both quotes, and the multi-line basics are rows of
+       their own */
+    LoadOne("name = \"vted\"");
+    CHECK_STR(Classes(0), "nnnn" "nnn" "ssssss");
+
+    LoadOne("name = 'vted'");
+    CHECK_STR(Classes(0), "nnnn" "nnn" "ssssss");
+
+    /* the values that stand for themselves */
+    LoadOne("fuzzy = true");
+    CHECK_STR(Classes(0), "nnnnn" "nnn" "dddd");
+
+    LoadOne("big = inf");
+    CHECK_STR(Classes(0), "nnn" "nnn" "ddd");
+
+    /* a number draws the way numbers do everywhere */
+    LoadOne("port = 8080");
+    CHECK_STR(Classes(0), "nnnn" "nnn" "dddd");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -777,6 +815,7 @@ int main(void)
     TestLua();
     TestRuby();
     TestYaml();
+    TestToml();
     TestStyles();
 
     FreeBuffer();

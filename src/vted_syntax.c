@@ -419,6 +419,22 @@ static const vted_language_t language_yaml = {
     "#", NULL, NULL, "\"'", 0, 1};
 
 /*----------------------------------------------------------
+| TOML
+----------------------------------------------------------*/
+
+static const char *const toml_extensions[] = {".toml", NULL};
+
+/* the values that stand for themselves; drawn the way numbers are */
+static const char *const toml_constants[] = {
+    "true", "false", "inf", "nan", NULL};
+
+/* comments and strings in either quote color; a date colors only
+   down to its first dash, the way the number scan runs */
+static const vted_language_t language_toml = {
+    "TOML", toml_extensions, NULL, NULL, toml_constants,
+    "#", NULL, NULL, "\"'", 0, 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -439,6 +455,7 @@ static const vted_language_t *const languages[] = {
     &language_lua,
     &language_ruby,
     &language_yaml,
+    &language_toml,
     NULL};
 
 static const vted_language_t *current_language;
