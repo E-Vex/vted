@@ -820,6 +820,46 @@ static void TestIni(void)
     CHECK_STR(Classes(0), "nnnn" "nnn" "dddd");
 }
 
+static void TestSql(void)
+{
+    SyntaxSelectForFile("query.sql");
+    CHECK_STR(SyntaxLanguageName(), "SQL");
+
+    /* the words match either way they are spelled */
+    LoadOne("select * from users");
+    CHECK_STR(Classes(0), "kkkkkk" "nnn" "kkkk" "n" "nnnnn");
+
+    LoadOne("SELECT * FROM users");
+    CHECK_STR(Classes(0), "kkkkkk" "nnn" "kkkk" "n" "nnnnn");
+
+    LoadOne("Select Integer From Users");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "ttttttt" "n" "kkkk" "n" "nnnnn");
+
+    /* a -- comment runs to the end of the row */
+    LoadOne("-- a comment");
+    CHECK_STR(Classes(0), "cccccccccccc");
+
+    LoadOne("select 1 -- a comment");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "d" "n" "cccccccccccc");
+
+    /* a block comment spans rows */
+    {
+        const char *lines[] = {"/* one", "two */", NULL};
+
+        Load(lines, 2);
+        CHECK_STR(Classes(0), "cccccc");
+        CHECK_STR(Classes(1), "cccccc");
+    }
+
+    /* only the single quote opens a string */
+    LoadOne("where name = 'vted' and \"id\" = 1");
+    CHECK_STR(Classes(0), "kkkkk" "nnnnnnnn" "ssssss" "n" "kkk" "n" "nnnn" "nnn" "d");
+
+    /* the words for the values that stand for themselves */
+    LoadOne("where ok = true and gone = null");
+    CHECK_STR(Classes(0), "kkkkk" "nnnnnn" "dddd" "n" "kkk" "nnnnnnnn" "dddd");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -861,6 +901,7 @@ int main(void)
     TestYaml();
     TestToml();
     TestIni();
+    TestSql();
     TestStyles();
 
     FreeBuffer();
