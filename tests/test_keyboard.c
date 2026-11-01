@@ -121,6 +121,19 @@ static void TestAltLettersMoveByWord(void)
     CHECK_INT(ReadKeyPress(), 'f');
 }
 
+static void TestAltCommaAndPeriodSwitchBuffers(void)
+{
+    FeedInput("\x1b" ","); /* Alt-, */
+    CHECK_INT(ReadKeyPress(), BufferPrev);
+    FeedInput("\x1b" "."); /* Alt-. */
+    CHECK_INT(ReadKeyPress(), BufferNext);
+
+    /* plain comma and period are still text */
+    FeedInput(",.");
+    CHECK_INT(ReadKeyPress(), ',');
+    CHECK_INT(ReadKeyPress(), '.');
+}
+
 static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -268,6 +281,7 @@ int main(void)
     TestApplicationCursorKeys();
     TestCtrlAndAltArrowsMoveByWord();
     TestAltLettersMoveByWord();
+    TestAltCommaAndPeriodSwitchBuffers();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();

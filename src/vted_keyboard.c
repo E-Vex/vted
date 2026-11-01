@@ -264,6 +264,18 @@ int ParseArrowKey(void)
         return WordRight;
     }
 
+    /* Alt-, and Alt-. step through the open buffers, the way a comma
+       and a dot step through arguments in readline */
+    if (introducer == ',')
+    {
+        return BufferPrev;
+    }
+
+    if (introducer == '.')
+    {
+        return BufferNext;
+    }
+
     /* any other Alt+key is not bound: swallowed */
     return NO_KEY;
 }

@@ -322,6 +322,38 @@ static void EditorOpenFile(void)
     free(path);
 }
 
+/* steps through the open buffers in the direction the key says,
+   wrapping around both ends, and says where the cursor landed */
+static void EditorStepBuffer(int direction)
+{
+    int count = BuffersCount();
+
+    if (count < 2)
+    {
+        SetStatusMessage("No other buffer");
+        return;
+    }
+
+    int next = BuffersCurrent() + direction;
+
+    if (next < 0)
+    {
+        next = count - 1; /* wrap around to the last one */
+    }
+    if (next >= count)
+    {
+        next = 0; /* and back to the first */
+    }
+
+    if (BuffersSwitch(next))
+    {
+        SetStatusMessage("%s (buffer %d of %d)",
+                         vted_buffer.filename != NULL ? vted_buffer.filename
+                                                      : "[No Name]",
+                         next + 1, count);
+    }
+}
+
 /* pressing Ctrl-Q this many times in a row overrides unsaved changes */
 #define QUIT_CONFIRMATIONS 3
 
@@ -866,6 +898,11 @@ int main(int argc, char *argv[])
                 {
                     EditorMoveLineDown();
                 }
+            }
+            else if (c_in == BufferPrev || c_in == BufferNext)
+            {
+                /* Alt-, and Alt-. step through the open buffers */
+                EditorStepBuffer(c_in == BufferNext ? 1 : -1);
             }
             else if (c_in == PasteBegin)
             {

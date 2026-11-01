@@ -31,6 +31,8 @@ typedef enum
     ShiftArrowDown,
     ShiftHome,
     ShiftEnd,
+    BufferPrev, /* Alt-, : the buffer before the current one */
+    BufferNext, /* Alt-. : the buffer after the current one */
 
 } EditorKey;
 
