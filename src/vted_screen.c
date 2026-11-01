@@ -1290,13 +1290,68 @@ void MoveCursor(int key)
         break;
 
     case HomeKey:
-        vted_editor_config.cursor_x = 0;
+        if (vted_editor_config.wrap != 0 && row != NULL)
+        {
+            /* the start of the screen line the cursor is on: the
+               rows flow over lines of their own, so a line has a
+               start of its own. The position past the row's last
+               glyph rests on the last line */
+            int line;
+            int col;
+            int lines = RowWrapCount(row, vted_editor_config.text_cols);
+
+            RowCxToWrapped(row, vted_editor_config.cursor_x,
+                           vted_editor_config.text_cols, &line, &col);
+
+            if (line >= lines)
+            {
+                line = lines - 1;
+            }
+
+            vted_editor_config.cursor_x =
+                RowRxToCx(row, line * vted_editor_config.text_cols);
+        }
+        else
+        {
+            vted_editor_config.cursor_x = 0;
+        }
         break;
 
     case EndKey:
         if (row != NULL)
         {
-            vted_editor_config.cursor_x = row->size;
+            if (vted_editor_config.wrap == 0)
+            {
+                vted_editor_config.cursor_x = row->size;
+            }
+            else
+            {
+                /* the end of the screen line the cursor is on: one
+                   past its last byte, which is the first byte of the
+                   next one, the way the right arrow crosses a wrap
+                   edge */
+                int line;
+                int col;
+                int lines = RowWrapCount(row, vted_editor_config.text_cols);
+
+                RowCxToWrapped(row, vted_editor_config.cursor_x,
+                               vted_editor_config.text_cols, &line, &col);
+
+                if (line >= lines)
+                {
+                    line = lines - 1; /* past the end rests on the last line */
+                }
+
+                if (line + 1 < lines)
+                {
+                    vted_editor_config.cursor_x =
+                        RowRxToCx(row, (line + 1) * vted_editor_config.text_cols);
+                }
+                else
+                {
+                    vted_editor_config.cursor_x = row->size;
+                }
+            }
         }
         break;
     }
