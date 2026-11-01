@@ -24,7 +24,10 @@ Several files can be edited in one session: each buffer keeps its
 cursor, viewport and undo history while another one is being edited,
 the status bar says which of them is on ("2/3, Ln 5/120, Col 12"), and
 opening a path that is already open switches to that buffer instead
-of opening it twice. Unsaved changes in any of them hold a quit back.
+of opening it twice. Ctrl\-E closes the buffer being edited; unsaved
+changes require three additional confirmations first, and closing the
+last buffer starts a fresh empty one. Unsaved changes in any buffer
+hold a quit back.
 .PP
 The whole interface is drawn on the standard output, so
 .B vted
@@ -136,6 +139,11 @@ ESC cancels
 open another file as a buffer of its own and switch to it; a path that
 does not exist yet opens as an empty buffer that keeps the name, and a
 path that is already open switches to that buffer instead
+.TP
+.B Ctrl\-E
+close the buffer being edited; the neighbor comes into view, and
+closing the last buffer starts a fresh empty one. Unsaved changes
+require three additional confirmations first
 .TP
 .B Alt\-, / Alt\-.
 step through the open buffers, wrapping around both ends

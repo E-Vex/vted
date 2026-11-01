@@ -192,6 +192,7 @@ set while editing.
 | typing          | insert at the cursor (replaces the selection)    |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-O          | open another file as a buffer of its own         |
+| Ctrl-E          | close the buffer being edited                    |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
 | Alt-1 .. Alt-9  | jump to the buffer with that number               |
 | Ctrl-G          | go to a line number (ESC cancels)                |
@@ -203,7 +204,10 @@ set while editing.
 
 With several buffers open, Alt-, and Alt-. step through them and
 Alt-1 to Alt-9 jump to one by number, while the status bar shows
-which one is being edited ("2/3, Ln 5/120, Col 12").
+which one is being edited ("2/3, Ln 5/120, Col 12"). Ctrl-E closes
+the buffer being edited: unsaved changes ask for three more presses
+first, the way Ctrl-Q does, and closing the last buffer starts a
+fresh empty one.
 
 ## Features
 
@@ -213,7 +217,10 @@ which one is being edited ("2/3, Ln 5/120, Col 12").
   buffer keeps its cursor, viewport and undo history while it waits,
   the status bar says which one is on, and opening a path that is
   already open switches to that buffer instead of opening it twice;
-  unsaved changes in any buffer hold a quit back
+  Ctrl-E closes the buffer being edited — unsaved changes hold the
+  close back the way they hold a quit back — and closing the last
+  buffer starts a fresh empty one; unsaved changes in any buffer hold
+  a quit back
 - Raw terminal mode with automatic settings restore on exit
 - Alternate screen buffer: your shell history stays untouched
 - Open files from the command line, edit, and save them back
