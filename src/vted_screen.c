@@ -1428,6 +1428,17 @@ void RefreshScreen(void)
                                vted_editor_config.cursor_x,
                                vted_editor_config.text_cols,
                                &cursor_line, &cursor_col);
+
+                /* the position past the last glyph sits on a line of
+                   its own when the text ends exactly at a wrap edge:
+                   the cell after the line's last one is not on screen,
+                   so the cursor parks on that last cell instead of
+                   dropping onto the next row's first line */
+                if (cursor_line >= RowLines(vted_editor_config.cursor_y))
+                {
+                    cursor_line = RowLines(vted_editor_config.cursor_y) - 1;
+                    cursor_col = vted_editor_config.text_cols - 1;
+                }
             }
 
             cursor_screen_row = above + cursor_line;
