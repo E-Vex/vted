@@ -1,8 +1,11 @@
+/* isatty() is POSIX, not ISO C11 */
+#define _POSIX_C_SOURCE 200809L
 /*===============================*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
@@ -591,6 +594,16 @@ int main(int argc, char *argv[])
     {
         CliPrintVersion(stdout);
         return 0;
+    }
+
+    /* the editor draws its whole interface on the standard output; a
+       pipe or a file there would only collect escape sequences. The
+       usage and the version above stay printable into a pipe */
+    if (!isatty(STDOUT_FILENO))
+    {
+        fprintf(stderr, "vted: standard output is not a terminal\n");
+        fputs("Try 'vted --help' for more information.\n", stderr);
+        return 1;
     }
 
     SaveTerminalCurrentSettings();
