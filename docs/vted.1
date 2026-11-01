@@ -58,7 +58,9 @@ nothing would ever arrive on it, and it can be named only once
 Every line is numbered in a gutter at the left edge, the line the
 cursor is on in bold. The gutter is at least three digits wide and
 grows with the file; a terminal too narrow to leave room for the text
-beside it drops the numbers.
+beside it drops the numbers. A line that wraps over several screen
+lines is numbered on its first one; the lines under it line up in
+blanks.
 .PP
 The text is colored by what it means: comments, strings, numbers,
 keywords, types and preprocessor lines. The language is picked from
@@ -171,6 +173,11 @@ cursor on the match, ESC restores the previous position
 .B Ctrl\-N
 show or hide the line numbers
 .TP
+.B Ctrl\-L
+wrap long lines over several screen lines instead of scrolling the
+viewport sideways; the up and down arrows then step over the wrapped
+lines one at a time
+.TP
 .B Ctrl\-T
 toggle Tab between inserting spaces up to the next tab stop and
 inserting a tab character
@@ -232,12 +239,16 @@ or
 and
 .B "set line-numbers on"
 or
+.BR off ,
+and
+.B "set wrap on"
+or
 .BR off .
 Blank lines and lines starting with # are skipped, and a later line
 wins over an earlier one. A line that cannot be used is reported in
 the message bar while the setting it would have set stays at its
-default. The keys match what Ctrl\-W, Ctrl\-T and Ctrl\-N set while
-editing.
+default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N and Ctrl\-L set
+while editing.
 .PP
 Line endings are kept as found: LF, CRLF, CR and mixed files save
 back unchanged, byte for byte, and a file without a trailing newline

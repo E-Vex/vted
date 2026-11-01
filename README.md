@@ -162,12 +162,13 @@ Settings live in `$XDG_CONFIG_HOME/vted/vtedrc`
 set tab-width 4
 set insert-spaces on
 set line-numbers off
+set wrap on
 ```
 
 Blank lines and `#` comments are skipped, a later line wins over an
 earlier one, and a line that cannot be used is reported in the
-message bar. The keys are the same things Ctrl-W, Ctrl-T and Ctrl-N
-set while editing.
+message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N and
+Ctrl-L set while editing.
 
 ## Keys
 
@@ -199,6 +200,7 @@ set while editing.
 | Ctrl-G          | go to a line number (ESC cancels)                |
 | Ctrl-F          | incremental search (arrows jump, ESC restores)   |
 | Ctrl-N          | show or hide the line numbers                    |
+| Ctrl-L          | wrap long lines over several screen lines        |
 | Ctrl-T          | toggle Tab between spaces and a tab character    |
 | Ctrl-W          | set the tab width in cells                       |
 | Ctrl-Q          | quit (three extra presses when modified)         |
@@ -231,7 +233,9 @@ does, and closing the last buffer starts a fresh empty one.
 - Full cursor movement: arrows, Home, End, PageUp, PageDown
 - Word movement with Ctrl or Alt and the arrows, or Alt-b and Alt-f; a word
   is a run of letters, digits and underscores, or a run of punctuation
-- Vertical and horizontal scrolling for files of any size
+- Vertical and horizontal scrolling for files of any size; long lines
+  wrap over several screen lines instead with Ctrl-L, the up and down
+  arrows then stepping over the wrapped lines
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
   or down with Ctrl-Up/Down
