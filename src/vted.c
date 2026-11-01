@@ -1264,6 +1264,20 @@ int main(int argc, char *argv[])
                 SetStatusMessage("Line numbers %s",
                                  vted_editor_config.show_line_numbers ? "on" : "off");
             }
+            else if (c_in == CTRL_KEY('l') || c_in == CTRL_KEY('L'))
+            {
+                /* Ctrl-L wraps long lines over several screen lines,
+                   or puts them back on one line that scrolls sideways */
+                vted_editor_config.wrap = !vted_editor_config.wrap;
+
+                /* the whole viewport lays out differently now, and a
+                   wrapped one never scrolls sideways */
+                vted_editor_config.col_offset = 0;
+                ScreenMarkAllDirty();
+
+                SetStatusMessage("Wrap %s",
+                                 vted_editor_config.wrap ? "on" : "off");
+            }
             else if (c_in == CTRL_KEY('t') || c_in == CTRL_KEY('T'))
             {
                 /* Ctrl-T toggles whether Tab inserts spaces up to the
