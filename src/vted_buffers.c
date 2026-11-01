@@ -1,7 +1,11 @@
+/* realpath() is guarded by the X/Open extensions in glibc, not by
+   ISO C11 */
+#define _XOPEN_SOURCE 700
 /*===============================*/
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_screen.h"
@@ -163,8 +167,65 @@ static int RollBackFailedOpen(void)
     return -1;
 }
 
+/* is path the same file as other: the same literal name, or two
+   spellings that resolve to the same file ("x" and "./x") */
+static int SameFile(const char *path, const char *other)
+{
+    char resolved[PATH_MAX];
+    char resolved_other[PATH_MAX];
+
+    if (other == NULL)
+    {
+        return 0; /* an unnamed buffer never matches a path */
+    }
+
+    if (strcmp(path, other) == 0)
+    {
+        return 1;
+    }
+
+    /* a path that does not exist yet (a new file) resolves to
+       nothing, and stays its own buffer */
+    if (realpath(path, resolved) != NULL &&
+        realpath(other, resolved_other) != NULL)
+    {
+        return strcmp(resolved, resolved_other) == 0;
+    }
+
+    return 0;
+}
+
+/* the slot whose file is the one asked for, -1 when none matches */
+static int FindOpenBuffer(const char *filename)
+{
+    int i;
+
+    for (i = 0; i < slot_count; i++)
+    {
+        const char *other = i == current ? vted_buffer.filename
+                                         : slots[i].text.filename;
+
+        if (SameFile(filename, other))
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 int BuffersOpen(const char *filename)
 {
+    /* a file that is already open just comes back into view: two
+       buffers of one file would race over its bytes when saving */
+    int already = FindOpenBuffer(filename);
+
+    if (already >= 0)
+    {
+        BuffersSwitch(already);
+        return 0;
+    }
+
     SuspendCurrent();
 
     /* the globals are empty now, so the file lands in a buffer of its

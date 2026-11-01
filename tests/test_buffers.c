@@ -121,6 +121,38 @@ static void TestAFailedOpenKeepsTheCurrentBuffer(void)
     CHECK_STR(vted_buffer.rows[0].chars, "kept");
 }
 
+static void TestOpeningTheSameFileAgainSwitchesToIt(void)
+{
+    Begin();
+    WriteFile(first_path, "one\n");
+    WriteFile(second_path, "two\n");
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+    CHECK_INT(BuffersCount(), 2);
+
+    /* the same literal path: the first buffer comes back into view */
+    CHECK_INT(BuffersOpen(first_path), 0);
+    CHECK_INT(BuffersCount(), 2); /* no third buffer appeared */
+    CHECK_INT(BuffersCurrent(), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+
+    /* a different spelling of the same file resolves to it too */
+    const char *base = strrchr(first_path, '/');
+    char indirection[300];
+
+    snprintf(indirection, sizeof(indirection), "/tmp/../tmp%s", base);
+
+    CHECK_INT(BuffersOpen(indirection), 0);
+    CHECK_INT(BuffersCount(), 2);
+    CHECK_INT(BuffersCurrent(), 0);
+
+    /* the path of a new file matches itself the same way */
+    CHECK_INT(BuffersOpen("/tmp/vted_test_buffers_absent"), 0);
+    CHECK_INT(BuffersOpen("/tmp/vted_test_buffers_absent"), 0);
+    CHECK_INT(BuffersCount(), 3);
+    CHECK_INT(BuffersCurrent(), 2);
+}
+
 static void TestTheHistoryTravelsWithTheBuffer(void)
 {
     Begin();
@@ -265,6 +297,7 @@ int main(void)
     TestOpenLoadsTheText();
     TestAMissingFileOpensEmptyAndNamed();
     TestAFailedOpenKeepsTheCurrentBuffer();
+    TestOpeningTheSameFileAgainSwitchesToIt();
     TestTheHistoryTravelsWithTheBuffer();
     TestTheCursorAndViewportWaitWithTheBuffer();
     TestAStreamOpensAsAnUnnamedBuffer();
