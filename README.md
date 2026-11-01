@@ -178,7 +178,8 @@ Ctrl-L set while editing.
 | Ctrl-Left/Right | move by word (Alt-arrows and Alt-b/f work too)   |
 | Home / End      | start / end of the line, or of the wrapped
   screen line it sits on                             |
-| PageUp/Down     | move one viewport up / down                      |
+| PageUp/Down     | move one viewport up / down, of screen
+  lines when wrapping is on                       |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -238,9 +239,10 @@ does, and closing the last buffer starts a fresh empty one.
   is a run of letters, digits and underscores, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size; long lines
   wrap over several screen lines instead with Ctrl-L, the up and down
-  arrows then stepping over the wrapped lines, and a line taller than
-  the viewport scrolling inside itself; Home and End start and end the
-  screen line the cursor sits on
+  arrows then stepping over the wrapped lines and PageUp/PageDown paging
+  a viewport of them, and a line taller than the viewport scrolling
+  inside itself; Home and End start and end the screen line the cursor
+  sits on
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
   or down with Ctrl-Up/Down
@@ -276,7 +278,9 @@ does, and closing the last buffer starts a fresh empty one.
   and display column
 - Message bar for status and warnings
 - Incremental search (Ctrl-F) with match highlighting
-- Go to a line with Ctrl-G; a number past the end lands on the last line
+- Go to a line with Ctrl-G; a number past the end lands on the last
+  line, and the line lands mid-viewport, the tall rows of wrapping
+  counted at their real heights
 - Saving an unnamed buffer asks for a file name; the buffer stays unnamed
   if the file cannot be written
 - Saves are atomic: the text goes to a temporary file that is renamed

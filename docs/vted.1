@@ -93,7 +93,7 @@ start / end of the line, or of the wrapped screen line the cursor
 sits on
 .TP
 .B PageUp / PageDown
-move one viewport up / down
+move one viewport up / down, of screen lines when wrapping is on
 .TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
@@ -168,7 +168,8 @@ step through the open buffers, wrapping around both ends
 jump to the buffer with that number
 .TP
 .B Ctrl\-G
-go to a line number; a number past the end goes to the last line, ESC
+go to a line number; a number past the end goes to the last line, and
+the line lands mid-viewport with wrapping's tall rows counted, ESC
 cancels
 .TP
 .B Ctrl\-F
@@ -181,8 +182,8 @@ show or hide the line numbers
 .B Ctrl\-L
 wrap long lines over several screen lines instead of scrolling the
 viewport sideways; the up and down arrows then step over the wrapped
-lines one at a time, and a line taller than the viewport scrolls
-inside itself
+lines one at a time, PageUp and PageDown move a viewport of them, and
+a line taller than the viewport scrolls inside itself
 .TP
 .B Ctrl\-T
 toggle Tab between inserting spaces up to the next tab stop and
