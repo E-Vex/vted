@@ -1034,6 +1034,27 @@ static void TestCSharp(void)
     CHECK_STR(Classes(0), "kkkkknnnnnnnccccccccnn");
 }
 
+static void TestJava(void)
+{
+    SyntaxSelectForFile("Main.java");
+    CHECK_STR(SyntaxLanguageName(), "Java");
+
+    SyntaxSelectForFile("src/org/vted/App.java");
+    CHECK_STR(SyntaxLanguageName(), "Java");
+
+    /* types, a constant and a line comment */
+    LoadOne("boolean b = true; // set");
+    CHECK_STR(Classes(0), "tttttttnnnnnddddnncccccc");
+
+    /* keywords, a plain field and a block comment */
+    LoadOne("return this.name; /* plain */");
+    CHECK_STR(Classes(0), "kkkkkknkkkknnnnnnnccccccccccc");
+
+    /* a type, a char literal and a line comment */
+    LoadOne("char c = 'x'; // one");
+    CHECK_STR(Classes(0), "ttttnnnnnsssnncccccc");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -1081,6 +1102,7 @@ int main(void)
     TestDockerfile();
     TestDiff();
     TestCSharp();
+    TestJava();
     TestStyles();
 
     FreeBuffer();

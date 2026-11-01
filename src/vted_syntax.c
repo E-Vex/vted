@@ -585,6 +585,39 @@ static const vted_language_t language_csharp = {
     "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL};
 
 /*----------------------------------------------------------
+| Java
+----------------------------------------------------------*/
+
+static const char *const java_extensions[] = {".java", NULL};
+
+static const char *const java_keywords[] = {
+    "abstract", "assert", "break", "case", "catch", "class", "continue",
+    "default", "do", "else", "enum", "extends", "final", "finally",
+    "for", "if", "implements", "import", "instanceof", "interface",
+    "native", "new", "package", "private", "protected", "public",
+    "return", "strictfp", "super", "switch", "synchronized", "this",
+    "throw", "throws", "transient", "try", "volatile", "while",
+    "yield", NULL};
+
+/* var sits with the types the way C# spells it; the JDK staples
+   color like the types of the language itself */
+static const char *const java_types[] = {
+    "boolean", "byte", "char", "double", "float", "int", "long",
+    "short", "var", "void",
+    "Boolean", "Character", "Double", "Exception", "Integer", "List",
+    "Map", "Object", "Optional", "Runnable", "Stream", "String",
+    "Thread", NULL};
+
+static const char *const java_constants[] = {
+    "true", "false", "null", NULL};
+
+/* no preprocessor: the @annotations stay plain the way the words
+   around them do */
+static const vted_language_t language_java = {
+    "Java", java_extensions, java_keywords, java_types, java_constants,
+    "//", "/*", "*/", "\"'", 0, 0, NULL, 0, NULL, NULL};
+
+/*----------------------------------------------------------
 | Diff
 ----------------------------------------------------------*/
 
@@ -649,6 +682,7 @@ static const vted_language_t *const languages[] = {
     &language_sql,
     &language_dockerfile,
     &language_csharp,
+    &language_java,
     &language_diff,
     NULL};
 
