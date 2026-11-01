@@ -19,6 +19,10 @@ TARGET = vted
 
 # Version & build date
 VERSION = 0.2.0
+# the version the editor prints for --version, as a macro the
+# compiler can embed; kept out of CFLAGS so a CFLAGS override on
+# the command line does not drop it
+VERSION_FLAGS = -DVTED_VERSION=\"$(VERSION)\"
 DATE := $(shell date +%Y-%-m-%-d)
 
 # Colors
@@ -46,7 +50,7 @@ BR6 = \033[38;5;178m
 all: banner
 	@printf "$(GREEN)$(BOLD)Building VTED...$(RESET)\n\n"
 	@printf "$(CYAN)Compiling:$(RESET) $(SRC)\n"
-	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
+	$(CC) $(CFLAGS) $(VERSION_FLAGS) $(SRC) -o $(TARGET)
 	@printf "\n"
 	@printf "$(GREEN)$(BOLD)✓ Build complete$(RESET) -> $(CYAN)$(TARGET)$(RESET)\n"
 
@@ -102,7 +106,7 @@ TEST_BINS = $(patsubst tests/%.c,tests/bin/%,$(wildcard tests/test_*.c))
 
 tests/bin/%: tests/%.c tests/vted_test.h $(LIB_SRC)
 	@mkdir -p tests/bin
-	$(CC) $(CFLAGS) $< $(LIB_SRC) -o $@
+	$(CC) $(CFLAGS) $(VERSION_FLAGS) $< $(LIB_SRC) -o $@
 
 test: $(TEST_BINS)
 	@printf "$(CYAN)Running unit tests:$(RESET)\n"
@@ -115,4 +119,4 @@ bench: bench/bench
 
 bench/bench: bench/bench.c $(LIB_SRC)
 	@mkdir -p bench
-	$(CC) $(CFLAGS) -O2 -U_FORTIFY_SOURCE $< $(LIB_SRC) -o $@
+	$(CC) $(CFLAGS) $(VERSION_FLAGS) -O2 -U_FORTIFY_SOURCE $< $(LIB_SRC) -o $@
