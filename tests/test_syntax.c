@@ -1076,6 +1076,44 @@ static void TestPhp(void)
     CHECK_STR(Classes(0), "tttnnnnnndnncccccccc");
 }
 
+static void TestDotenv(void)
+{
+    /* the name prefix claims the base name and any dotted suffix it
+       carries, the way a Dockerfile claims Dockerfile.prod */
+    SyntaxSelectForFile(".env");
+    CHECK_STR(SyntaxLanguageName(), "dotenv");
+
+    SyntaxSelectForFile("deploy/.env.production");
+    CHECK_STR(SyntaxLanguageName(), "dotenv");
+
+    SyntaxSelectForFile(".env.local");
+    CHECK_STR(SyntaxLanguageName(), "dotenv");
+
+    /* keys stay plain, numbers color, a # after a blank comments */
+    LoadOne("DB_PORT=5432  # the port");
+    CHECK_STR(Classes(0), "nnnnnnnnddddnncccccccccc");
+
+    /* quotes color the way they do elsewhere */
+    LoadOne("MSG=\"hi\"");
+    CHECK_STR(Classes(0), "nnnnssss");
+
+    /* the values that stand for themselves draw like numbers */
+    LoadOne("DEBUG=true");
+    CHECK_STR(Classes(0), "nnnnnndddd");
+
+    /* a # mid-word belongs to the value */
+    LoadOne("URL=https://x#frag");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnnnnnnn");
+
+    /* a name that only starts the same way is not one */
+    SyntaxSelectForFile(".envrc");
+    CHECK(SyntaxLanguageName() == NULL);
+
+    /* and neither is a dotted name another base could carry */
+    SyntaxSelectForFile("settings.env");
+    CHECK(SyntaxLanguageName() == NULL);
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -1125,6 +1163,7 @@ int main(void)
     TestCSharp();
     TestJava();
     TestPhp();
+    TestDotenv();
     TestStyles();
 
     FreeBuffer();

@@ -651,6 +651,30 @@ static const vted_language_t language_php = {
     "//", "/*", "*/", "\"'", 0, 0, "#", 1, NULL, NULL};
 
 /*----------------------------------------------------------
+| dotenv
+----------------------------------------------------------*/
+
+/* the base names the format goes by; a dotted suffix (.env.local,
+   .env.production) belongs to them too */
+static const char *const dotenv_names[] = {".env", NULL};
+
+/* no extension claims the format: a name that says it is what takes
+   it, the way a Dockerfile is taken by its name alone */
+static const char *const dotenv_extensions[] = {NULL};
+
+/* the values that stand for themselves, the way INI spells its
+   booleans; drawn the way numbers are */
+static const char *const dotenv_constants[] = {
+    "true", "false", "yes", "no", "on", "off", NULL};
+
+/* a '#' only opens a comment at the start of a row or after a blank:
+   mid-word it belongs to the value, a URL fragment or a password.
+   Quotes color; the keys stay plain the way INI's do */
+static const vted_language_t language_dotenv = {
+    "dotenv", dotenv_extensions, NULL, NULL, dotenv_constants,
+    "#", NULL, NULL, "\"'", 0, 1, NULL, 0, dotenv_names, NULL};
+
+/*----------------------------------------------------------
 | Diff
 ----------------------------------------------------------*/
 
@@ -717,6 +741,7 @@ static const vted_language_t *const languages[] = {
     &language_csharp,
     &language_java,
     &language_php,
+    &language_dotenv,
     &language_diff,
     NULL};
 
