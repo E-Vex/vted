@@ -117,6 +117,9 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("style.css");
     CHECK_STR(SyntaxLanguageName(), "CSS");
 
+    SyntaxSelectForFile("game.lua");
+    CHECK_STR(SyntaxLanguageName(), "Lua");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -622,6 +625,41 @@ static void TestCss(void)
     CHECK_STR(SyntaxLanguageName(), "CSS");
 }
 
+static void TestLua(void)
+{
+    SyntaxSelectForFile("game.lua");
+
+    LoadOne("local x = 10");
+    CHECK_STR(Classes(0), "kkkkk" "nnnnn" "dd");
+
+    LoadOne("if not done then");
+    CHECK_STR(Classes(0), "kk" "n" "kkk" "nnnnn" "n" "kkkk");
+
+    LoadOne("return nil");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "ddd");
+
+    /* the standard library draws the way types do */
+    LoadOne("string.format(x)");
+    CHECK_STR(Classes(0), "tttttt" "n" "nnnnnn" "nnn");
+
+    /* a short comment runs to the end of the row */
+    LoadOne("x = 1 -- note");
+    CHECK_STR(Classes(0), "nnnndn" "ccccccc");
+
+    /* a long comment opens with --[[ and runs over rows */
+    {
+        const char *lines[3] = {"--[[ a note", "still comment", "]] local x"};
+
+        Load(lines, 3);
+        CHECK_STR(Classes(0), "ccccccccccc");
+        CHECK_STR(Classes(1), "ccccccccccccc");
+        CHECK_STR(Classes(2), "cc" "n" "kkkkk" "n" "n");
+    }
+
+    SyntaxSelectForFile("script.lua");
+    CHECK_STR(SyntaxLanguageName(), "Lua");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -658,6 +696,7 @@ int main(void)
     TestMarkdownHighlighting();
     TestHtml();
     TestCss();
+    TestLua();
     TestStyles();
 
     FreeBuffer();
