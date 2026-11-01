@@ -54,6 +54,11 @@ void ScreenMarkAllDirty(void);
    top clears it */
 void ScreenSetSelection(int top, int left, int bottom, int right);
 
+/* hands the matching bracket over the same way: the byte at row and
+   col is drawn inverted until the next handover; a negative row
+   clears it */
+void ScreenSetBracketMatch(int row, int col);
+
 /* gives back the memory the module holds between frames */
 void ScreenFree(void);
 

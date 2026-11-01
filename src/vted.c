@@ -164,6 +164,26 @@ static void ApplySettings(const vted_settings_t *settings)
     ScreenMarkAllDirty();
 }
 
+/* highlights the partner of the bracket the cursor sits on, or the
+   one right behind it; a cursor without a bracket clears the
+   highlight */
+static void UpdateBracketMatch(void)
+{
+    int match_y = 0;
+    int match_x = 0;
+
+    if (BufferFindBracketMatch(vted_editor_config.cursor_y,
+                               vted_editor_config.cursor_x,
+                               &match_y, &match_x))
+    {
+        ScreenSetBracketMatch(match_y, match_x);
+    }
+    else
+    {
+        ScreenSetBracketMatch(-1, 0);
+    }
+}
+
 static void EditorLoadSettings(void)
 {
     vted_settings_t settings = SettingsDefaults();
@@ -721,6 +741,9 @@ int main(int argc, char *argv[])
         CenterCursorInViewport();
     }
 
+    /* the cursor the file starts on may already sit on a bracket */
+    UpdateBracketMatch();
+
     while (1)
     {
         int c_in = ReadKeyPress();
@@ -1021,6 +1044,10 @@ int main(int argc, char *argv[])
                 EditorInsertChar(c_in);
             }
         }
+
+        /* the cursor and the buffer are both settled here, after the
+           key and before the frame */
+        UpdateBracketMatch();
 
         RefreshScreen();
     }

@@ -400,6 +400,30 @@ static int sel_x0;
 static int sel_y1;
 static int sel_x1;
 
+/* the matching bracket the editor core found for the cursor's
+   bracket, the same way */
+static int bracket_row = -1;
+static int bracket_col;
+
+void ScreenSetBracketMatch(int row, int col)
+{
+    /* the row the old highlight was on is repainted without it and
+       the new one with it; a match that is not there (row < 0) only
+       clears */
+    if (bracket_row >= 0)
+    {
+        ScreenMarkRowDirty(bracket_row);
+    }
+
+    bracket_row = row;
+    bracket_col = col;
+
+    if (bracket_row >= 0)
+    {
+        ScreenMarkRowDirty(bracket_row);
+    }
+}
+
 void ScreenSetSelection(int top, int left, int bottom, int right)
 {
     int row;
@@ -478,7 +502,8 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
 
         int is_control = (byte < 0x20 && byte != '\t') || byte == 0x7F;
         int in_match = has_match && at >= vted_editor_config.match_col && at < match_end;
-        int want_inverted = is_control || in_match ||
+        int in_bracket = buffer_row == bracket_row && at == bracket_col;
+        int want_inverted = is_control || in_match || in_bracket ||
                             (sel_start >= 0 && at >= sel_start && at < sel_end);
 
         if (want_inverted != inverted || classes[at] != style)
@@ -1087,6 +1112,10 @@ void InitVtedEditor(void)
     vted_editor_config.match_row = -1;
     vted_editor_config.match_col = 0;
     vted_editor_config.match_len = 0;
+
+    /* and no matching bracket until the cursor lands on one */
+    bracket_row = -1;
+    bracket_col = 0;
 
     if (RefreshWindowSize() == -1)
     {
