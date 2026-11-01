@@ -17,6 +17,7 @@
 #include "vted_syntax.h"
 #include "vted_utf8.h"
 #include "vted_cli.h"
+#include "vted_config.h"
 /*===============================*/
 
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
@@ -148,6 +149,50 @@ static void EditorGoToLine(void)
     vted_editor_config.cursor_x = 0;
 
     CenterCursorInViewport();
+}
+
+/* copies the settings into the editor state; the tab width the rows
+   lay out with and the gutter the next frame draws both come from
+   them */
+static void ApplySettings(const vted_settings_t *settings)
+{
+    vted_editor_config.tab_width = settings->tab_width;
+    vted_editor_config.insert_spaces = settings->insert_spaces;
+    vted_editor_config.show_line_numbers = settings->show_line_numbers;
+
+    RowSetTabWidth(settings->tab_width);
+    ScreenMarkAllDirty();
+}
+
+static void EditorLoadSettings(void)
+{
+    vted_settings_t settings = SettingsDefaults();
+    int bad_lines = 0;
+
+    /* the settings file is where the desktop conventions put it; a
+       file that is not there is no error, it is a fresh install */
+    const char *path = SettingsPath();
+
+    if (path != NULL)
+    {
+        FILE *file = fopen(path, "r");
+
+        if (file != NULL)
+        {
+            bad_lines = SettingsLoad(&settings, file);
+            fclose(file);
+        }
+    }
+
+    ApplySettings(&settings);
+
+    /* a line that could not be used is worth hearing about: the
+       setting it wanted quietly stays at its default */
+    if (bad_lines > 0)
+    {
+        SetStatusMessage("%d line%s of the settings file not understood",
+                         bad_lines, bad_lines == 1 ? "" : "s");
+    }
 }
 
 static void EditorSetTabWidth(void)
@@ -654,6 +699,10 @@ int main(int argc, char *argv[])
     UndoReset();
 
     InitVtedEditor();
+
+    /* the settings from the rc file arrive after the defaults and
+       before the first frame is drawn */
+    EditorLoadSettings();
 
     /* a +LINE on the command line lands the cursor on that line the
        way less and vi take one; a number past the end lands on the
