@@ -42,6 +42,9 @@ typedef enum
     BufferSelect7,
     BufferSelect8,
     BufferSelect9,
+    ViewportTop,    /* Alt-h: the top screen line of the viewport */
+    ViewportMiddle, /* Alt-m: the middle screen line of the viewport */
+    ViewportBottom, /* Alt-l: the bottom screen line of the viewport */
 
 } EditorKey;
 

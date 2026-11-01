@@ -276,6 +276,24 @@ int ParseArrowKey(void)
         return BufferNext;
     }
 
+    /* Alt-h, Alt-m and Alt-l jump to the top, the middle and the
+       bottom screen line of the viewport, the way H, M and L do
+       in vi */
+    if (introducer == 'h')
+    {
+        return ViewportTop;
+    }
+
+    if (introducer == 'm')
+    {
+        return ViewportMiddle;
+    }
+
+    if (introducer == 'l')
+    {
+        return ViewportBottom;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')

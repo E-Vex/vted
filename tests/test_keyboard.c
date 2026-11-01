@@ -156,6 +156,23 @@ static void TestAltDigitsSelectBuffers(void)
     CHECK_INT(ReadKeyPress(), '7');
 }
 
+static void TestViewportJumps(void)
+{
+    /* Alt-h, Alt-m and Alt-l, one key code per screen line */
+    FeedInput("\x1b" "h");
+    CHECK_INT(ReadKeyPress(), ViewportTop);
+    FeedInput("\x1b" "m");
+    CHECK_INT(ReadKeyPress(), ViewportMiddle);
+    FeedInput("\x1b" "l");
+    CHECK_INT(ReadKeyPress(), ViewportBottom);
+
+    /* plain h, m and l are still text */
+    FeedInput("hml");
+    CHECK_INT(ReadKeyPress(), 'h');
+    CHECK_INT(ReadKeyPress(), 'm');
+    CHECK_INT(ReadKeyPress(), 'l');
+}
+
 static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -305,6 +322,7 @@ int main(void)
     TestAltLettersMoveByWord();
     TestAltCommaAndPeriodSwitchBuffers();
     TestAltDigitsSelectBuffers();
+    TestViewportJumps();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();
