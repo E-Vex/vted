@@ -1353,6 +1353,137 @@ static void MoveDisplayLine(int direction)
     }
 }
 
+/* moves the cursor count screen lines through the wrapped layout in
+   one walk, the way MoveDisplayLine moves one: whole rows are
+   crossed without a scan per line, and the cursor aims for the
+   column it started from within its line. A count past either end
+   stops at the first or last line there is */
+static void MoveDisplayLines(int count)
+{
+    int cols = vted_editor_config.text_cols;
+    int preferred = vted_editor_config.preferred_rx > 0
+                        ? vted_editor_config.preferred_rx % cols
+                        : 0;
+
+    if (count > 0)
+    {
+        int remaining = count;
+
+        if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+        {
+            return; /* the phantom row past the end: nothing below it */
+        }
+
+        /* the lines of this row below the cursor's own: the position
+           past the row's last glyph sits at the row's bottom edge,
+           one move away from the next row */
+        {
+            vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+            int line;
+            int col;
+            int lines = RowLines(vted_editor_config.cursor_y);
+            int below;
+
+            RowCxToWrapped(row, vted_editor_config.cursor_x, cols, &line, &col);
+
+            below = line < lines ? lines - 1 - line : 0;
+
+            if (remaining <= below)
+            {
+                vted_editor_config.cursor_x =
+                    RowRxToCx(row, (line + remaining) * cols + preferred);
+                return;
+            }
+
+            remaining -= below + 1; /* the rest of this row, its last line counted */
+        }
+
+        /* the rows below, crossed whole until the count runs out
+           inside one */
+        vted_editor_config.cursor_y++;
+
+        while (vted_editor_config.cursor_y < vted_buffer.num_rows)
+        {
+            vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+            int lines = RowLines(vted_editor_config.cursor_y);
+
+            if (remaining < lines)
+            {
+                vted_editor_config.cursor_x =
+                    RowRxToCx(row, remaining * cols + preferred);
+                return;
+            }
+
+            remaining -= lines;
+            vted_editor_config.cursor_y++;
+        }
+
+        /* past the last row: the phantom row past the end */
+        vted_editor_config.cursor_x = 0;
+    }
+    else if (count < 0)
+    {
+        int remaining = -count;
+
+        /* the phantom row past the end: one line, above it the last
+           row's last line */
+        if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+        {
+            if (vted_buffer.num_rows == 0)
+            {
+                return; /* nothing above an empty buffer */
+            }
+
+            vted_editor_config.cursor_y--;
+            remaining--;
+        }
+        else
+        {
+            /* the lines of this row above the cursor's own: the
+               position past the row's last glyph counts as a line of
+               its own, the way the single-line move leaves it */
+            vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+            int line;
+            int col;
+
+            RowCxToWrapped(row, vted_editor_config.cursor_x, cols, &line, &col);
+
+            if (remaining <= line)
+            {
+                vted_editor_config.cursor_x =
+                    RowRxToCx(row, (line - remaining) * cols + preferred);
+                return;
+            }
+
+            remaining -= line + 1; /* this row's lines above, its first line counted */
+            vted_editor_config.cursor_y--;
+        }
+
+        /* the rows above, crossed whole until the count runs out
+           inside one */
+        while (vted_editor_config.cursor_y >= 0)
+        {
+            vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+            int lines = RowLines(vted_editor_config.cursor_y);
+
+            if (remaining < lines)
+            {
+                vted_editor_config.cursor_x =
+                    RowRxToCx(row, (lines - 1 - remaining) * cols + preferred);
+                return;
+            }
+
+            remaining -= lines;
+            vted_editor_config.cursor_y--;
+        }
+
+        /* past the first row: its first line, the column kept */
+        vted_editor_config.cursor_y = 0;
+        vted_editor_config.cursor_x =
+            RowRxToCx(&vted_buffer.rows[0], preferred);
+    }
+}
+
 void MoveCursor(int key)
 {
     /* moving the cursor logically, bounded by the text in the buffer.
@@ -1490,24 +1621,39 @@ void MoveCursor(int key)
         break;
 
     case PageUp:
-        /* jump one viewport of lines towards the start */
-        vted_editor_config.cursor_y -= vted_editor_config.screen_rows;
-        if (vted_editor_config.cursor_y < 0)
+        if (vted_editor_config.wrap != 0)
         {
-            vted_editor_config.cursor_y = 0;
+            /* a viewport of screen lines towards the start, the
+               lines a row wraps into counted as lines of their own */
+            MoveDisplayLines(-vted_editor_config.screen_rows);
         }
-        ClampCursorToRow();
+        else
+        {
+            vted_editor_config.cursor_y -= vted_editor_config.screen_rows;
+            if (vted_editor_config.cursor_y < 0)
+            {
+                vted_editor_config.cursor_y = 0;
+            }
+            ClampCursorToRow();
+        }
         break;
 
     case PageDown:
-        /* jump one viewport of lines towards the end, the phantom
-           row past the last line included */
-        vted_editor_config.cursor_y += vted_editor_config.screen_rows;
-        if (vted_editor_config.cursor_y > vted_buffer.num_rows)
+        if (vted_editor_config.wrap != 0)
         {
-            vted_editor_config.cursor_y = vted_buffer.num_rows;
+            /* a viewport of screen lines towards the end, the phantom
+               row past the last line included */
+            MoveDisplayLines(vted_editor_config.screen_rows);
         }
-        ClampCursorToRow();
+        else
+        {
+            vted_editor_config.cursor_y += vted_editor_config.screen_rows;
+            if (vted_editor_config.cursor_y > vted_buffer.num_rows)
+            {
+                vted_editor_config.cursor_y = vted_buffer.num_rows;
+            }
+            ClampCursorToRow();
+        }
         break;
 
     case HomeKey:

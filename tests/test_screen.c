@@ -516,6 +516,107 @@ static void TestAWrappedCursorOnScreenStays(void)
     CHECK_INT(vted_editor_config.line_offset, 31);
 }
 
+/* three rows over lines of 4 cells: 3, 1 and 2 screen lines */
+static void BeginWrappedRows(void)
+{
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("abcdefghijkl", 12, VTED_EOL_LF);
+    AppendRow("xy", 2, VTED_EOL_LF);
+    AppendRow("abcdefgh", 8, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+}
+
+static void TestPageDownMovesByScreenLines(void)
+{
+    BeginWrappedRows();
+
+    /* a viewport of 4 lines down from the first: the rest of the
+       tall row, the one-line row, and the start of the last */
+    CursorAt(0, 0);
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* another viewport: past the last row, onto the phantom row */
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* and back up: the phantom line, the last row's two lines and
+       the one-line row land the cursor on the tall row's last line */
+    MoveCursor(PageUp);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 8);
+
+    /* at the top, a page up stays on the first line */
+    MoveCursor(PageUp);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestPagingKeepsTheColumnWithinTheLine(void)
+{
+    BeginWrappedRows();
+
+    /* the column the cursor started from within its line is what
+       the cursor aims for on every line it lands on */
+    CursorAt(0, 5); /* line 1, column 1 */
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+}
+
+static void TestPagingThroughATallRow(void)
+{
+    /* a row taller than the viewport pages inside it, line by
+       line */
+    BeginTallRow(240); /* 60 lines for a viewport of 10 */
+    AppendRow("tail", 4, VTED_EOL_LF);
+
+    CursorAt(0, 0);
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 40); /* line 10 */
+
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_x, 80); /* line 20 */
+
+    /* from line 50 a page lands past the row's end, on the phantom
+       row */
+    CursorAt(0, 200);
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestPlainPagingMovesByRows(void)
+{
+    /* without wrapping, a page is a viewport of rows like before */
+    BeginPlain(10);
+
+    CursorAt(0, 1);
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 4);
+
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 8);
+
+    /* past the end: the phantom row past the last line */
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 10);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    MoveCursor(PageUp);
+    CHECK_INT(vted_editor_config.cursor_y, 6);
+}
+
 int main(void)
 {
     TestHomeStartsTheScreenLine();
@@ -537,6 +638,10 @@ int main(void)
     TestCenteringWhenTheHalfEndsAtARowEdge();
     TestCenteringSeesWhatATallRowHides();
     TestAWrappedCursorOnScreenStays();
+    TestPageDownMovesByScreenLines();
+    TestPagingKeepsTheColumnWithinTheLine();
+    TestPagingThroughATallRow();
+    TestPlainPagingMovesByRows();
 
     return TestSummary("screen");
 }
