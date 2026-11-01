@@ -24,7 +24,7 @@ int ReadRawByte(void)
     unsigned char user_input;
     /* (unsigned char) ensures bytes above 127 stay
     positive (0 to 255) and aren't misread as -1 */
-    ssize_t read_return = read(STDIN_FILENO, &user_input, 1);
+    ssize_t read_return = read(TerminalFd(), &user_input, 1);
 
     if (read_return == 1)
     {
@@ -54,7 +54,7 @@ static int ReadSequenceByte(void)
 {
     unsigned char byte;
 
-    if (read(STDIN_FILENO, &byte, 1) != 1)
+    if (read(TerminalFd(), &byte, 1) != 1)
     {
         return -1;
     }
@@ -337,7 +337,7 @@ char *ReadPastedText(int *out_length)
     while (matched < (int)sizeof(paste_end_marker))
     {
         unsigned char byte;
-        ssize_t got = read(STDIN_FILENO, &byte, 1);
+        ssize_t got = read(TerminalFd(), &byte, 1);
 
         if (got != 1)
         {
@@ -345,7 +345,7 @@ char *ReadPastedText(int *out_length)
                may only be pausing, so wait for more. End-of-file and
                real silence both leave without POLLIN, and then the
                paste is over, marker or not */
-            struct pollfd waiting = {.fd = STDIN_FILENO, .events = POLLIN, .revents = 0};
+            struct pollfd waiting = {.fd = TerminalFd(), .events = POLLIN, .revents = 0};
             int ready = poll(&waiting, 1, PASTE_STALL_MS);
 
             if (ready == -1 && errno == EINTR)

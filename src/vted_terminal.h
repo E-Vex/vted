@@ -37,6 +37,11 @@ void SetupResizeSignal(void);
 int TerminalWantsExit(void);   /* 1 when the editor should leave */
 int TerminalSizeChanged(void); /* 1 once after a resize, then 0 */
 
+/* the descriptor keys are read from and the terminal modes are
+   managed on: standard input when it is a terminal, /dev/tty
+   otherwise */
+int TerminalFd(void);
+
 /* copies text to the terminal's clipboard with an OSC 52 escape
    sequence; best effort, nothing is read back from the clipboard */
 void TerminalCopy(const char *text, int length);

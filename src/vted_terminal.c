@@ -7,11 +7,17 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <fcntl.h>
 /*===============================*/
 #include "vted_terminal.h"
 /*===============================*/
 
 struct termios old_terminal_settings;
+
+/* the terminal the editor runs on: standard input when that is a
+   terminal, the controlling terminal otherwise, so a pipe or a file
+   on standard input does not stop the editor from reading keys */
+static int tty_fd = -1;
 
 /* set by a signal: the editor leaves on the next loop turn and
    restores the terminal the usual way (through the exit handlers) */
@@ -36,6 +42,34 @@ static void OnResizeSignal(int signo)
    never apply the zeroed struct it would otherwise find there */
 static int terminal_settings_saved = 0;
 
+int TerminalFd(void)
+{
+    /* unresolved means nobody asked for a terminal yet: reads then go
+       to standard input the way they always did, which is what the
+       tests, with a pipe on standard input, count on */
+    return tty_fd != -1 ? tty_fd : STDIN_FILENO;
+}
+
+/* picks the descriptor every terminal call goes through: standard
+   input when it is a terminal, /dev/tty when it is not (a pipe on
+   standard input, for instance, still leaves the editor a terminal
+   to read keys from) */
+static void ResolveTerminalFd(void)
+{
+    if (isatty(STDIN_FILENO))
+    {
+        tty_fd = STDIN_FILENO;
+        return;
+    }
+
+    tty_fd = open("/dev/tty", O_RDWR);
+
+    if (tty_fd == -1)
+    {
+        KillApp("open(\"/dev/tty\")");
+    }
+}
+
 /* set while bracketed paste is on, so turning it off writes nothing
    when it was never turned on */
 static int bracketed_paste_enabled = 0;
@@ -54,7 +88,7 @@ void KillApp(const char *syscall_name)
        failures through KillApp() and would recurse from here */
     if (terminal_settings_saved)
     {
-        tcsetattr(STDIN_FILENO, TCSAFLUSH, &old_terminal_settings);
+        tcsetattr(tty_fd, TCSAFLUSH, &old_terminal_settings);
     }
 
     errno = saved_errno;
@@ -67,7 +101,9 @@ void SaveTerminalCurrentSettings(void)
 
     int tcgetattr_return;
 
-    tcgetattr_return = tcgetattr(STDIN_FILENO, &old_terminal_settings); /* tcgetattr() returns value: 0 on success, -1 on error (with errno set). */
+    ResolveTerminalFd();
+
+    tcgetattr_return = tcgetattr(tty_fd, &old_terminal_settings); /* tcgetattr() returns value: 0 on success, -1 on error (with errno set). */
 
     if (tcgetattr_return == -1)
     {
@@ -114,7 +150,7 @@ void EnableTerminalRawMode(void)
 
     /* apply changes */
     int tcsetattr_return;
-    tcsetattr_return = tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw_terminal_settings);
+    tcsetattr_return = tcsetattr(tty_fd, TCSAFLUSH, &raw_terminal_settings);
 
     if (tcsetattr_return == -1)
     {
@@ -194,7 +230,7 @@ void RestoreTerminalSettings(void)
        not keep wrapping pastes in markers once the shell has it back */
     DisableBracketedPaste();
 
-    tcsetattr_return = tcsetattr(STDIN_FILENO, TCSAFLUSH, &old_terminal_settings);
+    tcsetattr_return = tcsetattr(tty_fd, TCSAFLUSH, &old_terminal_settings);
 
     if (tcsetattr_return == -1)
     {
