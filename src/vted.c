@@ -390,9 +390,15 @@ static void EditorCloseBuffer(void)
 #define PICKER_LINES 16
 #define PICKER_WIDTH 96
 
+/* pressing Ctrl-Q, or Ctrl-E on a modified buffer, this many times in
+   a row overrides unsaved changes */
+#define QUIT_CONFIRMATIONS 3
+#define CLOSE_CONFIRMATIONS 3
+
 /* picks one of the open buffers from a list: the arrows move through
-   them, Enter takes the one under the selection and ESC puts the
-   buffer that was live back */
+   them, Enter takes the one under the selection, Ctrl-E closes the
+   one under it without leaving the list, and ESC puts the buffer
+   that was live back */
 static void EditorPickBuffer(void)
 {
     char lines[PICKER_LINES][PICKER_WIDTH];
@@ -400,6 +406,9 @@ static void EditorPickBuffer(void)
     int count = BuffersCount();
     int selection = BuffersCurrent();
     int started_at = selection;
+    int close_confirmations = CLOSE_CONFIRMATIONS;
+    int close_warning = 0; /* the presses a dirty buffer still asks for */
+    int closed_count = 0;
 
     if (count < 2)
     {
@@ -450,7 +459,18 @@ static void EditorPickBuffer(void)
         }
 
         ScreenShowMenu(shown_lines, shown, selection - first);
-        SetStatusMessage("Switch buffer: arrows move, Enter picks, ESC cancels");
+
+        /* the hint, or the warning a dirty buffer gave for its close */
+        if (close_warning > 0)
+        {
+            SetStatusMessage("WARNING! Unsaved changes. Press Ctrl-E %d more times to close.",
+                             close_warning);
+        }
+        else
+        {
+            SetStatusMessage("Switch buffer: arrows move, Enter picks, ESC cancels, Ctrl-E closes");
+        }
+
         RefreshScreen();
 
         int c = ReadKeyPress();
@@ -462,7 +482,11 @@ static void EditorPickBuffer(void)
 
         if (c == 27) /* ESC: the buffer that was live stays live */
         {
-            selection = started_at;
+            /* the one the picker started on may have been closed since
+               (or slid to another slot): what is live now stays */
+            selection = started_at >= 0 && started_at < count
+                            ? started_at
+                            : BuffersCurrent();
             break;
         }
 
@@ -470,6 +494,55 @@ static void EditorPickBuffer(void)
         {
             break;
         }
+
+        if (c == CTRL_KEY('e') || c == CTRL_KEY('E'))
+        {
+            /* close the buffer under the selection without leaving
+               the list: unsaved changes hold the close back the way
+               they hold one back outside */
+            if (BuffersDirty(selection) != 0 && close_confirmations > 0)
+            {
+                close_warning = close_confirmations;
+                close_confirmations--;
+                continue;
+            }
+
+            BuffersClose(selection);
+            count = BuffersCount();
+            closed_count++;
+
+            /* the next buffer starts its close count over */
+            close_confirmations = CLOSE_CONFIRMATIONS;
+            close_warning = 0;
+
+            /* the ESC anchor slides with the buffers, and one that was
+               closed is simply gone */
+            if (started_at == selection)
+            {
+                started_at = -1;
+            }
+            else if (started_at > selection)
+            {
+                started_at--;
+            }
+
+            if (selection >= count)
+            {
+                selection = count - 1; /* wrap to the last one */
+            }
+
+            if (count < 2)
+            {
+                break; /* nothing left to pick */
+            }
+
+            continue;
+        }
+
+        /* any other key restarts the close count: a warning left half
+           way through is not a promise */
+        close_warning = 0;
+        close_confirmations = CLOSE_CONFIRMATIONS;
 
         /* Alt-1 to Alt-9 take their buffer straight away, the way they
            do outside the picker */
@@ -501,16 +574,30 @@ static void EditorPickBuffer(void)
 
     BuffersSwitch(selection);
 
-    SetStatusMessage("%s (buffer %d of %d)",
-                     vted_buffer.filename != NULL ? vted_buffer.filename
-                                                  : "[No Name]",
-                     BuffersCurrent() + 1, BuffersCount());
+    if (closed_count > 0)
+    {
+        if (BuffersCount() == 1 && vted_buffer.filename == NULL)
+        {
+            SetStatusMessage("Closed %d buffer%s; a new empty buffer",
+                             closed_count, closed_count == 1 ? "" : "s");
+        }
+        else
+        {
+            SetStatusMessage("Closed %d buffer%s; now on %s (buffer %d of %d)",
+                             closed_count, closed_count == 1 ? "" : "s",
+                             vted_buffer.filename != NULL ? vted_buffer.filename
+                                                          : "[No Name]",
+                             BuffersCurrent() + 1, BuffersCount());
+        }
+    }
+    else
+    {
+        SetStatusMessage("%s (buffer %d of %d)",
+                         vted_buffer.filename != NULL ? vted_buffer.filename
+                                                      : "[No Name]",
+                         BuffersCurrent() + 1, BuffersCount());
+    }
 }
-
-/* pressing Ctrl-Q, or Ctrl-E on a modified buffer, this many times in
-   a row overrides unsaved changes */
-#define QUIT_CONFIRMATIONS 3
-#define CLOSE_CONFIRMATIONS 3
 
 /* the first match of query that starts inside the byte range
    [from, to) of a row, or -1 */
