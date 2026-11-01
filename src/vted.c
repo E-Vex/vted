@@ -13,6 +13,7 @@
 #include "vted_file.h"
 #include "vted_syntax.h"
 #include "vted_utf8.h"
+#include "vted_cli.h"
 /*===============================*/
 
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
@@ -560,6 +561,17 @@ static void FreeEditorState(void)
 int main(int argc, char *argv[])
 {
     int quit_confirmations = QUIT_CONFIRMATIONS;
+    vted_cli_options_t options;
+
+    /* the command line is settled before the terminal is touched, so
+       a bad argument is answered on stderr with a normal exit instead
+       of the editor dying from inside raw mode */
+    CliParse(argc, argv, &options);
+
+    if (options.error)
+    {
+        return 1;
+    }
 
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
@@ -573,9 +585,9 @@ int main(int argc, char *argv[])
        released even when a fatal error ends the editor early */
     atexit(FreeEditorState);
 
-    if (argc >= 2)
+    if (options.file != NULL)
     {
-        if (OpenFile(argv[1]) == -1)
+        if (OpenFile(options.file) == -1)
         {
             KillApp("OpenFile");
         }
