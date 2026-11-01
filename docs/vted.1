@@ -6,19 +6,25 @@ vted \- vex terminal text editor
 .RB [ \-h | \-\-help ]
 .RB [ \-V | \-\-version ]
 .RI [ +LINE ]
-.RI [ file | \- ]
+.RI [ file | \- ] ...
 .SH DESCRIPTION
 .B vted
 is a small, fast terminal text editor for Linux written in C11 with no
 dependencies beyond the C standard library and POSIX.
 .PP
 It puts the terminal into raw mode, switches to the alternate screen
-buffer and restores every terminal setting on exit. Given a
-.IR file ,
-it loads it into an editable buffer; otherwise it starts with an empty
-buffer. Only the first operand is used; further arguments are ignored,
-and anything that looks like an option is rejected on the standard
+buffer and restores every terminal setting on exit. Every
+.I file
+named on the command line opens in a buffer of its own and the
+editor starts in the first one; with no file it starts with an empty
+buffer. Anything that looks like an option is rejected on the standard
 error stream before the terminal is touched.
+.PP
+Several files can be edited in one session: each buffer keeps its
+cursor, viewport and undo history while another one is being edited,
+the status bar says which of them is on ("2/3, Ln 5/120, Col 12"), and
+opening a path that is already open switches to that buffer instead
+of opening it twice. Unsaved changes in any of them hold a quit back.
 .PP
 The whole interface is drawn on the standard output, so
 .B vted
@@ -34,13 +40,14 @@ print a short usage on the standard output and exit
 print the version and exit
 .TP
 .BI + LINE
-start the cursor on that line, the way less and vi take one; a number
-past the end of the buffer lands on the last line
+start the cursor on that line of the first file, the way less and vi
+take one; a number past the end of the buffer lands on the last line
 .TP
 .B \-
 read the text from standard input instead of a file. The buffer stays
-unnamed, so Ctrl\-S asks where to save it. Standard input must not be a
-terminal: nothing would ever arrive on it
+unnamed, so Ctrl\-S asks where to save it, and it can sit beside
+files ("vted \- notes.txt"). Standard input must not be a terminal:
+nothing would ever arrive on it, and it can be named only once
 .PP
 Every line is numbered in a gutter at the left edge, the line the
 cursor is on in bold. The gutter is at least three digits wide and
@@ -57,9 +64,10 @@ terminal gets 256-color escapes, anything else uses the 16 colors.
 .PP
 The bottom line of the screen is a status bar showing the file name,
 line count, a modified marker and the cursor's line and display
-column ("Ln 5/120, Col 12"; narrow terminals show the line alone, then
-nothing). The line above it is a message bar for status messages and
-warnings.
+column ("Ln 5/120, Col 12"; with several buffers open, which one this
+is comes first, as "2/3, Ln 5/120, Col 12"; narrow terminals show the
+line alone, then nothing). The line above it is a message bar for
+status messages and warnings.
 .SH KEYS
 .TP
 .B arrows
@@ -124,6 +132,17 @@ insert at the cursor (UTF\-8 aware)
 save the buffer to its file; a buffer without a name asks for one first,
 ESC cancels
 .TP
+.B Ctrl\-O
+open another file as a buffer of its own and switch to it; a path that
+does not exist yet opens as an empty buffer that keeps the name, and a
+path that is already open switches to that buffer instead
+.TP
+.B Alt\-, / Alt\-.
+step through the open buffers, wrapping around both ends
+.TP
+.B Alt\-1 to Alt\-9
+jump to the buffer with that number
+.TP
 .B Ctrl\-G
 go to a line number; a number past the end goes to the last line, ESC
 cancels
@@ -143,7 +162,8 @@ inserting a tab character
 set the tab width in cells (1 to 32)
 .TP
 .B Ctrl\-Q
-quit; unsaved changes require three additional confirmations
+quit; unsaved changes in any of the open buffers require three
+additional confirmations
 .SH TEXT HANDLING
 The cursor moves and deletes by whole UTF\-8 characters, never into
 the middle of a multibyte sequence. Wide characters (CJK, emoji) take
@@ -175,8 +195,8 @@ file that cannot be opened, terminal setup failures) terminate the
 editor with an error message on the standard error stream and a
 non\-zero status.
 .SH FILES
-The buffer is saved back to the
-.I file
+The buffers are saved back to the
+.I files
 given on the command line. Without one, Ctrl\-S asks for a file name;
 the buffer takes that name only if the file could be written, and ESC
 cancels the save.
