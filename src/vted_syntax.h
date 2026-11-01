@@ -22,7 +22,8 @@ typedef enum
     HlNumber,
     HlKeyword,
     HlType,
-    HlPreproc
+    HlPreproc,
+    HlRemoved /* text that was taken out: the minus lines of a diff */
 } HlClass;
 
 /* picks the language for a file name ("main.c" is C); NULL, or a name
