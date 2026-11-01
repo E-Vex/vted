@@ -102,6 +102,18 @@ int RowCxToRx(const vted_row_t *row, int cx);
    the row when rx lies past the text */
 int RowRxToCx(const vted_row_t *row, int rx);
 
+/* how many screen lines the row takes when it flows over lines of
+   cols cells: a glyph that would cross the right edge of a line
+   starts the next one instead of being cut in half, while a tab may
+   run to the edge and on past it, because it is blank space */
+int RowWrapCount(const vted_row_t *row, int cols);
+
+/* where byte index cx sits when the row flows over lines of cols
+   cells: the screen line it is on (one past the row's own lines when
+   the text ends exactly at a line edge) and the cell column within
+   that line */
+void RowCxToWrapped(const vted_row_t *row, int cx, int cols, int *line, int *col);
+
 /* number of leading blanks (spaces and tabs) of the row, looking at
    no more than the first limit bytes; the indent a new line copies */
 int RowIndentLength(const vted_row_t *row, int limit);

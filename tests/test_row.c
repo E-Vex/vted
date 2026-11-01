@@ -535,6 +535,124 @@ static void TestBracketScanStopsAtTheLimit(void)
     FreeBuffer();
 }
 
+static void TestWrapCount(void)
+{
+    vted_row_t row = MakeRow("abcdefghijkl"); /* 12 cells */
+
+    CHECK_INT(RowWrapCount(&row, 12), 1); /* exactly one line */
+    CHECK_INT(RowWrapCount(&row, 11), 2); /* one cell over */
+    CHECK_INT(RowWrapCount(&row, 4), 3);  /* 12 cells of 4 */
+    CHECK_INT(RowWrapCount(&row, 5), 3);  /* 5+5+2 */
+
+    CHECK_INT(RowWrapCount(&row, 1), 12); /* every cell its own line */
+
+    /* a width of nothing is treated as one cell */
+    CHECK_INT(RowWrapCount(&row, 0), 12);
+
+    /* an empty row takes the one line the cursor sits on */
+    {
+        vted_row_t empty = MakeRow("");
+
+        CHECK_INT(RowWrapCount(&empty, 4), 1);
+    }
+}
+
+static void TestWrapMovesWideGlyphsDown(void)
+{
+    /* abc plus a wide ideograph: at 4 cells it cannot share a line
+       with c, so it starts the next one whole */
+    vted_row_t row = MakeRow("abc\xE4\xB8\xAD" "x");
+    int line;
+    int col;
+
+    CHECK_INT(RowWrapCount(&row, 4), 2);
+
+    RowCxToWrapped(&row, 3, 4, &line, &col); /* the wide one itself */
+    CHECK_INT(line, 1);
+    CHECK_INT(col, 0);
+
+    RowCxToWrapped(&row, 6, 4, &line, &col); /* x after it */
+    CHECK_INT(line, 1);
+    CHECK_INT(col, 2);
+
+    /* without wrapping pressure the ideograph stays on the first line */
+    CHECK_INT(RowWrapCount(&row, 5), 2);
+    RowCxToWrapped(&row, 3, 5, &line, &col);
+    CHECK_INT(line, 0);
+    CHECK_INT(col, 3);
+
+    /* a control character is a glyph too: drawn as ^X it does not
+       split either */
+    {
+        vted_row_t control = MakeRow("abc\x01");
+
+        CHECK_INT(RowWrapCount(&control, 4), 2);
+        RowCxToWrapped(&control, 3, 4, &line, &col);
+        CHECK_INT(line, 1);
+        CHECK_INT(col, 0);
+    }
+}
+
+static void TestWrapLetsTabsCrossTheEdge(void)
+{
+    /* a tab at cell 2 runs to the stop at cell 8: at 4 cells a line it
+       blanks the rest of the first line and the whole second one */
+    vted_row_t row = MakeRow("ab\tc");
+    int line;
+    int col;
+
+    RowSetTabWidth(8);
+
+    CHECK_INT(RowWrapCount(&row, 4), 3); /* c lands on the third line */
+
+    RowCxToWrapped(&row, 3, 4, &line, &col); /* c */
+    CHECK_INT(line, 2);
+    CHECK_INT(col, 0);
+
+    /* a trailing tab runs onto lines of its own */
+    {
+        vted_row_t trailing = MakeRow("ab\t");
+
+        CHECK_INT(RowWrapCount(&trailing, 4), 2);
+    }
+
+    RowSetTabWidth(VTED_TAB_STOP);
+}
+
+static void TestWrapCursorPosition(void)
+{
+    vted_row_t row = MakeRow("abcdefghijkl");
+    int line;
+    int col;
+
+    RowCxToWrapped(&row, 0, 4, &line, &col);
+    CHECK_INT(line, 0);
+    CHECK_INT(col, 0);
+
+    RowCxToWrapped(&row, 4, 4, &line, &col); /* e starts the second line */
+    CHECK_INT(line, 1);
+    CHECK_INT(col, 0);
+
+    RowCxToWrapped(&row, 7, 4, &line, &col); /* h, the line's last cell */
+    CHECK_INT(line, 1);
+    CHECK_INT(col, 3);
+
+    /* the end of the row sits after its last glyph: the line after
+       the row's own ones, since the text ends exactly at a line edge */
+    RowCxToWrapped(&row, 12, 4, &line, &col);
+    CHECK_INT(line, 3);
+    CHECK_INT(col, 0);
+
+    RowCxToWrapped(&row, 8, 4, &line, &col); /* i starts the third line */
+    CHECK_INT(line, 2);
+    CHECK_INT(col, 0);
+
+    /* past the end asks for the same place */
+    RowCxToWrapped(&row, 99, 4, &line, &col);
+    CHECK_INT(line, 3);
+    CHECK_INT(col, 0);
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -564,6 +682,10 @@ int main(void)
     TestBracketWithoutABracket();
     TestBracketOutOfTheBuffer();
     TestBracketScanStopsAtTheLimit();
+    TestWrapCount();
+    TestWrapMovesWideGlyphsDown();
+    TestWrapLetsTabsCrossTheEdge();
+    TestWrapCursorPosition();
 
     return TestSummary("row");
 }

@@ -428,6 +428,89 @@ int RowRxToCx(const vted_row_t *row, int rx)
     return row->size;
 }
 
+/* walks the row the way the renderer wraps it: cols cells per screen
+   line, with a glyph that would cross a line's right edge moved onto
+   the next line instead of being cut in half (a tab, being blank
+   space, may run to the edge and on past it). Reports the number of
+   screen lines the row takes, and where byte index cx lands: the
+   screen line it is on and the cell column within that line */
+static void WrapWalk(const vted_row_t *row, int cols, int cx,
+                     int *out_lines, int *out_line, int *out_col)
+{
+    int lines = 1;
+    int cell = 0;
+    int at = 0;
+
+    if (cols < 1)
+    {
+        cols = 1;
+    }
+
+    while (at < row->size)
+    {
+        int width = RowCharWidth(row, at, cell);
+        int line;
+
+        if (row->chars[at] != '\t' && cell + width > (cell / cols + 1) * cols)
+        {
+            /* the glyph would cross the right edge of its line: the
+               next line is where it starts */
+            cell = (cell / cols + 1) * cols;
+        }
+
+        line = cell / cols;
+
+        if (line + 1 > lines)
+        {
+            lines = line + 1;
+        }
+
+        if (at == cx)
+        {
+            *out_line = line;
+            *out_col = cell - line * cols;
+        }
+
+        cell += width;
+        at = Utf8NextBoundary(row->chars, row->size, at);
+    }
+
+    if (cx >= row->size)
+    {
+        /* one past the last glyph: where the next one would start,
+           which is the line after the row when the text ends exactly
+           at a line edge */
+        *out_line = cell / cols;
+        *out_col = cell % cols;
+    }
+
+    if (cell > 0 && (cell - 1) / cols + 1 > lines)
+    {
+        /* a trailing tab ran onto lines of its own */
+        lines = (cell - 1) / cols + 1;
+    }
+
+    *out_lines = lines;
+}
+
+int RowWrapCount(const vted_row_t *row, int cols)
+{
+    int lines;
+    int line;
+    int col;
+
+    WrapWalk(row, cols, row->size, &lines, &line, &col);
+
+    return lines;
+}
+
+void RowCxToWrapped(const vted_row_t *row, int cx, int cols, int *line, int *col)
+{
+    int lines;
+
+    WrapWalk(row, cols, cx, &lines, line, col);
+}
+
 int RowIndentLength(const vted_row_t *row, int limit)
 {
     int length = 0;
