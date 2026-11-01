@@ -1398,6 +1398,18 @@ const char *SyntaxStyle(int hl_class)
             return escape;
         }
         return "\x1b[90m";
+    case HlFunction:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;255;140;0m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;208m");
+            return escape;
+        }
+        return "\x1b[93m";
     default:
         return "";
     }

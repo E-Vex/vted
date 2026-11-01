@@ -7,7 +7,7 @@
 
 /* the classes of a row as one letter per byte, so a check can be read at
    a glance: n normal, c comment, s string, d number, k keyword, t type,
-   p preprocessor, r removed, x context */
+   p preprocessor, r removed, x context, f function */
 static const char *Classes(int at)
 {
     static char text[256];
@@ -19,7 +19,7 @@ static const char *Classes(int at)
 
     for (i = 0; i < size; i++)
     {
-        text[i] = "ncsdktprx"[hl[i]];
+        text[i] = "ncsdktprxf"[hl[i]];
     }
 
     text[size] = '\0';
@@ -1129,6 +1129,7 @@ static void TestStyles(void)
     CHECK(strlen(SyntaxStyle(HlPreproc)) > 0);
     CHECK(strlen(SyntaxStyle(HlRemoved)) > 0);
     CHECK(strlen(SyntaxStyle(HlContext)) > 0);
+    CHECK(strlen(SyntaxStyle(HlFunction)) > 0);
 }
 
 int main(void)
