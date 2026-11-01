@@ -354,8 +354,38 @@ static void EditorStepBuffer(int direction)
     }
 }
 
-/* pressing Ctrl-Q this many times in a row overrides unsaved changes */
+/* closes the buffer being edited; the guard against unsaved changes
+   is answered by the caller, which counts the confirmations */
+static void EditorCloseBuffer(void)
+{
+    char closed[64];
+
+    /* the name is wanted after the close, when its buffer is already
+       gone and the name with it */
+    snprintf(closed, sizeof(closed), "%.60s",
+             vted_buffer.filename != NULL ? vted_buffer.filename
+                                          : "[No Name]");
+
+    BuffersClose(BuffersCurrent());
+
+    if (BuffersCount() == 1 && vted_buffer.filename == NULL)
+    {
+        SetStatusMessage("Closed %s; a new empty buffer", closed);
+    }
+    else
+    {
+        SetStatusMessage("Closed %s; now on %s (buffer %d of %d)",
+                         closed,
+                         vted_buffer.filename != NULL ? vted_buffer.filename
+                                                      : "[No Name]",
+                         BuffersCurrent() + 1, BuffersCount());
+    }
+}
+
+/* pressing Ctrl-Q, or Ctrl-E on a modified buffer, this many times in
+   a row overrides unsaved changes */
 #define QUIT_CONFIRMATIONS 3
+#define CLOSE_CONFIRMATIONS 3
 
 /* the first match of query that starts inside the byte range
    [from, to) of a row, or -1 */
@@ -699,6 +729,7 @@ static void FreeEditorState(void)
 int main(int argc, char *argv[])
 {
     int quit_confirmations = QUIT_CONFIRMATIONS;
+    int close_confirmations = CLOSE_CONFIRMATIONS;
     vted_cli_options_t options;
 
     /* the command line is settled before the terminal is touched, so
@@ -877,8 +908,13 @@ int main(int argc, char *argv[])
         }
         else
         {
-            /* any other key restarts the quit confirmation count */
-            quit_confirmations = QUIT_CONFIRMATIONS;
+            /* any key but the two confirmation keys restarts both
+               counts: a warning left half way through is not a promise */
+            if (c_in != CTRL_KEY('e') && c_in != CTRL_KEY('E'))
+            {
+                quit_confirmations = QUIT_CONFIRMATIONS;
+                close_confirmations = CLOSE_CONFIRMATIONS;
+            }
 
             /* only a run of vertical moves keeps aiming for the same
                display column; every other key forgets it */
@@ -1042,6 +1078,25 @@ int main(int argc, char *argv[])
                     /* Tab inserts a real tab character; the renderer
                        lays it out up to the next tab stop */
                     EditorInsertChar('\t');
+                }
+            }
+            else if (c_in == CTRL_KEY('e') || c_in == CTRL_KEY('E'))
+            {
+                /* Ctrl-E closes the buffer being edited: unsaved
+                   changes hold the close back, the way they hold a quit
+                   back, until it is pressed again */
+                quit_confirmations = QUIT_CONFIRMATIONS;
+
+                if (vted_buffer.dirty != 0 && close_confirmations > 0)
+                {
+                    SetStatusMessage("WARNING! Unsaved changes. Press Ctrl-E %d more times to close.",
+                                     close_confirmations);
+                    close_confirmations--;
+                }
+                else
+                {
+                    EditorCloseBuffer();
+                    close_confirmations = CLOSE_CONFIRMATIONS;
                 }
             }
             else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
