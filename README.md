@@ -202,7 +202,7 @@ Ctrl-L set while editing.
 | Ctrl-N          | show or hide the line numbers                    |
 | Ctrl-L          | wrap long lines over several screen lines        |
 | Ctrl-T          | toggle Tab between spaces and a tab character    |
-| Ctrl-W          | set the tab width in cells                       |
+| Ctrl-W          | set the tab width in cells (per buffer)          |
 | Ctrl-Q          | quit (three extra presses when modified)         |
 
 With several buffers open, Ctrl-B lists them with their numbers and
@@ -252,7 +252,8 @@ does, and closing the last buffer starts a fresh empty one.
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
   (CJK, emoji) and combining characters take the right number of cells
 - Tabs expand to configurable tab stops (8 cells by default; Ctrl-W sets
-  the width, Ctrl-T toggles Tab between spaces up to the next stop and a
+  the width, and each buffer keeps its own; Ctrl-T toggles Tab between
+  spaces up to the next stop and a
   real tab character); control characters show as `^X` and invalid bytes
   as `�`, so nothing odd ever reaches your terminal
 - The cursor keeps its display column across short lines when moving
