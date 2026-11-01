@@ -96,6 +96,12 @@ sits on
 .B PageUp / PageDown
 move one viewport up / down, of screen lines when wrapping is on
 .TP
+.B Alt\-h / Alt\-m / Alt\-l
+jump to the top, the middle or the bottom screen line of the viewport,
+the way H, M and L work in vi; the cursor lands on the start of that
+line, a wrapped layout is walked line by line, and a jump past the end
+of the text lands on its last line
+.TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
 the current one

@@ -180,6 +180,8 @@ Ctrl-L set while editing.
   screen line it sits on                             |
 | PageUp/Down     | move one viewport up / down, of screen
   lines when wrapping is on                       |
+| Alt-h / Alt-m / Alt-l | jump to the top, middle or bottom screen
+  line of the viewport (H, M and L in vi)         |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -244,6 +246,12 @@ does, and closing the last buffer starts a fresh empty one.
   a viewport of them, and a line taller than the viewport scrolling
   inside itself; Home and End start and end the screen line the cursor
   sits on
+- Viewport-relative jumps with Alt-h, Alt-m and Alt-l: the cursor lands
+  on the start of the top, the middle or the bottom screen line of the
+  viewport, the way H, M and L work in vi; a wrapped layout is walked
+  line by line, so a viewport that starts inside a tall row counts from
+  the line it starts on, and a jump past the end of the text lands on
+  its last line
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
   or down with Ctrl-Up/Down
