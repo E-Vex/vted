@@ -382,6 +382,128 @@ static void EditorCloseBuffer(void)
     }
 }
 
+/* the most lines the buffer picker shows, and the room one line of it
+   takes: a number, a modified marker and a path */
+#define PICKER_LINES 16
+#define PICKER_WIDTH 96
+
+/* picks one of the open buffers from a list: the arrows move through
+   them, Enter takes the one under the selection and ESC puts the
+   buffer that was live back */
+static void EditorPickBuffer(void)
+{
+    char lines[PICKER_LINES][PICKER_WIDTH];
+    const char *shown_lines[PICKER_LINES];
+    int count = BuffersCount();
+    int selection = BuffersCurrent();
+    int started_at = selection;
+
+    if (count < 2)
+    {
+        SetStatusMessage("No other buffer");
+        return;
+    }
+
+    while (1)
+    {
+        /* a window of the list that follows the selection, so many
+           open buffers stay reachable without a huge menu */
+        int shown = count;
+        int first;
+        int i;
+
+        if (shown > PICKER_LINES)
+        {
+            shown = PICKER_LINES;
+        }
+        if (shown > vted_editor_config.screen_rows - 2)
+        {
+            shown = vted_editor_config.screen_rows - 2;
+        }
+        if (shown < 1)
+        {
+            shown = 1;
+        }
+
+        first = selection - shown / 2;
+        if (first < 0)
+        {
+            first = 0;
+        }
+        if (first > count - shown)
+        {
+            first = count - shown;
+        }
+
+        for (i = 0; i < shown; i++)
+        {
+            const char *name = BuffersName(first + i);
+
+            snprintf(lines[i], sizeof(lines[i]), "%2d %s %.80s",
+                     first + i + 1,
+                     BuffersDirty(first + i) ? "+" : " ",
+                     name != NULL ? name : "[No Name]");
+            shown_lines[i] = lines[i];
+        }
+
+        ScreenShowMenu(shown_lines, shown, selection - first);
+        SetStatusMessage("Switch buffer: arrows move, Enter picks, ESC cancels");
+        RefreshScreen();
+
+        int c = ReadKeyPress();
+
+        if (c == 0)
+        {
+            continue; /* idle read timeout: just repaint the menu */
+        }
+
+        if (c == 27) /* ESC: the buffer that was live stays live */
+        {
+            selection = started_at;
+            break;
+        }
+
+        if (c == '\r' || c == '\n')
+        {
+            break;
+        }
+
+        /* Alt-1 to Alt-9 take their buffer straight away, the way they
+           do outside the picker */
+        if (c >= BufferSelect1 && c <= BufferSelect9)
+        {
+            int wanted = c - BufferSelect1 + 1;
+
+            if (wanted <= count)
+            {
+                selection = wanted - 1;
+                break;
+            }
+            continue;
+        }
+
+        if (c == ArrowUp)
+        {
+            selection = selection > 0 ? selection - 1 : count - 1;
+        }
+        else if (c == ArrowDown)
+        {
+            selection = selection < count - 1 ? selection + 1 : 0;
+        }
+    }
+
+    /* the lines were only borrowed, and the rows under the menu need
+       their own paint back */
+    ScreenShowMenu(NULL, 0, 0);
+
+    BuffersSwitch(selection);
+
+    SetStatusMessage("%s (buffer %d of %d)",
+                     vted_buffer.filename != NULL ? vted_buffer.filename
+                                                  : "[No Name]",
+                     BuffersCurrent() + 1, BuffersCount());
+}
+
 /* pressing Ctrl-Q, or Ctrl-E on a modified buffer, this many times in
    a row overrides unsaved changes */
 #define QUIT_CONFIRMATIONS 3
@@ -1098,6 +1220,11 @@ int main(int argc, char *argv[])
                     EditorCloseBuffer();
                     close_confirmations = CLOSE_CONFIRMATIONS;
                 }
+            }
+            else if (c_in == CTRL_KEY('b') || c_in == CTRL_KEY('B'))
+            {
+                /* Ctrl-B picks a buffer from a list of what is open */
+                EditorPickBuffer();
             }
             else if (c_in == CTRL_KEY('s') || c_in == CTRL_KEY('S'))
             {
