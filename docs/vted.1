@@ -27,7 +27,9 @@ opening a path that is already open switches to that buffer instead
 of opening it twice. Ctrl\-B lists the open buffers over the bottom of
 the viewport with their numbers and names (a + marks unsaved changes):
 the arrows wrap around the list, Enter takes the one under the
-selection and ESC stays on the buffer that was live. Ctrl\-E closes
+selection, Ctrl\-E closes it without leaving the list (unsaved
+changes ask for three more presses first) and ESC stays on the
+buffer that was live. Ctrl\-E closes
 the buffer being edited; unsaved changes require three additional
 confirmations first, and closing the last buffer starts a fresh empty
 one. Unsaved changes in any buffer hold a quit back.
@@ -86,7 +88,8 @@ move the cursor, wrapping across line ends
 move by word; Alt\-Left, Alt\-Right, Alt\-b and Alt\-f do the same
 .TP
 .B Home / End
-jump to the start / end of the line
+start / end of the line, or of the wrapped screen line the cursor
+sits on
 .TP
 .B PageUp / PageDown
 move one viewport up / down
@@ -177,7 +180,8 @@ show or hide the line numbers
 .B Ctrl\-L
 wrap long lines over several screen lines instead of scrolling the
 viewport sideways; the up and down arrows then step over the wrapped
-lines one at a time
+lines one at a time, and a line taller than the viewport scrolls
+inside itself
 .TP
 .B Ctrl\-T
 toggle Tab between inserting spaces up to the next tab stop and

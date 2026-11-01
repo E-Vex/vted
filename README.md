@@ -176,7 +176,8 @@ Ctrl-L set while editing.
 | --------------- | ------------------------------------------------ |
 | arrows          | move the cursor (wraps across lines)             |
 | Ctrl-Left/Right | move by word (Alt-arrows and Alt-b/f work too)   |
-| Home / End      | jump to start / end of line                      |
+| Home / End      | start / end of the line, or of the wrapped
+  screen line it sits on                             |
 | PageUp/Down     | move one viewport up / down                      |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
@@ -207,7 +208,9 @@ Ctrl-L set while editing.
 
 With several buffers open, Ctrl-B lists them with their numbers and
 names (a `+` marks unsaved changes): the arrows wrap around the list,
-Enter takes the one under the selection and ESC stays where you were.
+Enter takes the one under the selection, Ctrl-E closes it without
+leaving the list (unsaved changes ask for three more presses first)
+and ESC stays where you were.
 Alt-, and Alt-. step through them and Alt-1 to Alt-9 jump to one by
 number, while the status bar shows which one is being edited
 ("2/3, Ln 5/120, Col 12"). Ctrl-E closes the buffer being edited:
@@ -235,7 +238,9 @@ does, and closing the last buffer starts a fresh empty one.
   is a run of letters, digits and underscores, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size; long lines
   wrap over several screen lines instead with Ctrl-L, the up and down
-  arrows then stepping over the wrapped lines
+  arrows then stepping over the wrapped lines, and a line taller than
+  the viewport scrolling inside itself; Home and End start and end the
+  screen line the cursor sits on
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
   or down with Ctrl-Up/Down
