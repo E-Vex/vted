@@ -55,6 +55,11 @@ int BuffersDirtyCount(void);
    buffer was closed, 0 when the index is out of range */
 int BuffersClose(int index);
 
+/* the tab width every open buffer lays out with: the settings file's
+   answer at startup, before any buffer has a width of its own. While
+   editing, Ctrl-W sets the width of the buffer being edited only */
+void BuffersSetTabWidth(int width);
+
 /* frees every buffer but the live one, which the editor core frees
    the usual way; runs once, on the way out */
 void BuffersFreeOthers(void);

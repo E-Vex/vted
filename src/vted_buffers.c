@@ -18,7 +18,8 @@
 /*===============================*/
 
 /* what belongs to one open file: its text buffer, where its cursor
-   and viewport were, and its undo history while it waits */
+   and viewport were, the tab width its rows lay out with, and its
+   undo history while it waits */
 typedef struct
 {
     vted_buffer_t text;
@@ -27,6 +28,7 @@ typedef struct
     int row_offset;
     int col_offset;
     int preferred_rx;
+    int tab_width; /* cells between tab stops while it is edited */
     void *history; /* the undo history, NULL while this buffer is live */
 } buffer_slot_t;
 
@@ -89,6 +91,7 @@ static void SuspendCurrent(void)
     slots[current].row_offset = vted_editor_config.row_offset;
     slots[current].col_offset = vted_editor_config.col_offset;
     slots[current].preferred_rx = vted_editor_config.preferred_rx;
+    slots[current].tab_width = vted_editor_config.tab_width;
     slots[current].history = UndoDetach();
 
     /* the buffer moved as a whole: its memory belongs to the slot now,
@@ -106,6 +109,11 @@ static void Install(int index)
     vted_editor_config.row_offset = slots[index].row_offset;
     vted_editor_config.col_offset = slots[index].col_offset;
     vted_editor_config.preferred_rx = slots[index].preferred_rx;
+
+    /* its rows lay out with its own tab width again */
+    vted_editor_config.tab_width = slots[index].tab_width;
+    RowSetTabWidth(vted_editor_config.tab_width);
+
     UndoAttach(slots[index].history);
     slots[index].history = NULL;
 
@@ -130,6 +138,14 @@ static void AdoptLoaded(void)
     slots[slot_count].row_offset = 0;
     slots[slot_count].col_offset = 0;
     slots[slot_count].preferred_rx = -1;
+
+    /* a new buffer starts with the width the live one uses; the very
+       first one, opened before the editor state exists, takes the
+       built-in default */
+    slots[slot_count].tab_width = vted_editor_config.tab_width > 0
+                                      ? vted_editor_config.tab_width
+                                      : VTED_TAB_STOP;
+
     slots[slot_count].history = NULL; /* live: the history sits in the undo module */
     slot_count++;
 
@@ -288,6 +304,24 @@ int BuffersCount(void)
 int BuffersCurrent(void)
 {
     return current;
+}
+
+void BuffersSetTabWidth(int width)
+{
+    int i;
+
+    for (i = 0; i < slot_count; i++)
+    {
+        if (i == current)
+        {
+            continue; /* the live one's width sits in the globals */
+        }
+
+        slots[i].tab_width = width;
+    }
+
+    vted_editor_config.tab_width = width;
+    RowSetTabWidth(width);
 }
 
 const char *BuffersName(int index)

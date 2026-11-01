@@ -44,6 +44,8 @@ static void Begin(void)
     vted_editor_config.cursor_y = 0;
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
+    vted_editor_config.tab_width = VTED_TAB_STOP;
+    RowSetTabWidth(VTED_TAB_STOP);
 }
 
 static void TestStartEmpty(void)
@@ -315,6 +317,61 @@ static void TestNamesAndDirtyFlags(void)
     CHECK_INT(BuffersDirty(2), 1);
 }
 
+static void TestEachBufferKeepsItsOwnTabWidth(void)
+{
+    Begin();
+    WriteFile(first_path, "a\tb\n");
+    WriteFile(second_path, "c\td\n");
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+
+    /* a width set while a buffer is edited is its own */
+    vted_editor_config.tab_width = 4;
+    RowSetTabWidth(4);
+
+    CHECK_INT(BuffersSwitch(0), 1);
+    CHECK_INT(vted_editor_config.tab_width, 8); /* the first one kept the default */
+    CHECK_INT(RowCharWidth(&vted_buffer.rows[0], 1, 1), 7); /* its tab stops at 8 */
+
+    CHECK_INT(BuffersSwitch(1), 1);
+    CHECK_INT(vted_editor_config.tab_width, 4);
+    CHECK_INT(RowCharWidth(&vted_buffer.rows[0], 1, 1), 3); /* this one's at 4 */
+
+    /* a buffer opened later starts with the width the live one uses */
+    {
+        FILE *stream = fmemopen((char *)"piped\n", 6, "r");
+
+        BuffersOpenStream(stream);
+        fclose(stream);
+    }
+    CHECK_INT(vted_editor_config.tab_width, 4);
+
+    CHECK_INT(BuffersSwitch(0), 1);
+    CHECK_INT(vted_editor_config.tab_width, 8);
+}
+
+static void TestTheSettingsWidthReachesEveryBuffer(void)
+{
+    Begin();
+    WriteFile(first_path, "one\n");
+    WriteFile(second_path, "two\n");
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+
+    /* the way startup applies the settings file: every buffer open
+       at that point takes the width */
+    BuffersSetTabWidth(4);
+
+    CHECK_INT(BuffersCurrent(), 1);
+    CHECK_INT(vted_editor_config.tab_width, 4);
+
+    CHECK_INT(BuffersSwitch(0), 1);
+    CHECK_INT(vted_editor_config.tab_width, 4);
+
+    CHECK_INT(BuffersSwitch(1), 1);
+    CHECK_INT(vted_editor_config.tab_width, 4);
+}
+
 static void TestCloseBounds(void)
 {
     Begin();
@@ -447,6 +504,8 @@ int main(void)
     TestSwitchBounds();
     TestDirtyCountsAcrossBuffers();
     TestNamesAndDirtyFlags();
+    TestEachBufferKeepsItsOwnTabWidth();
+    TestTheSettingsWidthReachesEveryBuffer();
     TestCloseBounds();
     TestCloseRemovesAWaitingBuffer();
     TestCloseSwitchesToTheNeighbor();

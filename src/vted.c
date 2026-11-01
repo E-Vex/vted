@@ -157,12 +157,14 @@ static void EditorGoToLine(void)
    them */
 static void ApplySettings(const vted_settings_t *settings)
 {
-    vted_editor_config.tab_width = settings->tab_width;
     vted_editor_config.insert_spaces = settings->insert_spaces;
     vted_editor_config.show_line_numbers = settings->show_line_numbers;
     vted_editor_config.wrap = settings->wrap;
 
-    RowSetTabWidth(settings->tab_width);
+    /* the width reaches every buffer open at startup, so they all
+       begin with it; Ctrl-W later sets the live one's alone */
+    BuffersSetTabWidth(settings->tab_width);
+
     ScreenMarkAllDirty();
 }
 
