@@ -12,6 +12,7 @@
 #include "vted_row.h"
 #include "vted_syntax.h"
 #include "vted_utf8.h"
+#include "vted_buffers.h"
 /*===============================*/
 
 vted_editor_Config_t vted_editor_config;
@@ -709,15 +710,38 @@ static void DrawStatusBar(append_buffer_t *ab, int *at)
     /* right side, when text exists: the line out of the total and the
        display column the cursor is drawn at ("Ln 5/120, Col 12"). The
        column counts cells, not bytes, so after a tab or a wide
-       character it matches what the screen shows */
+       character it matches what the screen shows. With several
+       buffers open, which one of them this is comes first, as
+       "2/3, Ln 5/120, Col 12" */
     char right_status[64];
     int right_len = 0;
 
     if (vted_buffer.num_rows > 0)
     {
-        right_len = snprintf(right_status, sizeof(right_status), "Ln %d/%d, Col %d",
-                             vted_editor_config.cursor_y + 1, vted_buffer.num_rows,
-                             vted_editor_config.cursor_rx + 1);
+        int buffers = BuffersCount();
+        int prefix = 0;
+
+        if (buffers > 1)
+        {
+            prefix = snprintf(right_status, sizeof(right_status), "%d/%d, ",
+                              BuffersCurrent() + 1, buffers);
+
+            if (prefix < 0)
+            {
+                prefix = 0;
+            }
+        }
+
+        right_len = snprintf(right_status + prefix,
+                              sizeof(right_status) - (size_t)prefix,
+                              "Ln %d/%d, Col %d",
+                              vted_editor_config.cursor_y + 1, vted_buffer.num_rows,
+                              vted_editor_config.cursor_rx + 1);
+
+        if (right_len >= 0)
+        {
+            right_len += prefix;
+        }
 
         /* beside the file info the long form may not fit: fall back to
            the line alone */
