@@ -872,6 +872,17 @@ static int StartsWith(const vted_row_t *row, int at, const char *prefix)
     return (size_t)(row->size - at) >= length && memcmp(&row->chars[at], prefix, length) == 0;
 }
 
+/* is the first non-blank byte at or after at the given one */
+static int FollowedBy(const vted_row_t *row, int at, int what)
+{
+    while (at < row->size && (row->chars[at] == ' ' || row->chars[at] == '\t'))
+    {
+        at++;
+    }
+
+    return at < row->size && row->chars[at] == what;
+}
+
 /* does a line comment open at byte at: either spelling, and under
    the blank rule the language asks for */
 static int CommentOpensHere(const vted_language_t *language, const vted_row_t *row, int at)
@@ -1006,6 +1017,8 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
     int prev_separator = 1;
     int quote = 0;
     int i = 0;
+    int after_type = 0; /* the row could be in a return type: the next
+                            word may be the name one declares */
 
     memset(hl, HlNormal, (size_t)row->size);
 
@@ -1094,6 +1107,7 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
         {
             quote = c;
             hl[i++] = HlString;
+            after_type = 0;
             continue;
         }
 
@@ -1101,6 +1115,7 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
         {
             i = ScanDirective(row, i, hl);
             prev_separator = 1;
+            after_type = 0;
             continue;
         }
 
@@ -1119,6 +1134,7 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
             Mark(hl, i, end, HlNumber);
             i = end;
             prev_separator = 0;
+            after_type = 0;
             continue;
         }
 
@@ -1150,14 +1166,40 @@ static int HighlightRow(const vted_language_t *language, const vted_row_t *row,
             {
                 found = HlNumber;
             }
+            else if (language->function_names && after_type &&
+                     FollowedBy(row, end, '('))
+            {
+                /* the word is the name a function is defined by: what
+                   stands before it on the row reads as a return type,
+                   and the parameter list opens after it */
+                found = HlFunction;
+            }
 
             Mark(hl, i, end, found);
+
+            /* a word of the type lists can carry a return type on; a
+               word in no list can only when it ends in a star, the way
+               a type the tables do not know declares a pointer, and
+               either has to stand where a statement could begin: at
+               the row's first word or inside a type run */
+            after_type = found == HlType ||
+                         (found == HlNormal && FollowedBy(row, end, '*') &&
+                          (after_type || i == first_word));
+
             i = end;
             prev_separator = 0;
             continue;
         }
 
         prev_separator = IsSeparator(c);
+
+        /* a star or an ampersand can stand between a return type and
+           the name it declares, and so can a blank; every other
+           separator ends the declaration */
+        if (c != '*' && c != '&' && c != ' ' && c != '\t')
+        {
+            after_type = 0;
+        }
         i++;
     }
 

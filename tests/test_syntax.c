@@ -166,6 +166,70 @@ static void TestKeywordsAndTypes(void)
     CHECK_STR(Classes(0), "nnnnddddn");
 }
 
+static void TestFunctionNames(void)
+{
+    /* a definition: the type run before the name, the open after it */
+    SyntaxSelectForFile("a.c");
+
+    LoadOne("int main(void) {");
+    CHECK_STR(Classes(0), "tttnffffnttttnnn");
+
+    /* a prototype colors the same way */
+    LoadOne("int foo(void);");
+    CHECK_STR(Classes(0), "tttnfffnttttnn");
+
+    /* a type the tables do not know, declaring a pointer */
+    LoadOne("static erow *FindRow(int at) {");
+    CHECK_STR(Classes(0), "ttttttnnnnnnnfffffffntttnnnnnn");
+
+    /* calls stay plain: no type stands before the name, and the star
+       of a multiplication does not make one */
+    LoadOne("printf(\"x\");");
+    CHECK_STR(Classes(0), "nnnnnnnsssnn");
+
+    LoadOne("x = b * c(n);");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnn");
+
+    LoadOne("if (foo(x)) return;");
+    CHECK_STR(Classes(0), "kknnnnnnnnnnkkkkkkn");
+
+    /* a macro is not a definition */
+    LoadOne("#define MAX(a, b) f(x)");
+    CHECK_STR(Classes(0), "pppppppnnnnnnnnnnnnnnn");
+
+    /* a star-declared variable is not a function: the open never comes */
+    LoadOne("static erow *row;");
+    CHECK_STR(Classes(0), "ttttttnnnnnnnnnnn");
+
+    /* a comment between the type and the name keeps the run open */
+    LoadOne("int /* plain */ foo(void) {");
+    CHECK_STR(Classes(0), "tttncccccccccccnfffnttttnnn");
+
+    /* a reference return type, and a call through a member */
+    SyntaxSelectForFile("shape.cpp");
+
+    LoadOne("const string& Name() {");
+    CHECK_STR(Classes(0), "tttttnttttttnnffffnnnn");
+
+    LoadOne("obj.Method(x);");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnnn");
+
+    /* Java: void before the name is enough */
+    SyntaxSelectForFile("Main.java");
+
+    LoadOne("public void run() {");
+    CHECK_STR(Classes(0), "kkkkkknttttnfffnnnn");
+
+    /* C#: static is a keyword there, and a call through a class */
+    SyntaxSelectForFile("Program.cs");
+
+    LoadOne("static void Main() {");
+    CHECK_STR(Classes(0), "kkkkkknttttnffffnnnn");
+
+    LoadOne("Console.WriteLine(\"x\");");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnnnnnnnsssnn");
+}
+
 static void TestNumbers(void)
 {
     SyntaxSelectForFile("a.c");
@@ -1137,6 +1201,7 @@ int main(void)
     TestSelectingTheLanguage();
     TestPlainTextIsLeftAlone();
     TestKeywordsAndTypes();
+    TestFunctionNames();
     TestNumbers();
     TestLineComment();
     TestStrings();
