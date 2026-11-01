@@ -16,6 +16,8 @@ typedef struct
 
   int row_offset; /* first buffer row visible at the top of the viewport */
   int col_offset; /* first display cell column visible at the left edge */
+  int line_offset; /* wrapped lines of the top row the viewport skipped: a
+                      row taller than the viewport is entered mid-row */
 
   int match_row; /* row of the highlighted search match, -1 when none */
   int match_col; /* column where the highlighted match starts */
@@ -38,6 +40,10 @@ void EnterToAlternateScreenBuffer(void);
 void ExitAlternateScreenBuffer(void);
 
 void MoveCursor(int key);
+
+/* scrolls the viewport so the cursor is on screen: whole rows, and
+   with wrapping on also the lines of a row taller than the viewport */
+void UpdateScroll(void);
 
 void SetStatusMessage(const char *format, ...);
 

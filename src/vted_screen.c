@@ -92,6 +92,10 @@ static int screen_active = 0;
 static int last_row_offset = -1;
 static int last_col_offset = -1;
 
+/* the line the top row was entered at the last frame; -1 before the
+   first frame */
+static int last_line_offset = -1;
+
 /* the line the cursor stood on when the last frame was drawn: the
    gutter draws that row's number bold, so a move repaints both rows;
    -1 before the first frame */
@@ -245,12 +249,15 @@ static int RowLines(int buffer_row)
     return RowWrapCount(&vted_buffer.rows[buffer_row], vted_editor_config.text_cols);
 }
 
-static void UpdateScroll(void)
+void UpdateScroll(void)
 {
     /* keep the cursor inside the viewport by moving the offsets;
        the cursor itself keeps absolute buffer coordinates. Rows are
        scrolled in display cells, so the byte index of the cursor is
-       first converted to the cell column it is drawn at */
+       first converted to the cell column it is drawn at. A wrapped
+       viewport may also start inside its top row, when that row is
+       taller than the whole viewport: the lines it skipped are the
+       line offset */
 
     vted_editor_config.cursor_rx = 0;
 
@@ -266,33 +273,73 @@ static void UpdateScroll(void)
            flows from the left edge */
         vted_editor_config.col_offset = 0;
 
+        /* the cursor's own screen line inside its row; the position
+           past the last glyph rests on the row's last line, the way
+           the renderer draws it */
+        int cursor_line = 0;
+
+        if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+        {
+            int cursor_col;
+            int lines = RowLines(vted_editor_config.cursor_y);
+
+            RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
+                           vted_editor_config.cursor_x,
+                           vted_editor_config.text_cols,
+                           &cursor_line, &cursor_col);
+
+            if (cursor_line >= lines)
+            {
+                cursor_line = lines - 1;
+            }
+        }
+
+        /* a stale line offset (the row shrank under an edit, or the
+           viewport arrived from another buffer) would skip lines
+           that are not there */
+        if (vted_editor_config.row_offset < vted_buffer.num_rows &&
+            vted_editor_config.line_offset >= RowLines(vted_editor_config.row_offset))
+        {
+            vted_editor_config.line_offset = 0;
+        }
+
+        /* the cursor above the viewport puts its row on top, and what
+           follows then keeps the cursor's own line in view, also when
+           that row is taller than the viewport */
         if (vted_editor_config.cursor_y < vted_editor_config.row_offset)
         {
             vted_editor_config.row_offset = vted_editor_config.cursor_y;
+            vted_editor_config.line_offset = 0;
+        }
+
+        /* the cursor inside the top row: keep its own line in view,
+           also when the row is taller than the whole viewport and
+           the top sits inside it */
+        if (vted_editor_config.cursor_y == vted_editor_config.row_offset &&
+            vted_editor_config.row_offset < vted_buffer.num_rows)
+        {
+            if (cursor_line < vted_editor_config.line_offset)
+            {
+                vted_editor_config.line_offset = cursor_line;
+            }
+            else if (cursor_line >
+                     vted_editor_config.line_offset + vted_editor_config.screen_rows - 1)
+            {
+                vted_editor_config.line_offset =
+                    cursor_line - (vted_editor_config.screen_rows - 1);
+            }
+
             return;
         }
 
-        /* the screen lines the rows from the top of the viewport down
-           to the cursor take: walk up from the cursor until the
-           viewport would overflow, and start it below the row that
-           does not fit. A row that was already visible leaves the
-           offset alone */
+        /* walk up from the cursor: the rows that fit above it stay,
+           the one that does not becomes the top. A cursor deep inside
+           a row taller than the viewport makes that row the top,
+           scrolled down to the cursor's line, so the viewport can
+           start in the middle of a row */
         {
-            int cursor_line = 0;
-            int taken;
+            int taken = cursor_line;
             int row;
-
-            if (vted_editor_config.cursor_y < vted_buffer.num_rows)
-            {
-                int cursor_col;
-
-                RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
-                               vted_editor_config.cursor_x,
-                               vted_editor_config.text_cols,
-                               &cursor_line, &cursor_col);
-            }
-
-            taken = cursor_line;
 
             for (row = vted_editor_config.cursor_y - 1;
                  row >= vted_editor_config.row_offset;
@@ -300,9 +347,26 @@ static void UpdateScroll(void)
             {
                 int lines = RowLines(row);
 
+                if (row == vted_editor_config.row_offset)
+                {
+                    /* the top row enters past the lines it skipped */
+                    lines -= vted_editor_config.line_offset;
+                }
+
                 if (taken + lines > vted_editor_config.screen_rows - 1)
                 {
-                    vted_editor_config.row_offset = row + 1;
+                    if (row + 1 == vted_editor_config.cursor_y &&
+                        cursor_line > vted_editor_config.screen_rows - 1)
+                    {
+                        vted_editor_config.row_offset = vted_editor_config.cursor_y;
+                        vted_editor_config.line_offset =
+                            cursor_line - (vted_editor_config.screen_rows - 1);
+                    }
+                    else
+                    {
+                        vted_editor_config.row_offset = row + 1;
+                        vted_editor_config.line_offset = 0;
+                    }
                     break;
                 }
 
@@ -769,22 +833,36 @@ static void DrawRows(append_buffer_t *ab, int *at)
         if (dirty_rows[buffer_row] == 0)
         {
             /* a clean row is not painted, but the screen lines it
-               takes still scroll by */
-            screen_row += RowLines(buffer_row);
+               takes still scroll by — fewer for the top row, whose
+               first lines the viewport skipped */
+            int skipped = buffer_row == vted_editor_config.row_offset
+                              ? vted_editor_config.line_offset
+                              : 0;
+
+            screen_row += RowLines(buffer_row) - skipped;
             buffer_row++;
             continue;
         }
 
         /* the row paints on one screen line, or on as many as it
-           wraps into */
+           wraps into; the top one paints from the line the viewport
+           starts at, every row below from its first */
         {
             vted_row_t *text_row = &vted_buffer.rows[buffer_row];
             int has_match = buffer_row == vted_editor_config.match_row &&
                             vted_editor_config.match_len > 0;
             int lines = RowLines(buffer_row);
+            int first_line = buffer_row == vted_editor_config.row_offset
+                                 ? vted_editor_config.line_offset
+                                 : 0;
             int line;
 
-            for (line = 0; line < lines && screen_row < vted_editor_config.screen_rows; line++)
+            if (first_line > lines)
+            {
+                first_line = lines; /* nothing of the row is on screen */
+            }
+
+            for (line = first_line; line < lines && screen_row < vted_editor_config.screen_rows; line++)
             {
                 /* clean rows skipped above leave the terminal cursor
                    wherever the last drawn row ended: this line is
@@ -1371,6 +1449,7 @@ void ScreenFree(void)
     screen_active = 0;
     last_row_offset = -1;
     last_col_offset = -1;
+    last_line_offset = -1;
     last_cursor_row = -1;
     last_gutter_width = -1;
 
@@ -1419,12 +1498,15 @@ void RefreshScreen(void)
 
     /* scrolling moved the viewport over the buffer: what each screen
        line shows changed even though no buffer row was edited, so
-       everything on screen repaints */
+       everything on screen repaints. With wrapping on that includes
+       the viewport starting on a different line of its top row */
     if (vted_editor_config.row_offset != last_row_offset ||
-        vted_editor_config.col_offset != last_col_offset)
+        vted_editor_config.col_offset != last_col_offset ||
+        vted_editor_config.line_offset != last_line_offset)
     {
         last_row_offset = vted_editor_config.row_offset;
         last_col_offset = vted_editor_config.col_offset;
+        last_line_offset = vted_editor_config.line_offset;
         ScreenMarkAllDirty();
     }
 
@@ -1475,6 +1557,12 @@ void RefreshScreen(void)
                  row++)
             {
                 above += RowLines(row);
+
+                if (row == vted_editor_config.row_offset)
+                {
+                    /* the top row enters past the lines it skipped */
+                    above -= vted_editor_config.line_offset;
+                }
             }
 
             if (vted_editor_config.cursor_y < vted_buffer.num_rows)
@@ -1497,6 +1585,13 @@ void RefreshScreen(void)
             }
 
             cursor_screen_row = above + cursor_line;
+
+            /* the cursor's own row starts at its skipped lines when
+               it is the top one */
+            if (vted_editor_config.cursor_y == vted_editor_config.row_offset)
+            {
+                cursor_screen_row -= vted_editor_config.line_offset;
+            }
 
             /* a row with more lines than the whole viewport cannot
                show them all: the cursor waits at the bottom edge */
@@ -1543,6 +1638,7 @@ void InitVtedEditor(void)
     vted_editor_config.preferred_rx = -1;
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
+    vted_editor_config.line_offset = 0;
 
     /* line numbers are on until the person turns them off */
     vted_editor_config.show_line_numbers = 1;

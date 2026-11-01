@@ -1275,6 +1275,7 @@ int main(int argc, char *argv[])
                 /* the whole viewport lays out differently now, and a
                    wrapped one never scrolls sideways */
                 vted_editor_config.col_offset = 0;
+                vted_editor_config.line_offset = 0;
                 ScreenMarkAllDirty();
 
                 SetStatusMessage("Wrap %s",

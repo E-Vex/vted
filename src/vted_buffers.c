@@ -110,6 +110,10 @@ static void Install(int index)
     vted_editor_config.col_offset = slots[index].col_offset;
     vted_editor_config.preferred_rx = slots[index].preferred_rx;
 
+    /* the line offset is not kept per buffer: the restored viewport
+     re-anchors itself around its cursor on the next scroll */
+    vted_editor_config.line_offset = 0;
+
     /* its rows lay out with its own tab width again */
     vted_editor_config.tab_width = slots[index].tab_width;
     RowSetTabWidth(vted_editor_config.tab_width);
@@ -156,6 +160,7 @@ static void AdoptLoaded(void)
     vted_editor_config.cursor_y = 0;
     vted_editor_config.row_offset = 0;
     vted_editor_config.col_offset = 0;
+    vted_editor_config.line_offset = 0;
     vted_editor_config.preferred_rx = -1;
 
     /* the file's name tells which language its text is in */
