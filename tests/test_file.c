@@ -302,6 +302,83 @@ static void TestFailedSaveKeepsTheOriginal(void)
     rmdir(dir);
 }
 
+/* loads content into the buffer the way "vted -" reads it: from a
+   stream, not from a file on disk */
+static void LoadStream(const char *content, int len)
+{
+    FILE *stream = fmemopen((void *)content, (size_t)len, "r");
+
+    if (stream == NULL || ReadStream(stream) == -1)
+    {
+        fprintf(stderr, "  ReadStream failed\n");
+        _exit(2);
+    }
+
+    fclose(stream);
+}
+
+static void TestStreamUnixEndings(void)
+{
+    LoadStream("one\ntwo\n", 8);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_LF);
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_LF);
+    CHECK_INT(vted_buffer.final_newline, 1);
+}
+
+static void TestStreamWindowsEndings(void)
+{
+    LoadStream("one\r\ntwo\r\n", 10);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_INT(vted_buffer.rows[0].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.final_newline, 1);
+}
+
+static void TestStreamNoTrailingNewline(void)
+{
+    LoadStream("one\ntwo", 7);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_INT(vted_buffer.final_newline, 0);
+    /* the unterminated line takes the ending of the line above */
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_LF);
+}
+
+static void TestStreamEmpty(void)
+{
+    LoadStream("", 0);
+    CHECK_INT(vted_buffer.num_rows, 0);
+    CHECK_INT(vted_buffer.final_newline, 1);
+}
+
+static void TestStreamKeepsNulBytes(void)
+{
+    LoadStream("a\0b\n", 4);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_INT(vted_buffer.rows[0].size, 3);
+    CHECK_INT(vted_buffer.rows[0].chars[0], 'a');
+    CHECK_INT(vted_buffer.rows[0].chars[1], '\0');
+    CHECK_INT(vted_buffer.rows[0].chars[2], 'b');
+}
+
+static void TestStreamLeavesTheBufferUnnamed(void)
+{
+    LoadStream("text\n", 5);
+    CHECK(vted_buffer.filename == NULL);
+    CHECK_INT(vted_buffer.dirty, 0);
+}
+
+static void TestStreamReplacesWhatWasThere(void)
+{
+    Load("old\n", 4);
+    LoadStream("new\n", 4);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "new");
+    CHECK(vted_buffer.filename == NULL);
+}
+
 int main(void)
 {
     int fd = mkstemp(test_path);
@@ -327,6 +404,13 @@ int main(void)
     TestSaveKeepsTheMode();
     TestSaveNewFileGetsTheUsualMode();
     TestFailedSaveKeepsTheOriginal();
+    TestStreamUnixEndings();
+    TestStreamWindowsEndings();
+    TestStreamNoTrailingNewline();
+    TestStreamEmpty();
+    TestStreamKeepsNulBytes();
+    TestStreamLeavesTheBufferUnnamed();
+    TestStreamReplacesWhatWasThere();
 
     unlink(test_path);
 

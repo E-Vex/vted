@@ -15,6 +15,75 @@
 #include "vted_file.h"
 /*===============================*/
 
+/* splits the whole content into rows of the buffer, one row per
+   line, and records how the last line ended; the buffer is expected
+   to be empty. -1 when memory runs out */
+static int SplitBufferContent(const char *content, long size)
+{
+    int terminated = 1; /* did the last line end with a terminator */
+    long pos = 0;
+
+    while (pos < size)
+    {
+        long end = pos;
+
+        while (end < size && content[end] != '\n')
+        {
+            end++;
+        }
+
+        /* take exactly one terminator off the end: \n, \r\n, or a
+           lone \r on the final line. A \r anywhere else stays in
+           the row and shows as ^M instead of being silently dropped */
+        int line_len = (int)(end - pos);
+        int eol = VTED_EOL_LF;
+
+        if (end < size)
+        {
+            terminated = 1;
+
+            if (line_len > 0 && content[end - 1] == '\r')
+            {
+                line_len--;
+                eol = VTED_EOL_CRLF;
+            }
+
+            end++; /* skip the \n itself */
+        }
+        else
+        {
+            terminated = 0;
+
+            if (line_len > 0 && content[end - 1] == '\r')
+            {
+                line_len--;
+                eol = VTED_EOL_CR;
+                terminated = 1;
+            }
+        }
+
+        if (AppendRow(content + pos, line_len, eol) == -1)
+        {
+            return -1;
+        }
+
+        pos = end;
+    }
+
+    vted_buffer.final_newline = terminated;
+
+    /* the unterminated last line has no ending of its own: it takes
+       the one above it, so splitting it later writes the file's own
+       convention rather than Unix's */
+    if (!terminated && vted_buffer.num_rows > 1)
+    {
+        vted_buffer.rows[vted_buffer.num_rows - 1].eol =
+            vted_buffer.rows[vted_buffer.num_rows - 2].eol;
+    }
+
+    return 0;
+}
+
 int OpenFile(const char *filename)
 {
     /* start from an empty buffer whatever it held before */
@@ -82,71 +151,95 @@ int OpenFile(const char *filename)
 
     content[file_size] = '\0';
 
-    int terminated = 1; /* did the last line end with a terminator */
-    long pos = 0;
-
-    while (pos < file_size)
+    if (SplitBufferContent(content, file_size) == -1)
     {
-        long end = pos;
-
-        while (end < file_size && content[end] != '\n')
-        {
-            end++;
-        }
-
-        /* take exactly one terminator off the end: \n, \r\n, or a
-           lone \r on the final line. A \r anywhere else stays in
-           the row and shows as ^M instead of being silently dropped */
-        int line_len = (int)(end - pos);
-        int eol = VTED_EOL_LF;
-
-        if (end < file_size)
-        {
-            terminated = 1;
-
-            if (line_len > 0 && content[end - 1] == '\r')
-            {
-                line_len--;
-                eol = VTED_EOL_CRLF;
-            }
-
-            end++; /* skip the \n itself */
-        }
-        else
-        {
-            terminated = 0;
-
-            if (line_len > 0 && content[end - 1] == '\r')
-            {
-                line_len--;
-                eol = VTED_EOL_CR;
-                terminated = 1;
-            }
-        }
-
-        if (AppendRow(content + pos, line_len, eol) == -1)
-        {
-            free(content);
-            return -1;
-        }
-
-        pos = end;
+        free(content);
+        return -1;
     }
 
     free(content);
 
-    vted_buffer.final_newline = terminated;
+    return 0;
+}
 
-    /* the unterminated last line has no ending of its own: it takes
-       the one above it, so splitting it later writes the file's own
-       convention rather than Unix's */
-    if (!terminated && vted_buffer.num_rows > 1)
+/* reads a whole stream into one growing buffer: a stream has no
+   size to ask for the way a file has */
+static int ReadAll(FILE *stream, char **out_content, long *out_size)
+{
+    long capacity = 1 << 16;
+    long size = 0;
+    char *content = malloc((size_t)capacity);
+
+    if (content == NULL)
     {
-        vted_buffer.rows[vted_buffer.num_rows - 1].eol =
-            vted_buffer.rows[vted_buffer.num_rows - 2].eol;
+        return -1;
     }
 
+    for (;;)
+    {
+        size_t got = fread(content + size, 1, (size_t)(capacity - size), stream);
+
+        size += (long)got;
+
+        if (got == 0)
+        {
+            /* nothing more came: the end of the stream, or a read
+               error worth failing over */
+            if (ferror(stream))
+            {
+                free(content);
+                return -1;
+            }
+            break;
+        }
+
+        if (size == capacity)
+        {
+            long bigger = capacity * 2;
+
+            if (bigger <= capacity)
+            {
+                free(content);
+                return -1; /* long cannot hold a bigger buffer */
+            }
+
+            char *grown = realloc(content, (size_t)bigger);
+
+            if (grown == NULL)
+            {
+                free(content);
+                return -1;
+            }
+
+            content = grown;
+            capacity = bigger;
+        }
+    }
+
+    *out_content = content;
+    *out_size = size;
     return 0;
+}
+
+int ReadStream(FILE *stream)
+{
+    /* start from an empty buffer whatever it held before */
+    FreeBuffer();
+
+    char *content;
+    long size;
+
+    if (ReadAll(stream, &content, &size) == -1)
+    {
+        return -1;
+    }
+
+    int split = SplitBufferContent(content, size);
+
+    free(content);
+
+    /* the buffer stays unnamed: saving it asks where it should go */
+    return split;
 }
 
 /* the bytes that terminate a row on save */

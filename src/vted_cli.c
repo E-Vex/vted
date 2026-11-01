@@ -15,14 +15,15 @@
 #endif
 
 static const char *const usage_text =
-    "usage: vted [+LINE] [file]\n"
+    "usage: vted [+LINE] [file | -]\n"
     "\n"
     "Open file in the vex terminal text editor, or start with an\n"
     "empty buffer when no file is given.\n"
     "\n"
     "  -h, --help     print this help and exit\n"
     "  -V, --version  print the version and exit\n"
-    "  +LINE          start the cursor on that line\n";
+    "  +LINE          start the cursor on that line\n"
+    "  -              read the text from standard input\n";
 
 static void HintUsage(void)
 {
@@ -67,6 +68,7 @@ void CliParse(int argc, char *argv[], vted_cli_options_t *options)
     int i;
 
     options->file = NULL;
+    options->read_stdin = 0;
     options->start_line = 0;
     options->want_help = 0;
     options->want_version = 0;
@@ -122,11 +124,19 @@ void CliParse(int argc, char *argv[], vted_cli_options_t *options)
             return;
         }
 
-        /* the first operand is the file to open; further ones keep
-           being ignored the way they always were */
-        if (options->file == NULL)
+        /* the first operand is the file to open; "-" alone in its
+           place means the text comes from standard input. Further
+           operands keep being ignored the way they always were */
+        if (options->file == NULL && !options->read_stdin)
         {
-            options->file = argv[i];
+            if (strcmp(argv[i], "-") == 0)
+            {
+                options->read_stdin = 1;
+            }
+            else
+            {
+                options->file = argv[i];
+            }
         }
     }
 }

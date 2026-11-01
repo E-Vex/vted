@@ -606,6 +606,17 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* "-" as the file reads the text from standard input; a terminal
+       there has no text coming, so it is refused instead of hung on.
+       The tty fallback in the terminal module keeps the keys flowing
+       from /dev/tty while the pipe is drained */
+    if (options.read_stdin && isatty(STDIN_FILENO))
+    {
+        fprintf(stderr, "vted: -: standard input is a terminal\n");
+        fputs("Try 'vted --help' for more information.\n", stderr);
+        return 1;
+    }
+
     SaveTerminalCurrentSettings();
     EnableTerminalRawMode();
     SetupExitSignals();
@@ -618,7 +629,17 @@ int main(int argc, char *argv[])
        released even when a fatal error ends the editor early */
     atexit(FreeEditorState);
 
-    if (options.file != NULL)
+    if (options.read_stdin)
+    {
+        /* the pipe is read before the terminal goes raw: nothing of
+           the interface depends on it, and a huge pipe is drained in
+           one go the way a file is */
+        if (ReadStream(stdin) == -1)
+        {
+            KillApp("ReadStream");
+        }
+    }
+    else if (options.file != NULL)
     {
         if (OpenFile(options.file) == -1)
         {

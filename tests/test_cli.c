@@ -40,13 +40,32 @@ static void TestFileOperand(void)
     CHECK_INT(options.error, 0);
 }
 
-static void TestDashAloneIsAFile(void)
+static void TestDashAloneMeansStandardInput(void)
 {
     char *argv[] = {"vted", "-", NULL};
     vted_cli_options_t options = ParseArgs(argv);
 
-    CHECK_STR(options.file, "-");
+    CHECK_INT(options.read_stdin, 1);
+    CHECK(options.file == NULL);
     CHECK_INT(options.error, 0);
+}
+
+static void TestFileBeforeADashWins(void)
+{
+    char *argv[] = {"vted", "file.c", "-", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.read_stdin, 0);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestNoStdinByDefault(void)
+{
+    char *argv[] = {"vted", "file.c", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.read_stdin, 0);
 }
 
 static void TestOnlyTheFirstOperandCounts(void)
@@ -254,7 +273,9 @@ int main(void)
 {
     TestNoArguments();
     TestFileOperand();
-    TestDashAloneIsAFile();
+    TestDashAloneMeansStandardInput();
+    TestFileBeforeADashWins();
+    TestNoStdinByDefault();
     TestOnlyTheFirstOperandCounts();
     TestUnknownLongOptionIsRejected();
     TestUnknownShortOptionIsRejected();

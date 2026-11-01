@@ -18,6 +18,7 @@
 typedef struct
 {
     const char *file; /* the operand naming the file to open, NULL when absent */
+    int read_stdin;   /* the operand "-": the text comes from standard input */
     int start_line;   /* the +LINE operand, 1-based; 0 when absent */
     int want_help;    /* -h or --help was given: print the usage and leave */
     int want_version; /* -V or --version was given: print the version and leave */
