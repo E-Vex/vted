@@ -1055,6 +1055,83 @@ static void ClampCursorToRow(void)
     vted_editor_config.cursor_x = RowRxToCx(row, target);
 }
 
+/* moves the cursor one screen line through the wrapped layout: the
+   lines a row flows over count as lines of their own. The cursor aims
+   for the column it started from within the line, the way it aims for
+   the display column across rows */
+static void MoveDisplayLine(int direction)
+{
+    int cols = vted_editor_config.text_cols;
+    int preferred = vted_editor_config.preferred_rx > 0
+                        ? vted_editor_config.preferred_rx % cols
+                        : 0;
+
+    if (direction > 0)
+    {
+        if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+        {
+            return; /* the phantom row past the end: nothing below it */
+        }
+
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+        int cursor_line;
+        int cursor_col;
+
+        RowCxToWrapped(row, vted_editor_config.cursor_x, cols,
+                       &cursor_line, &cursor_col);
+
+        if (cursor_line + 1 < RowLines(vted_editor_config.cursor_y))
+        {
+            /* the next line of this row */
+            vted_editor_config.cursor_x = RowRxToCx(row,
+                                                    (cursor_line + 1) * cols + preferred);
+            return;
+        }
+
+        /* past the row's last line: the next row's first */
+        vted_editor_config.cursor_y++;
+
+        if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+        {
+            vted_editor_config.cursor_x =
+                RowRxToCx(&vted_buffer.rows[vted_editor_config.cursor_y], preferred);
+        }
+        else
+        {
+            vted_editor_config.cursor_x = 0; /* the phantom row */
+        }
+    }
+    else
+    {
+        if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+        {
+            vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+            int cursor_line;
+            int cursor_col;
+
+            RowCxToWrapped(row, vted_editor_config.cursor_x, cols,
+                           &cursor_line, &cursor_col);
+
+            if (cursor_line > 0)
+            {
+                /* the line above within this row */
+                vted_editor_config.cursor_x = RowRxToCx(row,
+                                                        (cursor_line - 1) * cols + preferred);
+                return;
+            }
+        }
+
+        /* the row's first line: the last line of the row above */
+        if (vted_editor_config.cursor_y > 0)
+        {
+            vted_editor_config.cursor_y--;
+            vted_editor_config.cursor_x =
+                RowRxToCx(&vted_buffer.rows[vted_editor_config.cursor_y],
+                          (RowLines(vted_editor_config.cursor_y) - 1) * cols + preferred);
+        }
+    }
+}
+
 void MoveCursor(int key)
 {
     /* moving the cursor logically, bounded by the text in the buffer.
@@ -1167,7 +1244,12 @@ void MoveCursor(int key)
         break;
 
     case ArrowUp:
-        if (vted_editor_config.cursor_y > 0)
+        if (vted_editor_config.wrap != 0)
+        {
+            /* the lines a row wraps into are lines of their own */
+            MoveDisplayLine(-1);
+        }
+        else if (vted_editor_config.cursor_y > 0)
         {
             vted_editor_config.cursor_y--;
             ClampCursorToRow();
@@ -1175,7 +1257,11 @@ void MoveCursor(int key)
         break;
 
     case ArrowDown:
-        if (vted_editor_config.cursor_y < vted_buffer.num_rows)
+        if (vted_editor_config.wrap != 0)
+        {
+            MoveDisplayLine(1);
+        }
+        else if (vted_editor_config.cursor_y < vted_buffer.num_rows)
         {
             vted_editor_config.cursor_y++;
             ClampCursorToRow();
