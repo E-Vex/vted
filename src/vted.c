@@ -1144,19 +1144,6 @@ int main(int argc, char *argv[])
                 SetStatusMessage("Tab inserts %s",
                                  vted_editor_config.insert_spaces ? "spaces" : "a tab");
             }
-            else if (c_in == MoveLineUp || c_in == MoveLineDown)
-            {
-                /* Ctrl-Up / Ctrl-Down move the current line and ride
-                   the cursor along with it */
-                if (c_in == MoveLineUp)
-                {
-                    EditorMoveLineUp();
-                }
-                else
-                {
-                    EditorMoveLineDown();
-                }
-            }
             else if (c_in == CTRL_KEY('k') || c_in == CTRL_KEY('K'))
             {
                 /* Ctrl-K deletes the whole line under the cursor */
