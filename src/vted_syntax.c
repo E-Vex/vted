@@ -45,6 +45,9 @@ typedef struct
     const vted_line_rule_t *line_rules; /* prefixes that paint a whole line one
                                            class (a diff's markers), the
                                            first match wins, or NULL */
+    int function_names;                /* 1: the word between a return type and
+                                           the parameter list colors at the
+                                           sites a function is defined at */
 } vted_language_t;
 
 /*----------------------------------------------------------
@@ -71,7 +74,7 @@ static const char *const c_constants[] = {
 
 static const vted_language_t language_c = {
     "C", c_extensions, c_keywords, c_types, c_constants,
-    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL, 1};
 
 /*----------------------------------------------------------
 | C++
@@ -107,7 +110,7 @@ static const char *const cpp_constants[] = {
 
 static const vted_language_t language_cpp = {
     "C++", cpp_extensions, cpp_keywords, cpp_types, cpp_constants,
-    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL, 1};
 
 /*----------------------------------------------------------
 | Python
@@ -133,7 +136,7 @@ static const char *const python_constants[] = {
 
 static const vted_language_t language_python = {
     "Python", python_extensions, python_keywords, python_types,
-    python_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL};
+    python_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Shell
@@ -156,7 +159,7 @@ static const char *const shell_constants[] = {
 
 static const vted_language_t language_shell = {
     "Shell", shell_extensions, shell_keywords, shell_types,
-    shell_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL};
+    shell_constants, "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Makefile
@@ -182,7 +185,7 @@ static const char *const makefile_types[] = {
 
 static const vted_language_t language_makefile = {
     "Makefile", makefile_names, makefile_keywords, makefile_types, NULL,
-    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL};
+    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | JavaScript
@@ -211,7 +214,7 @@ static const char *const js_constants[] = {
 /* the quotes carry a backtick: a template literal is a string */
 static const vted_language_t language_js = {
     "JavaScript", js_extensions, js_keywords, js_types, js_constants,
-    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | TypeScript
@@ -239,7 +242,7 @@ static const char *const ts_types[] = {
 
 static const vted_language_t language_ts = {
     "TypeScript", ts_extensions, ts_keywords, ts_types, js_constants,
-    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Rust
@@ -269,7 +272,7 @@ static const char *const rust_constants[] = {
    rest of the row */
 static const vted_language_t language_rust = {
     "Rust", rust_extensions, rust_keywords, rust_types, rust_constants,
-    "//", "/*", "*/", "\"", 0, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Go
@@ -295,7 +298,7 @@ static const char *const go_constants[] = {
 /* a raw string is a string too: the backtick opens one */
 static const vted_language_t language_go = {
     "Go", go_extensions, go_keywords, go_types, go_constants,
-    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"'`", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | JSON
@@ -309,7 +312,7 @@ static const char *const json_constants[] = {
 /* no comments exist in JSON, and only the double quote is a string */
 static const vted_language_t language_json = {
     "JSON", json_extensions, NULL, NULL, json_constants,
-    NULL, NULL, NULL, "\"", 0, 0, NULL, 0, NULL, NULL};
+    NULL, NULL, NULL, "\"", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Markdown
@@ -322,7 +325,7 @@ static const char *const markdown_extensions[] = {
    inline code spans; plain words are left alone */
 static const vted_language_t language_markdown = {
     "Markdown", markdown_extensions, NULL, NULL, NULL,
-    NULL, "```", "```", "`", 1, 0, NULL, 0, NULL, NULL};
+    NULL, "```", "```", "`", 1, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | HTML
@@ -335,7 +338,7 @@ static const char *const html_extensions[] = {
    plain, the way Markdown's text does */
 static const vted_language_t language_html = {
     "HTML", html_extensions, NULL, NULL, NULL,
-    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0, NULL, NULL};
+    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | XML
@@ -348,7 +351,7 @@ static const char *const xml_extensions[] = {
    strings color, the tags themselves stay plain */
 static const vted_language_t language_xml = {
     "XML", xml_extensions, NULL, NULL, NULL,
-    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0, NULL, NULL};
+    NULL, "<!--", "-->", "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | CSS
@@ -371,7 +374,7 @@ static const char *const css_constants[] = {
    selectors and properties stay plain */
 static const vted_language_t language_css = {
     "CSS", css_extensions, NULL, css_types, css_constants,
-    NULL, "/*", "*/", "\"'", 0, 0, NULL, 0, NULL, NULL};
+    NULL, "/*", "*/", "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Lua
@@ -397,7 +400,7 @@ static const char *const lua_constants[] = {
    comment does elsewhere */
 static const vted_language_t language_lua = {
     "Lua", lua_extensions, lua_keywords, lua_types, lua_constants,
-    "--", "--[[", "]]", "\"'", 0, 0, NULL, 0, NULL, NULL};
+    "--", "--[[", "]]", "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Ruby
@@ -427,7 +430,7 @@ static const char *const ruby_constants[] = {
 
 static const vted_language_t language_ruby = {
     "Ruby", ruby_files, ruby_keywords, ruby_types, ruby_constants,
-    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL};
+    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | YAML
@@ -449,7 +452,7 @@ static const char *const yaml_constants[] = {
    and single quotes both open a string */
 static const vted_language_t language_yaml = {
     "YAML", yaml_extensions, NULL, NULL, yaml_constants,
-    "#", NULL, NULL, "\"'", 0, 1, NULL, 0, NULL, NULL};
+    "#", NULL, NULL, "\"'", 0, 1, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | TOML
@@ -465,7 +468,7 @@ static const char *const toml_constants[] = {
    down to its first dash, the way the number scan runs */
 static const vted_language_t language_toml = {
     "TOML", toml_extensions, NULL, NULL, toml_constants,
-    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL};
+    "#", NULL, NULL, "\"'", 0, 0, NULL, 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | INI
@@ -483,7 +486,7 @@ static const char *const ini_constants[] = {
    way, and strings color in either quote; the [sections] stay plain */
 static const vted_language_t language_ini = {
     "INI", ini_extensions, NULL, NULL, ini_constants,
-    "#", NULL, NULL, "\"'", 0, 0, ";", 0, NULL, NULL};
+    "#", NULL, NULL, "\"'", 0, 0, ";", 0, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | SQL
@@ -520,7 +523,7 @@ static const char *const sql_constants[] = {
    identifier, and coloring one as a string would mislead */
 static const vted_language_t language_sql = {
     "SQL", sql_extensions, sql_keywords, sql_types, sql_constants,
-    "--", "/*", "*/", "'", 0, 0, NULL, 1, NULL, NULL};
+    "--", "/*", "*/", "'", 0, 0, NULL, 1, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | Dockerfile
@@ -548,7 +551,7 @@ static const char *const dockerfile_keywords[] = {
    plain */
 static const vted_language_t language_dockerfile = {
     "Dockerfile", dockerfile_extensions, dockerfile_keywords, NULL, NULL,
-    "#", NULL, NULL, "\"'", 0, 1, NULL, 1, dockerfile_names, NULL};
+    "#", NULL, NULL, "\"'", 0, 1, NULL, 1, dockerfile_names, NULL, 0};
 
 /*----------------------------------------------------------
 | C#
@@ -582,7 +585,7 @@ static const char *const csharp_constants[] = {
 
 static const vted_language_t language_csharp = {
     "C#", csharp_extensions, csharp_keywords, csharp_types, csharp_constants,
-    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL, 1};
 
 /*----------------------------------------------------------
 | Java
@@ -615,7 +618,7 @@ static const char *const java_constants[] = {
    around them do */
 static const vted_language_t language_java = {
     "Java", java_extensions, java_keywords, java_types, java_constants,
-    "//", "/*", "*/", "\"'", 0, 0, NULL, 0, NULL, NULL};
+    "//", "/*", "*/", "\"'", 0, 0, NULL, 0, NULL, NULL, 1};
 
 /*----------------------------------------------------------
 | PHP
@@ -648,7 +651,7 @@ static const char *const php_constants[] = {
    plain byte the way the parser sees it, so $x stays unclassified */
 static const vted_language_t language_php = {
     "PHP", php_extensions, php_keywords, php_types, php_constants,
-    "//", "/*", "*/", "\"'", 0, 0, "#", 1, NULL, NULL};
+    "//", "/*", "*/", "\"'", 0, 0, "#", 1, NULL, NULL, 0};
 
 /*----------------------------------------------------------
 | dotenv
@@ -672,7 +675,7 @@ static const char *const dotenv_constants[] = {
    Quotes color; the keys stay plain the way INI's do */
 static const vted_language_t language_dotenv = {
     "dotenv", dotenv_extensions, NULL, NULL, dotenv_constants,
-    "#", NULL, NULL, "\"'", 0, 1, NULL, 0, dotenv_names, NULL};
+    "#", NULL, NULL, "\"'", 0, 1, NULL, 0, dotenv_names, NULL, 0};
 
 /*----------------------------------------------------------
 | Diff
@@ -711,7 +714,7 @@ static const vted_line_rule_t diff_line_rules[] = {
    the whole language */
 static const vted_language_t language_diff = {
     "Diff", diff_extensions, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, diff_line_rules};
+    NULL, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, diff_line_rules, 0};
 
 /*----------------------------------------------------------
 | the table
