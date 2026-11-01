@@ -14,6 +14,7 @@ vted_settings_t SettingsDefaults(void)
     settings.tab_width = VTED_TAB_STOP;
     settings.insert_spaces = 0;
     settings.show_line_numbers = 1;
+    settings.wrap = 0;
 
     return settings;
 }
@@ -158,6 +159,19 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->show_line_numbers = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "wrap"))
+        {
+            int on_off = ParseOnOff(value, value_len);
+
+            if (on_off == -1)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->wrap = on_off;
             }
         }
         else

@@ -23,6 +23,8 @@ typedef struct
 
   int tab_width;     /* cells between tab stops; RowCharWidth() uses it */
   int insert_spaces; /* 1: the Tab key inserts spaces instead of a tab */
+  int wrap;          /* 1: long lines flow over several screen lines instead
+                        of scrolling the viewport sideways */
 
   char status_message[256]; /* most recent message shown in the message bar */
 } vted_editor_Config_t;

@@ -1219,9 +1219,11 @@ void InitVtedEditor(void)
     vted_editor_config.show_line_numbers = 1;
     vted_editor_config.gutter_width = 0;
 
-    /* the tab stop and whether Tab inserts spaces instead of a tab */
+    /* the tab stop and whether Tab inserts spaces instead of a tab,
+       and whether long lines wrap over several screen lines */
     vted_editor_config.tab_width = VTED_TAB_STOP;
     vted_editor_config.insert_spaces = 0;
+    vted_editor_config.wrap = 0;
     RowSetTabWidth(vted_editor_config.tab_width);
 
     /* no search match highlighted yet */
