@@ -551,6 +551,40 @@ static const vted_language_t language_dockerfile = {
     "#", NULL, NULL, "\"'", 0, 1, NULL, 1, dockerfile_names, NULL};
 
 /*----------------------------------------------------------
+| C#
+----------------------------------------------------------*/
+
+static const char *const csharp_extensions[] = {".cs", NULL};
+
+static const char *const csharp_keywords[] = {
+    "abstract", "as", "async", "await", "base", "break", "case", "catch",
+    "checked", "class", "const", "continue", "default", "delegate", "do",
+    "else", "enum", "event", "explicit", "extern", "finally", "fixed",
+    "for", "foreach", "get", "goto", "if", "implicit", "in", "init",
+    "interface", "internal", "is", "lock", "namespace", "new", "operator",
+    "out", "override", "params", "partial", "private", "protected",
+    "public", "readonly", "record", "ref", "return", "sealed", "set",
+    "sizeof", "stackalloc", "static", "struct", "switch", "this", "throw",
+    "try", "typeof", "unchecked", "unsafe", "using", "value", "virtual",
+    "volatile", "when", "while", "yield", NULL};
+
+/* var sits with the types the way C++ spells auto; the BCL staples
+   color like the types of the language itself */
+static const char *const csharp_types[] = {
+    "bool", "byte", "char", "decimal", "double", "dynamic", "float",
+    "int", "long", "nint", "nuint", "object", "sbyte", "short", "string",
+    "uint", "ulong", "ushort", "var", "void",
+    "Action", "Array", "Dictionary", "Exception", "Func", "IEnumerable",
+    "List", "Task", NULL};
+
+static const char *const csharp_constants[] = {
+    "true", "false", "null", NULL};
+
+static const vted_language_t language_csharp = {
+    "C#", csharp_extensions, csharp_keywords, csharp_types, csharp_constants,
+    "//", "/*", "*/", "\"'", 1, 0, NULL, 0, NULL, NULL};
+
+/*----------------------------------------------------------
 | Diff
 ----------------------------------------------------------*/
 
@@ -614,6 +648,7 @@ static const vted_language_t *const languages[] = {
     &language_ini,
     &language_sql,
     &language_dockerfile,
+    &language_csharp,
     &language_diff,
     NULL};
 

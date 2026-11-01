@@ -1009,6 +1009,31 @@ static void TestDiff(void)
     }
 }
 
+static void TestCSharp(void)
+{
+    SyntaxSelectForFile("Program.cs");
+    CHECK_STR(SyntaxLanguageName(), "C#");
+
+    SyntaxSelectForFile("obj/Debug/net8.0/Generated.cs");
+    CHECK_STR(SyntaxLanguageName(), "C#");
+
+    /* types, a number and a line comment */
+    LoadOne("int x = 42; // the answer");
+    CHECK_STR(Classes(0), "tttnnnnnddnnccccccccccccc");
+
+    /* a preprocessor directive takes the word after it */
+    LoadOne("#region Setup");
+    CHECK_STR(Classes(0), "pppppppnnnnnn");
+
+    /* keywords, a BCL type and a string */
+    LoadOne("return await Task.FromResult(\"x\");");
+    CHECK_STR(Classes(0), "kkkkkknkkkkknttttnnnnnnnnnnnnsssnn");
+
+    /* a block comment colors whole, the way an open one spans rows */
+    LoadOne("class Foo { /* hi */ }");
+    CHECK_STR(Classes(0), "kkkkknnnnnnnccccccccnn");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -1055,6 +1080,7 @@ int main(void)
     TestSql();
     TestDockerfile();
     TestDiff();
+    TestCSharp();
     TestStyles();
 
     FreeBuffer();
