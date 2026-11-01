@@ -1089,6 +1089,26 @@ static void TestANullHistoryIsEmpty(void)
     CHECK_STR(vted_buffer.rows[0].chars, "ab");
 }
 
+static void TestDiscardLeavesTheModuleAlone(void)
+{
+    Begin("aXb");
+    PushTypedByte('X', 1);
+
+    void *token = UndoDetach();
+
+    /* another buffer's change is already recorded when the first
+       buffer is given up on */
+    Begin("cYd");
+    PushTypedByte('Y', 1);
+
+    UndoDiscard(token);
+    UndoDiscard(NULL); /* nothing is fine to discard too */
+
+    /* the module still holds the live buffer's history */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "cd");
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -1137,6 +1157,7 @@ int main(void)
     TestAnEmptyHistoryDetachesToo();
     TestAttachReplacesTheCurrentHistory();
     TestANullHistoryIsEmpty();
+    TestDiscardLeavesTheModuleAlone();
 
     return TestSummary("undo");
 }

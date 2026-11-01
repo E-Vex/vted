@@ -250,6 +250,33 @@ void UndoAttach(void *token)
     free(history);
 }
 
+void UndoDiscard(void *token)
+{
+    UndoHistory *history = token;
+    int index;
+
+    if (history == NULL)
+    {
+        return;
+    }
+
+    /* the history goes away without ever coming back: its entries are
+       freed the same way UndoReset() frees the module's own */
+    for (index = 0; index < history->undo_count; index++)
+    {
+        free(history->undo_stack[index].bytes);
+        free(history->undo_stack[index].new_bytes);
+    }
+
+    for (index = 0; index < history->redo_count; index++)
+    {
+        free(history->redo_stack[index].bytes);
+        free(history->redo_stack[index].new_bytes);
+    }
+
+    free(history);
+}
+
 /* places bytes inside a row, one by one, like typing them */
 static void PlaceBytes(int row, int cx, const char *bytes, int length)
 {

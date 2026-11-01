@@ -77,6 +77,10 @@ void *UndoDetach(void);
    The token is consumed either way */
 void UndoAttach(void *token);
 
+/* frees a token and everything in it, without touching the history
+   the module holds; a NULL token is fine */
+void UndoDiscard(void *token);
+
 int EditorUndo(void); /* returns 1 when something was undone */
 int EditorRedo(void); /* returns 1 when something was redone */
 
