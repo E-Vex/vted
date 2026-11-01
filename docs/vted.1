@@ -158,6 +158,11 @@ Moving by words treats a run of letters, digits and underscores (in any
 script) as one word and a run of punctuation as another; blanks
 separate them. At the end or the start of a line a word move continues
 on the neighbouring line.
+.PP
+The bracket the cursor sits on, or the one right behind it, has its
+partner drawn in inverted video: the scan counts brackets of the same
+pair, so nesting comes out right, and it reaches a megabyte before a
+match counts as missing.
 .SH EXIT STATUS
 .B vted
 exits with status 0 after a normal quit, and with status 0 again for

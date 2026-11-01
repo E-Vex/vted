@@ -228,6 +228,9 @@ set while editing.
   up and down
 - Line numbers in a gutter, the current one in bold; Ctrl-N hides them and
   a terminal too narrow for them drops them on its own
+- The bracket the cursor sits on (or the one right behind it) has its
+  partner highlighted, across as many lines as nesting takes; a match
+  farther than a megabyte away counts as missing
 - Syntax highlighting picked from the file name: C, C++, Python, shell
   scripts, Makefiles, JavaScript, TypeScript, Rust, Go, JSON and
   Markdown; truecolor when COLORTERM says so, with 256-color and

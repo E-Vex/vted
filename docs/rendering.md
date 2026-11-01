@@ -76,7 +76,8 @@ matches the buffer. `ScreenMarkRowDirty()` marks one row,
 `ScreenMarkRowsDirtyFrom()` marks one row and every row below it, and
 `ScreenMarkAllDirty()` marks every row. The edit operations in
 `src/vted_row.c` call these when the buffer changes, `ScreenSetSelection()`
-marks the rows touched by a selection change, the search code in
+marks the rows touched by a selection change, `ScreenSetBracketMatch()`
+marks the rows a bracket highlight leaves and enters, the search code in
 `src/vted.c` marks the row of a search match, and `RefreshScreen()`
 itself marks rows when the viewport moves (scrolling), when the cursor
 changes line (the bold gutter number), and when the gutter width
@@ -252,6 +253,15 @@ rows in between, and from the start of the bottom row to `right`.
 `match_row`, `match_col`, and `match_len` describe one highlighted
 search match. When `match_len > 0`, the bytes `[match_col,
 match_col + match_len)` of `match_row` are drawn inverted.
+
+### Matching bracket
+
+The editor core looks for the partner of the bracket under the cursor
+(or the one behind it) after every key and hands the position to the
+renderer with `ScreenSetBracketMatch(row, col)`. That one byte is drawn
+inverted until the next handover. The handover marks the row the old
+highlight was on and the row of the new match dirty, so a highlight that
+moves repaints exactly the rows it crossed.
 
 ### Other attributes
 
