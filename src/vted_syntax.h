@@ -23,7 +23,9 @@ typedef enum
     HlKeyword,
     HlType,
     HlPreproc,
-    HlRemoved /* text that was taken out: the minus lines of a diff */
+    HlRemoved, /* text that was taken out: the minus lines of a diff */
+    HlContext  /* text that stands around a change: the context lines
+                  of a diff, the lines a hunk carries unmodified */
 } HlClass;
 
 /* picks the language for a file name ("main.c" is C); NULL, or a name

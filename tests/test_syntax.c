@@ -7,7 +7,7 @@
 
 /* the classes of a row as one letter per byte, so a check can be read at
    a glance: n normal, c comment, s string, d number, k keyword, t type,
-   p preprocessor, r removed */
+   p preprocessor, r removed, x context */
 static const char *Classes(int at)
 {
     static char text[256];
@@ -19,7 +19,7 @@ static const char *Classes(int at)
 
     for (i = 0; i < size; i++)
     {
-        text[i] = "ncsdktpr"[hl[i]];
+        text[i] = "ncsdktprx"[hl[i]];
     }
 
     text[size] = '\0';
@@ -994,18 +994,22 @@ static void TestDiff(void)
     LoadOne("\\ No newline at end of file");
     CHECK_STR(Classes(0), "ccccccccccccccccccccccccccc");
 
-    /* a context line stays plain */
+    /* the context lines a hunk carries unmodified, drawn dimmed,
+       and one without the leading space stays plain */
     LoadOne(" context line");
-    CHECK_STR(Classes(0), "nnnnnnnnnnnnn");
+    CHECK_STR(Classes(0), "xxxxxxxxxxxxx");
+
+    LoadOne("context");
+    CHECK_STR(Classes(0), "nnnnnnn");
 
     /* nothing carries between rows: each line stands alone */
     {
-        const char *lines[3] = {"+ one", "context", "- two"};
+        const char *lines[3] = {"+ one", " context two", "- three"};
 
         Load(lines, 3);
         CHECK_STR(Classes(0), "sssss");
-        CHECK_STR(Classes(1), "nnnnnnn");
-        CHECK_STR(Classes(2), "rrrrr");
+        CHECK_STR(Classes(1), "xxxxxxxxxxxx");
+        CHECK_STR(Classes(2), "rrrrrrr");
     }
 }
 
@@ -1124,6 +1128,7 @@ static void TestStyles(void)
     CHECK(strlen(SyntaxStyle(HlType)) > 0);
     CHECK(strlen(SyntaxStyle(HlPreproc)) > 0);
     CHECK(strlen(SyntaxStyle(HlRemoved)) > 0);
+    CHECK(strlen(SyntaxStyle(HlContext)) > 0);
 }
 
 int main(void)

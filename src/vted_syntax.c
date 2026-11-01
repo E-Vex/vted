@@ -690,6 +690,7 @@ static const vted_line_rule_t diff_line_rules[] = {
     {"@@", HlType},
     {"+", HlString},
     {"-", HlRemoved},
+    {" ", HlContext}, /* the lines a hunk carries unmodified, for context */
     {"diff ", HlComment},
     {"index ", HlComment},
     {"new file", HlComment},
@@ -1385,6 +1386,18 @@ const char *SyntaxStyle(int hl_class)
             return escape;
         }
         return "\x1b[91m";
+    case HlContext:
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;105;105;105m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;240m");
+            return escape;
+        }
+        return "\x1b[90m";
     default:
         return "";
     }
