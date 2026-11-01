@@ -303,6 +303,19 @@ static const vted_language_t language_markdown = {
     NULL, "```", "```", "`", 1};
 
 /*----------------------------------------------------------
+| HTML
+----------------------------------------------------------*/
+
+static const char *const html_extensions[] = {
+    ".html", ".htm", ".xhtml", NULL};
+
+/* comments and attribute strings color; the tags themselves stay
+   plain, the way Markdown's text does */
+static const vted_language_t language_html = {
+    "HTML", html_extensions, NULL, NULL, NULL,
+    NULL, "<!--", "-->", "\"'", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -318,6 +331,7 @@ static const vted_language_t *const languages[] = {
     &language_go,
     &language_json,
     &language_markdown,
+    &language_html,
     NULL};
 
 static const vted_language_t *current_language;

@@ -111,6 +111,9 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("data.json");
     CHECK_STR(SyntaxLanguageName(), "JSON");
 
+    SyntaxSelectForFile("index.html");
+    CHECK_STR(SyntaxLanguageName(), "HTML");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -550,6 +553,43 @@ static void TestCpp(void)
     }
 }
 
+static void TestHtml(void)
+{
+    SyntaxSelectForFile("index.html");
+
+    /* the tags stay plain, the attribute string colors */
+    LoadOne("<a href=\"page.html\">");
+    CHECK_STR(Classes(0), "nnnnnnnn" "sssssssssss" "n");
+
+    /* a single-quoted attribute is a string too */
+    LoadOne("<img src='x.png'>");
+    CHECK_STR(Classes(0), "nnnnnnnnn" "sssssss" "n");
+
+    /* an HTML comment runs to its marker, over rows when it must */
+    {
+        const char *lines[3] = {"<!-- a note", "still comment", "end --> <p>"};
+
+        Load(lines, 3);
+        CHECK_STR(Classes(0), "ccccccccccc");
+        CHECK_STR(Classes(1), "ccccccccccccc");
+        CHECK_STR(Classes(2), "ccccccc" "n" "nnn");
+    }
+
+    /* a closed comment leaves the row alone after it */
+    LoadOne("<p> <!-- x --> <p>");
+    CHECK_STR(Classes(0), "nnn" "n" "cccccccccc" "n" "nnn");
+
+    /* // is not a comment here */
+    LoadOne("// plain text");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnn");
+
+    SyntaxSelectForFile("page.htm");
+    CHECK_STR(SyntaxLanguageName(), "HTML");
+
+    SyntaxSelectForFile("app.xhtml");
+    CHECK_STR(SyntaxLanguageName(), "HTML");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -584,6 +624,7 @@ int main(void)
     TestGo();
     TestJson();
     TestMarkdownHighlighting();
+    TestHtml();
     TestStyles();
 
     FreeBuffer();
