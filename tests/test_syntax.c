@@ -1055,6 +1055,27 @@ static void TestJava(void)
     CHECK_STR(Classes(0), "ttttnnnnnsssnncccccc");
 }
 
+static void TestPhp(void)
+{
+    SyntaxSelectForFile("index.php");
+    CHECK_STR(SyntaxLanguageName(), "PHP");
+
+    SyntaxSelectForFile("web/app.php");
+    CHECK_STR(SyntaxLanguageName(), "PHP");
+
+    /* a keyword spelled the upper way, a string and a # comment */
+    LoadOne("ECHO \"hi\"; # loud");
+    CHECK_STR(Classes(0), "kkkknssssnncccccc");
+
+    /* the words match either way they are spelled */
+    LoadOne("While (True) { }");
+    CHECK_STR(Classes(0), "kkkkknnddddnnnnn");
+
+    /* a type, a variable left plain, a number and a line comment */
+    LoadOne("int $n = 7; // count");
+    CHECK_STR(Classes(0), "tttnnnnnndnncccccccc");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -1103,6 +1124,7 @@ int main(void)
     TestDiff();
     TestCSharp();
     TestJava();
+    TestPhp();
     TestStyles();
 
     FreeBuffer();

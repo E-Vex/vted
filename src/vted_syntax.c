@@ -618,6 +618,39 @@ static const vted_language_t language_java = {
     "//", "/*", "*/", "\"'", 0, 0, NULL, 0, NULL, NULL};
 
 /*----------------------------------------------------------
+| PHP
+----------------------------------------------------------*/
+
+static const char *const php_extensions[] = {".php", NULL};
+
+/* the words match either way they are spelled, the way PHP accepts
+   them: ECHO, Echo and echo are one word */
+static const char *const php_keywords[] = {
+    "abstract", "and", "array", "as", "break", "callable", "case", "catch",
+    "class", "clone", "const", "continue", "declare", "default", "do",
+    "echo", "else", "elseif", "empty", "enddeclare", "endfor",
+    "endforeach", "endif", "endswitch", "endwhile", "enum", "extends",
+    "final", "finally", "fn", "for", "foreach", "function", "global",
+    "goto", "if", "implements", "include", "include_once", "instanceof",
+    "insteadof", "interface", "isset", "list", "match", "namespace", "new",
+    "or", "print", "private", "protected", "public", "readonly",
+    "require", "require_once", "return", "static", "switch", "throw",
+    "trait", "try", "unset", "use", "var", "while", "xor", "yield", NULL};
+
+static const char *const php_types[] = {
+    "bool", "int", "float", "string", "mixed", "void", "object",
+    "iterable", "never", NULL};
+
+static const char *const php_constants[] = {
+    "true", "false", "null", "NAN", "INF", NULL};
+
+/* '#' comments the shell way besides //; the $ of a variable is a
+   plain byte the way the parser sees it, so $x stays unclassified */
+static const vted_language_t language_php = {
+    "PHP", php_extensions, php_keywords, php_types, php_constants,
+    "//", "/*", "*/", "\"'", 0, 0, "#", 1, NULL, NULL};
+
+/*----------------------------------------------------------
 | Diff
 ----------------------------------------------------------*/
 
@@ -683,6 +716,7 @@ static const vted_language_t *const languages[] = {
     &language_dockerfile,
     &language_csharp,
     &language_java,
+    &language_php,
     &language_diff,
     NULL};
 
