@@ -955,6 +955,60 @@ static void TestDockerfile(void)
     CHECK_STR(Classes(0), "kkk" "nnnnnnnnnnnnnn");
 }
 
+static void TestDiff(void)
+{
+    SyntaxSelectForFile("change.diff");
+    CHECK_STR(SyntaxLanguageName(), "Diff");
+
+    SyntaxSelectForFile("feature.patch");
+    CHECK_STR(SyntaxLanguageName(), "Diff");
+
+    /* the markers at column zero decide what a line is */
+    LoadOne("+ added line");
+    CHECK_STR(Classes(0), "ssssssssssss");
+
+    LoadOne("- removed line");
+    CHECK_STR(Classes(0), "rrrrrrrrrrrrrr");
+
+    /* the file headers, before the longer '-' rule can take them */
+    LoadOne("+++ b/file.c");
+    CHECK_STR(Classes(0), "pppppppppppp");
+
+    LoadOne("--- a/file.c");
+    CHECK_STR(Classes(0), "pppppppppppp");
+
+    /* a hunk header */
+    LoadOne("@@ -1,4 +1,5 @@");
+    CHECK_STR(Classes(0), "ttttttttttttttt");
+
+    /* the metadata git writes around a patch */
+    LoadOne("diff --git a/x b/x");
+    CHECK_STR(Classes(0), "cccccccccccccccccc");
+
+    LoadOne("index 01362bb..a01c8f7 100644");
+    CHECK_STR(Classes(0), "ccccccccccccccccccccccccccccc");
+
+    LoadOne("new file mode 100644");
+    CHECK_STR(Classes(0), "cccccccccccccccccccc");
+
+    LoadOne("\\ No newline at end of file");
+    CHECK_STR(Classes(0), "ccccccccccccccccccccccccccc");
+
+    /* a context line stays plain */
+    LoadOne(" context line");
+    CHECK_STR(Classes(0), "nnnnnnnnnnnnn");
+
+    /* nothing carries between rows: each line stands alone */
+    {
+        const char *lines[3] = {"+ one", "context", "- two"};
+
+        Load(lines, 3);
+        CHECK_STR(Classes(0), "sssss");
+        CHECK_STR(Classes(1), "nnnnnnn");
+        CHECK_STR(Classes(2), "rrrrr");
+    }
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -1000,6 +1054,7 @@ int main(void)
     TestIni();
     TestSql();
     TestDockerfile();
+    TestDiff();
     TestStyles();
 
     FreeBuffer();
