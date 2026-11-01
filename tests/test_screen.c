@@ -617,6 +617,147 @@ static void TestPlainPagingMovesByRows(void)
     CHECK_INT(vted_editor_config.cursor_y, 6);
 }
 
+static void TestViewportJumpsThroughTheWrappedLayout(void)
+{
+    /* a tall row of three lines, then four of one line each; the
+       viewport starts inside the tall row, on its second line, so the
+       lines of the viewport are: the tall row's second and third, the
+       four rows, then two past the text */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("xxxxxxxxxxxx", 12, VTED_EOL_LF); /* 3 lines of 4 cells */
+    AppendRow("a", 1, VTED_EOL_LF);
+    AppendRow("row", 3, VTED_EOL_LF);
+    AppendRow("zz", 2, VTED_EOL_LF);
+    AppendRow("q", 1, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 8;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 1;
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
+
+    /* the top: the second line of the tall row */
+    MoveCursor(ViewportTop);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    /* the middle of 8 is 4: the row after 'row' */
+    MoveCursor(ViewportMiddle);
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* the bottom opens below the text: the last row's only line */
+    MoveCursor(ViewportBottom);
+    CHECK_INT(vted_editor_config.cursor_y, 4);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestViewportJumpsLandInsideATallRow(void)
+{
+    /* a viewport of four lines over a row of three lines and one of
+       one: the middle lands inside the tall row */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("xxxxxxxxxxxx", 12, VTED_EOL_LF); /* 3 lines of 4 cells */
+    AppendRow("a", 1, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
+
+    /* the top: the first line of the tall row */
+    MoveCursor(ViewportTop);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* the middle of 4 is 2: the tall row's third line */
+    MoveCursor(ViewportMiddle);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 8);
+
+    /* the bottom: the row below */
+    MoveCursor(ViewportBottom);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestViewportJumpsMoveByRows(void)
+{
+    /* without wrapping one row is one screen line: the jumps move by
+       rows, and a target past the end lands on the last row */
+    BeginPlain(10);
+    vted_editor_config.row_offset = 2;
+
+    MoveCursor(ViewportTop);
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    MoveCursor(ViewportMiddle); /* the middle of 4 is 2 */
+    CHECK_INT(vted_editor_config.cursor_y, 4);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    MoveCursor(ViewportBottom);
+    CHECK_INT(vted_editor_config.cursor_y, 5);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* a viewport that opens below the text: the last row */
+    vted_editor_config.row_offset = 8;
+    MoveCursor(ViewportBottom);
+    CHECK_INT(vted_editor_config.cursor_y, 9);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestViewportJumpsOnAnEmptyBuffer(void)
+{
+    /* nothing to land on: the phantom row past the end is all there
+       is, and every jump stays on it */
+    FreeBuffer();
+    InitBuffer();
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.wrap = 1;
+
+    MoveCursor(ViewportTop);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    MoveCursor(ViewportBottom);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestViewportJumpsPastAStaleOffset(void)
+{
+    /* the row shrank under an edit, or the viewport arrived from
+       another buffer: a line offset that no longer exists is walked
+       from the row's start, the way UpdateScroll resets it */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("xxxxxxxxxxxx", 12, VTED_EOL_LF); /* 3 lines of 4 cells */
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 5; /* stale: the row has three */
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
+
+    MoveCursor(ViewportTop);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
 int main(void)
 {
     TestHomeStartsTheScreenLine();
@@ -642,6 +783,11 @@ int main(void)
     TestPagingKeepsTheColumnWithinTheLine();
     TestPagingThroughATallRow();
     TestPlainPagingMovesByRows();
+    TestViewportJumpsThroughTheWrappedLayout();
+    TestViewportJumpsLandInsideATallRow();
+    TestViewportJumpsMoveByRows();
+    TestViewportJumpsOnAnEmptyBuffer();
+    TestViewportJumpsPastAStaleOffset();
 
     return TestSummary("screen");
 }

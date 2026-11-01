@@ -1484,6 +1484,112 @@ static void MoveDisplayLines(int count)
     }
 }
 
+/* places the cursor on the top, the middle or the bottom screen line
+   of the viewport: a wrapped layout is walked line by line, so a
+   viewport that starts inside a tall row is counted from the line it
+   starts on, and a jump past the end of the text lands on its last
+   line instead of the phantom row past it */
+static void JumpToViewportLine(int key)
+{
+    int target;
+
+    if (key == ViewportTop)
+    {
+        target = 0;
+    }
+    else if (key == ViewportMiddle)
+    {
+        target = vted_editor_config.screen_rows / 2;
+    }
+    else
+    {
+        target = vted_editor_config.screen_rows - 1;
+    }
+
+    if (target < 0)
+    {
+        target = 0; /* a viewport without lines: the top is all there is */
+    }
+
+    /* an empty buffer has only the phantom row past the end */
+    if (vted_buffer.num_rows == 0)
+    {
+        vted_editor_config.cursor_y = 0;
+        vted_editor_config.cursor_x = 0;
+        return;
+    }
+
+    if (vted_editor_config.wrap == 0)
+    {
+        /* one row per screen line: the row target rows below the top,
+           or the last one when the viewport opens below the text */
+        int row = vted_editor_config.row_offset + target;
+
+        if (row >= vted_buffer.num_rows)
+        {
+            row = vted_buffer.num_rows - 1;
+        }
+        if (row < 0)
+        {
+            row = 0;
+        }
+
+        vted_editor_config.cursor_y = row;
+        vted_editor_config.cursor_x = 0;
+        return;
+    }
+
+    /* wrapped: walk the screen lines from the top of the viewport,
+       the top row entered at the line the viewport starts on */
+    {
+        int row = vted_editor_config.row_offset;
+        int line = vted_editor_config.line_offset;
+        int remaining = target;
+
+        if (row >= vted_buffer.num_rows)
+        {
+            row = vted_buffer.num_rows - 1; /* a stale offset past the end */
+        }
+
+        if (line >= RowLines(row))
+        {
+            line = 0; /* a stale offset: the row shrank under an edit */
+        }
+
+        while (1)
+        {
+            int visible = RowLines(row) - line; /* the row's lines from here down */
+
+            if (remaining < visible)
+            {
+                /* the target line is inside this row: the start of
+                   it, the byte at its first cell */
+                vted_editor_config.cursor_y = row;
+                vted_editor_config.cursor_x =
+                    RowRxToCx(&vted_buffer.rows[row],
+                              (line + remaining) * vted_editor_config.text_cols);
+                return;
+            }
+
+            remaining -= visible;
+            row++;
+
+            if (row >= vted_buffer.num_rows)
+            {
+                /* the viewport opens below the text: the last line
+                   of the last row */
+                vted_editor_config.cursor_y = row - 1;
+                vted_editor_config.cursor_x =
+                    RowRxToCx(&vted_buffer.rows[row - 1],
+                              (RowLines(row - 1) - 1) * vted_editor_config.text_cols);
+                return;
+            }
+
+            line = 0;
+        }
+    }
+}
+
 void MoveCursor(int key)
 {
     /* moving the cursor logically, bounded by the text in the buffer.
@@ -1720,6 +1826,14 @@ void MoveCursor(int key)
                 }
             }
         }
+        break;
+
+    case ViewportTop:
+    case ViewportMiddle:
+    case ViewportBottom:
+        /* the jump lands on the start of its screen line, the way
+           Home lands on the start of the one the cursor is on */
+        JumpToViewportLine(key);
         break;
     }
 }
