@@ -156,6 +156,100 @@ static void TestNoArgumentsDoesNotAskForTheVersion(void)
     CHECK_INT(options.want_version, 0);
 }
 
+static void TestStartLineAlone(void)
+{
+    char *argv[] = {"vted", "+5", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.start_line, 5);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestStartLineAfterAFile(void)
+{
+    char *argv[] = {"vted", "file.c", "+12", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.start_line, 12);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestStartLineBeforeAFile(void)
+{
+    char *argv[] = {"vted", "+12", "file.c", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_STR(options.file, "file.c");
+    CHECK_INT(options.start_line, 12);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestStartLineOfOneIsAllowed(void)
+{
+    char *argv[] = {"vted", "+1", "file.c", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.start_line, 1);
+    CHECK_INT(options.error, 0);
+}
+
+static void TestBarePlusIsRejected(void)
+{
+    char *argv[] = {"vted", "+", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.error, 1);
+}
+
+static void TestZeroStartLineIsRejected(void)
+{
+    char *argv[] = {"vted", "+0", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.error, 1);
+}
+
+static void TestWordAfterPlusIsRejected(void)
+{
+    char *argv[] = {"vted", "+abc", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.error, 1);
+}
+
+static void TestTrailingGarbageIsRejected(void)
+{
+    char *argv[] = {"vted", "+5x", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.error, 1);
+}
+
+static void TestHugeStartLineIsRejected(void)
+{
+    char *argv[] = {"vted", "+99999999999999999999", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.error, 1);
+}
+
+static void TestTwoStartLinesAreRejected(void)
+{
+    char *argv[] = {"vted", "+5", "+6", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.error, 1);
+}
+
+static void TestNoStartLineByDefault(void)
+{
+    char *argv[] = {"vted", "file.c", NULL};
+    vted_cli_options_t options = ParseArgs(argv);
+
+    CHECK_INT(options.start_line, 0);
+}
+
 int main(void)
 {
     TestNoArguments();
@@ -173,5 +267,16 @@ int main(void)
     TestShortVersionAsksForTheVersion();
     TestHelpAndVersionCanBeAskedTogether();
     TestNoArgumentsDoesNotAskForTheVersion();
+    TestStartLineAlone();
+    TestStartLineAfterAFile();
+    TestStartLineBeforeAFile();
+    TestStartLineOfOneIsAllowed();
+    TestBarePlusIsRejected();
+    TestZeroStartLineIsRejected();
+    TestWordAfterPlusIsRejected();
+    TestTrailingGarbageIsRejected();
+    TestHugeStartLineIsRejected();
+    TestTwoStartLinesAreRejected();
+    TestNoStartLineByDefault();
     return TestSummary("cli");
 }

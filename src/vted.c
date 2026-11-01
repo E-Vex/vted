@@ -83,6 +83,32 @@ static char *EditorPrompt(const char *label)
     }
 }
 
+/* a line that is already on screen stays where it is; one that is
+   not gets the middle of the viewport, so there is context around
+   it instead of the line sitting on the very edge */
+static void CenterCursorInViewport(void)
+{
+    int first = vted_editor_config.row_offset;
+    int last = first + vted_editor_config.screen_rows;
+
+    if (vted_editor_config.cursor_y < first || vted_editor_config.cursor_y >= last)
+    {
+        int offset = vted_editor_config.cursor_y - vted_editor_config.screen_rows / 2;
+        int max_offset = vted_buffer.num_rows - vted_editor_config.screen_rows;
+
+        if (offset > max_offset)
+        {
+            offset = max_offset; /* no empty screen below the last line */
+        }
+        if (offset < 0)
+        {
+            offset = 0;
+        }
+
+        vted_editor_config.row_offset = offset;
+    }
+}
+
 static void EditorGoToLine(void)
 {
     char *answer = EditorPrompt("Go to line: ");
@@ -118,28 +144,7 @@ static void EditorGoToLine(void)
     vted_editor_config.cursor_y = (int)line - 1;
     vted_editor_config.cursor_x = 0;
 
-    /* a line that is already on screen stays where it is; one that is
-       not gets the middle of the viewport, so there is context around
-       it instead of the line sitting on the very edge */
-    int first = vted_editor_config.row_offset;
-    int last = first + vted_editor_config.screen_rows;
-
-    if (vted_editor_config.cursor_y < first || vted_editor_config.cursor_y >= last)
-    {
-        int offset = vted_editor_config.cursor_y - vted_editor_config.screen_rows / 2;
-        int max_offset = vted_buffer.num_rows - vted_editor_config.screen_rows;
-
-        if (offset > max_offset)
-        {
-            offset = max_offset; /* no empty screen below the last line */
-        }
-        if (offset < 0)
-        {
-            offset = 0;
-        }
-
-        vted_editor_config.row_offset = offset;
-    }
+    CenterCursorInViewport();
 }
 
 static void EditorSetTabWidth(void)
@@ -615,6 +620,23 @@ int main(int argc, char *argv[])
     UndoReset();
 
     InitVtedEditor();
+
+    /* a +LINE on the command line lands the cursor on that line the
+       way less and vi take one; a number past the end lands on the
+       last line, and an empty buffer ignores it */
+    if (options.start_line > 0 && vted_buffer.num_rows > 0)
+    {
+        int line = options.start_line;
+
+        if (line > vted_buffer.num_rows)
+        {
+            line = vted_buffer.num_rows;
+        }
+
+        vted_editor_config.cursor_y = line - 1;
+        vted_editor_config.cursor_x = 0;
+        CenterCursorInViewport();
+    }
 
     while (1)
     {
