@@ -139,10 +139,17 @@ That is the whole list.
 ## Usage
 
 ```
-vted            # start with an empty buffer
-vted file.c     # open a file
-man vted        # the full manual
+vted                    # start with an empty buffer
+vted file.c             # open a file
+vted +42 file.c         # open it with the cursor on line 42
+grep TODO *.c | vted -  # edit what another command prints
+vted --help             # the command line in short
+vted --version          # the version
+man vted                # the full manual
 ```
+
+Text piped in on standard input becomes an unnamed buffer: Ctrl-S
+then asks where to save it.
 
 ## Keys
 
@@ -238,6 +245,7 @@ man vted        # the full manual
 | `vted_utf8`       | UTF-8 decoding, boundaries and cell widths  |
 | `vted_file`       | loading and saving files                    |
 | `vted_syntax`     | coloring text by the language of the file   |
+| `vted_cli`        | the command line: options, usage, version   |
 | `vted`            | the editor core: key dispatch and editing   |
 
 ## Contributing

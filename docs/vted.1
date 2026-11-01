@@ -1,9 +1,12 @@
-.TH VTED 1 "October 2026" "vted 0.2.0" "User Commands"
+.TH VTED 1 "November 2026" "vted 0.2.0" "User Commands"
 .SH NAME
 vted \- vex terminal text editor
 .SH SYNOPSIS
 .B vted
-.RI [ file ]
+.RB [ \-h | \-\-help ]
+.RB [ \-V | \-\-version ]
+.RI [ +LINE ]
+.RI [ file | \- ]
 .SH DESCRIPTION
 .B vted
 is a small, fast terminal text editor for Linux written in C11 with no
@@ -13,7 +16,31 @@ It puts the terminal into raw mode, switches to the alternate screen
 buffer and restores every terminal setting on exit. Given a
 .IR file ,
 it loads it into an editable buffer; otherwise it starts with an empty
-buffer. Only the first operand is used; further arguments are ignored.
+buffer. Only the first operand is used; further arguments are ignored,
+and anything that looks like an option is rejected on the standard
+error stream before the terminal is touched.
+.PP
+The whole interface is drawn on the standard output, so
+.B vted
+refuses to start when that is not a terminal. Keys are read from the
+terminal, which may be the controlling one when standard input holds
+piped text instead.
+.SH OPTIONS
+.TP
+.BR \-h , " " \-\-help
+print a short usage on the standard output and exit
+.TP
+.BR \-V , " " \-\-version
+print the version and exit
+.TP
+.BI + LINE
+start the cursor on that line, the way less and vi take one; a number
+past the end of the buffer lands on the last line
+.TP
+.B \-
+read the text from standard input instead of a file. The buffer stays
+unnamed, so Ctrl\-S asks where to save it. Standard input must not be a
+terminal: nothing would ever arrive on it
 .PP
 Every line is numbered in a gutter at the left edge, the line the
 cursor is on in bold. The gutter is at least three digits wide and
@@ -133,9 +160,15 @@ separate them. At the end or the start of a line a word move continues
 on the neighbouring line.
 .SH EXIT STATUS
 .B vted
-exits with status 0 after a normal quit. Fatal errors (a file that
-cannot be opened, terminal setup failures) terminate the editor with
-an error message and a non\-zero status.
+exits with status 0 after a normal quit, and with status 0 again for
+.B \-\-help
+and
+.BR \-\-version .
+A rejected command line, a terminal that is not there (standard output
+not a terminal, "\-" on a terminal standard input) and fatal errors (a
+file that cannot be opened, terminal setup failures) terminate the
+editor with an error message on the standard error stream and a
+non\-zero status.
 .SH FILES
 The buffer is saved back to the
 .I file
