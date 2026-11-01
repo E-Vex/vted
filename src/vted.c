@@ -18,6 +18,7 @@
 #include "vted_utf8.h"
 #include "vted_cli.h"
 #include "vted_config.h"
+#include "vted_buffers.h"
 /*===============================*/
 
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
@@ -289,6 +290,36 @@ static void EditorSave(void)
     }
 
     SetStatusMessage("Saved %s", vted_buffer.filename);
+}
+
+static void EditorOpenFile(void)
+{
+    char *path = EditorPrompt("Open: ");
+
+    if (path == NULL)
+    {
+        SetStatusMessage("Open cancelled");
+        return;
+    }
+
+    if (BuffersOpen(path) == -1)
+    {
+        int saved_errno = errno;
+
+        /* a failed syscall explains itself; a path that is not a
+           regular file (a directory, say) fails without one */
+        SetStatusMessage("Could not open: %s",
+                         saved_errno != 0 ? strerror(saved_errno)
+                                          : "not a regular file");
+    }
+    else
+    {
+        SetStatusMessage("Opened %s (buffer %d of %d)",
+                         vted_buffer.filename, BuffersCurrent() + 1,
+                         BuffersCount());
+    }
+
+    free(path);
 }
 
 /* pressing Ctrl-Q this many times in a row overrides unsaved changes */
@@ -621,13 +652,15 @@ static void EditorReplace(void)
 
 /* gives back everything the editor holds: the undo history, the
    colors of the syntax module, the scratch space of the screen
-   module and the text buffer itself. It runs once, on the way out,
-   whichever way the editor leaves */
+   module, the buffers waiting in their slots, and the live text
+   buffer itself. It runs once, on the way out, whichever way the
+   editor leaves */
 static void FreeEditorState(void)
 {
     UndoReset();
     SyntaxFree();
     ScreenFree();
+    BuffersFreeOthers();
     FreeBuffer();
 }
 
@@ -699,24 +732,25 @@ int main(int argc, char *argv[])
         /* the pipe is read before the terminal goes raw: nothing of
            the interface depends on it, and a huge pipe is drained in
            one go the way a file is */
-        if (ReadStream(stdin) == -1)
+        if (BuffersOpenStream(stdin) == -1)
         {
             KillApp("ReadStream");
         }
     }
     else if (options.file != NULL)
     {
-        if (OpenFile(options.file) == -1)
+        if (BuffersOpen(options.file) == -1)
         {
             KillApp("OpenFile");
         }
     }
-
-    /* the file's name tells which language its text is in */
-    SyntaxSelectForFile(vted_buffer.filename);
-
-    /* whatever was edited before this file is unreachable now */
-    UndoReset();
+    else
+    {
+        /* no file named: an unnamed empty buffer to type into, taking
+           a slot like any other so opening and switching treat it the
+           same */
+        BuffersStartEmpty();
+    }
 
     InitVtedEditor();
 
@@ -926,6 +960,11 @@ int main(int argc, char *argv[])
             {
                 /* Ctrl-S writes the buffer back to its file */
                 EditorSave();
+            }
+            else if (c_in == CTRL_KEY('o') || c_in == CTRL_KEY('O'))
+            {
+                /* Ctrl-O opens another file as a buffer of its own */
+                EditorOpenFile();
             }
             else if (c_in == CTRL_KEY('f') || c_in == CTRL_KEY('F'))
             {
