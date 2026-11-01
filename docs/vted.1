@@ -176,6 +176,27 @@ given on the command line. Without one, Ctrl\-S asks for a file name;
 the buffer takes that name only if the file could be written, and ESC
 cancels the save.
 .PP
+The settings live in
+.I $XDG_CONFIG_HOME/vted/vtedrc
+(or
+.IR ~/.config/vted/vtedrc
+when XDG_CONFIG_HOME is unset). Each line names one setting with
+.B "set tab-width"
+.I N
+(1 to 32),
+.B "set insert-spaces on"
+or
+.BR off ,
+and
+.B "set line-numbers on"
+or
+.BR off .
+Blank lines and lines starting with # are skipped, and a later line
+wins over an earlier one. A line that cannot be used is reported in
+the message bar while the setting it would have set stays at its
+default. The keys match what Ctrl\-W, Ctrl\-T and Ctrl\-N set while
+editing.
+.PP
 Line endings are kept as found: LF, CRLF, CR and mixed files save
 back unchanged, byte for byte, and a file without a trailing newline
 keeps having none. Lines created while editing take the ending of the

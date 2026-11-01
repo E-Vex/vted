@@ -151,6 +151,22 @@ man vted                # the full manual
 Text piped in on standard input becomes an unnamed buffer: Ctrl-S
 then asks where to save it.
 
+## Settings
+
+Settings live in `$XDG_CONFIG_HOME/vted/vtedrc`
+(`~/.config/vted/vtedrc` by default) and are read at startup:
+
+```
+set tab-width 4
+set insert-spaces on
+set line-numbers off
+```
+
+Blank lines and `#` comments are skipped, a later line wins over an
+earlier one, and a line that cannot be used is reported in the
+message bar. The keys are the same things Ctrl-W, Ctrl-T and Ctrl-N
+set while editing.
+
 ## Keys
 
 | Key             | Action                                           |
@@ -245,6 +261,7 @@ then asks where to save it.
 | `vted_utf8`       | UTF-8 decoding, boundaries and cell widths  |
 | `vted_file`       | loading and saving files                    |
 | `vted_syntax`     | coloring text by the language of the file   |
+| `vted_config`     | the settings file                           |
 | `vted_cli`        | the command line: options, usage, version   |
 | `vted`            | the editor core: key dispatch and editing   |
 
