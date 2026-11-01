@@ -120,6 +120,9 @@ static void TestSelectingTheLanguage(void)
     SyntaxSelectForFile("game.lua");
     CHECK_STR(SyntaxLanguageName(), "Lua");
 
+    SyntaxSelectForFile("app.rb");
+    CHECK_STR(SyntaxLanguageName(), "Ruby");
+
     /* only the extension counts, not a dot in a directory name */
     SyntaxSelectForFile("my.dir/notes");
     CHECK(SyntaxLanguageName() == NULL);
@@ -660,6 +663,39 @@ static void TestLua(void)
     CHECK_STR(SyntaxLanguageName(), "Lua");
 }
 
+static void TestRuby(void)
+{
+    SyntaxSelectForFile("app.rb");
+
+    LoadOne("def greet(name)");
+    CHECK_STR(Classes(0), "kkk" "n" "nnnnn" "n" "nnnn" "n");
+
+    LoadOne("return nil unless done");
+    CHECK_STR(Classes(0), "kkkkkk" "n" "ddd" "n" "kkkkkk" "n" "nnnn");
+
+    /* a class name draws the way a type does */
+    LoadOne("class String < Object");
+    CHECK_STR(Classes(0), "kkkkk" "n" "tttttt" "nnn" "tttttt");
+
+    /* a # comment runs to the end of the row, unless a string got
+       there first */
+    LoadOne("x = 1 # note");
+    CHECK_STR(Classes(0), "nnnndn" "cccccc");
+
+    LoadOne("puts \"# not a comment\"");
+    CHECK_STR(Classes(0), "nnnn" "n" "sssssssssssssssss");
+
+    /* the whole file names are Ruby too */
+    SyntaxSelectForFile("Rakefile");
+    CHECK_STR(SyntaxLanguageName(), "Ruby");
+
+    SyntaxSelectForFile("Gemfile");
+    CHECK_STR(SyntaxLanguageName(), "Ruby");
+
+    SyntaxSelectForFile("lib/task.rake");
+    CHECK_STR(SyntaxLanguageName(), "Ruby");
+}
+
 static void TestStyles(void)
 {
     CHECK_STR(SyntaxStyle(HlNormal), "");
@@ -697,6 +733,7 @@ int main(void)
     TestHtml();
     TestCss();
     TestLua();
+    TestRuby();
     TestStyles();
 
     FreeBuffer();

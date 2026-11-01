@@ -365,6 +365,36 @@ static const vted_language_t language_lua = {
     "--", "--[[", "]]", "\"'", 0};
 
 /*----------------------------------------------------------
+| Ruby
+----------------------------------------------------------*/
+
+/* the extensions, and the whole file names that are Ruby too */
+static const char *const ruby_files[] = {
+    ".rb", ".rbw", ".rake", ".gemspec",
+    "Rakefile", "Gemfile", "config.ru", NULL};
+
+static const char *const ruby_keywords[] = {
+    "alias", "and", "begin", "break", "case", "class", "def",
+    "defined?", "do", "else", "elsif", "end", "ensure", "for", "if",
+    "in", "module", "next", "not", "or", "redo", "rescue", "retry",
+    "return", "super", "then", "undef", "unless", "until", "when",
+    "while", "yield", "BEGIN", "END", NULL};
+
+static const char *const ruby_types[] = {
+    "Array", "Class", "Dir", "ENV", "FalseClass", "File", "Float",
+    "Hash", "Integer", "Method", "Module", "NilClass", "Object",
+    "Proc", "Range", "Regexp", "Set", "String", "Struct", "Symbol",
+    "Time", "TrueClass", NULL};
+
+static const char *const ruby_constants[] = {
+    "nil", "true", "false", "self", "__FILE__", "__LINE__", "__dir__",
+    NULL};
+
+static const vted_language_t language_ruby = {
+    "Ruby", ruby_files, ruby_keywords, ruby_types, ruby_constants,
+    "#", NULL, NULL, "\"'", 0};
+
+/*----------------------------------------------------------
 | the table
 ----------------------------------------------------------*/
 
@@ -383,6 +413,7 @@ static const vted_language_t *const languages[] = {
     &language_html,
     &language_css,
     &language_lua,
+    &language_ruby,
     NULL};
 
 static const vted_language_t *current_language;
