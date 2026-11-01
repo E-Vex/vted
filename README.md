@@ -193,6 +193,7 @@ set while editing.
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-O          | open another file as a buffer of its own         |
 | Ctrl-E          | close the buffer being edited                    |
+| Ctrl-B          | pick a buffer from a list of what is open        |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
 | Alt-1 .. Alt-9  | jump to the buffer with that number               |
 | Ctrl-G          | go to a line number (ESC cancels)                |
@@ -202,18 +203,21 @@ set while editing.
 | Ctrl-W          | set the tab width in cells                       |
 | Ctrl-Q          | quit (three extra presses when modified)         |
 
-With several buffers open, Alt-, and Alt-. step through them and
-Alt-1 to Alt-9 jump to one by number, while the status bar shows
-which one is being edited ("2/3, Ln 5/120, Col 12"). Ctrl-E closes
-the buffer being edited: unsaved changes ask for three more presses
-first, the way Ctrl-Q does, and closing the last buffer starts a
-fresh empty one.
+With several buffers open, Ctrl-B lists them with their numbers and
+names (a `+` marks unsaved changes): the arrows wrap around the list,
+Enter takes the one under the selection and ESC stays where you were.
+Alt-, and Alt-. step through them and Alt-1 to Alt-9 jump to one by
+number, while the status bar shows which one is being edited
+("2/3, Ln 5/120, Col 12"). Ctrl-E closes the buffer being edited:
+unsaved changes ask for three more presses first, the way Ctrl-Q
+does, and closing the last buffer starts a fresh empty one.
 
 ## Features
 
 - Several files in one session: every file named on the command line
   opens in a buffer of its own, Ctrl-O opens another from within the
-  editor, and Alt-, / Alt-. or Alt-1 to Alt-9 move between them. A
+  editor, and Alt-, / Alt-. or Alt-1 to Alt-9 move between them; Ctrl-B
+  picks one from a list over the bottom of the viewport. A
   buffer keeps its cursor, viewport and undo history while it waits,
   the status bar says which one is on, and opening a path that is
   already open switches to that buffer instead of opening it twice;
