@@ -999,6 +999,96 @@ static void TestPasteOfOneBreakEndingTheFileRoundTrips(void)
     CHECK_INT(vted_editor_config.cursor_y, 2);
 }
 
+/* pushes an entry for one typed byte, the way the tests above do;
+   the caller sets the buffer up around the byte */
+static void PushTypedByte(char byte, int at)
+{
+    UndoEntry entry = {
+        .kind = UndoKindInsertBytes,
+        .row = 0,
+        .cx = at,
+        .bytes = &byte,
+        .length = 1,
+        .undo_y = 0,
+        .undo_x = at,
+        .redo_y = 0,
+        .redo_x = at + 1,
+    };
+
+    UndoPush(&entry);
+}
+
+static void TestDetachLeavesAnEmptyModule(void)
+{
+    Begin("aXb"); /* as if X had just been typed at column 1 */
+    PushTypedByte('X', 1);
+
+    void *token = UndoDetach();
+
+    /* the module holds nothing: the text is not touched either way */
+    CHECK_INT(EditorUndo(), 0);
+    CHECK_INT(EditorRedo(), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "aXb");
+
+    UndoAttach(token);
+
+    /* put back, the change is reachable again */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+}
+
+static void TestAnEmptyHistoryDetachesToo(void)
+{
+    Begin("ab");
+
+    void *token = UndoDetach();
+
+    UndoAttach(token);
+
+    CHECK_INT(EditorUndo(), 0);
+    CHECK_INT(EditorRedo(), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+}
+
+static void TestAttachReplacesTheCurrentHistory(void)
+{
+    /* one buffer's history goes out */
+    Begin("aXb");
+    PushTypedByte('X', 1);
+    void *token = UndoDetach();
+
+    /* another buffer is edited in the meantime */
+    Begin("cYd");
+    PushTypedByte('Y', 1);
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(EditorRedo(), 1);
+
+    /* the first buffer and its history come back together */
+    Begin("aXb");
+    UndoAttach(token);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    /* the second buffer's change is unreachable now: only the first
+       buffer's own redo is left */
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aXb");
+    CHECK_INT(EditorRedo(), 0);
+}
+
+static void TestANullHistoryIsEmpty(void)
+{
+    Begin("ab");
+    PushTypedByte('X', 0); /* as if X had been typed in front */
+
+    UndoAttach(NULL);
+
+    CHECK_INT(EditorUndo(), 0);
+    CHECK_INT(EditorRedo(), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -1043,6 +1133,10 @@ int main(void)
     TestPasteKeepsEndingsThroughUndo();
     TestPasteEndingTheFileRoundTrips();
     TestPasteOfOneBreakEndingTheFileRoundTrips();
+    TestDetachLeavesAnEmptyModule();
+    TestAnEmptyHistoryDetachesToo();
+    TestAttachReplacesTheCurrentHistory();
+    TestANullHistoryIsEmpty();
 
     return TestSummary("undo");
 }

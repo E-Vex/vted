@@ -191,6 +191,65 @@ void UndoReset(void)
     }
 }
 
+/*----------------------------------------------------------
+| carrying the history between buffers
+----------------------------------------------------------*/
+
+/* a history taken out of the module: the two stacks as they stood,
+   with their counts. The caller holds this until it goes back in */
+typedef struct
+{
+    UndoEntry undo_stack[UNDO_LIMIT];
+    int undo_count;
+    UndoEntry redo_stack[UNDO_LIMIT];
+    int redo_count;
+} UndoHistory;
+
+void *UndoDetach(void)
+{
+    UndoHistory *history = malloc(sizeof *history);
+
+    if (history == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    /* the stacks move out whole: the entries' memory belongs to the
+       token now, so the module's copies are wiped, not freed */
+    memcpy(history->undo_stack, undo_stack, sizeof undo_stack);
+    history->undo_count = undo_count;
+    memcpy(history->redo_stack, redo_stack, sizeof redo_stack);
+    history->redo_count = redo_count;
+
+    memset(undo_stack, 0, sizeof undo_stack);
+    undo_count = 0;
+    memset(redo_stack, 0, sizeof redo_stack);
+    redo_count = 0;
+
+    return history;
+}
+
+void UndoAttach(void *token)
+{
+    UndoHistory *history = token;
+
+    /* whatever the module holds now is dropped: putting a history in
+       means the buffer it belongs to is the one being edited */
+    UndoReset();
+
+    if (history == NULL)
+    {
+        return;
+    }
+
+    memcpy(undo_stack, history->undo_stack, sizeof undo_stack);
+    undo_count = history->undo_count;
+    memcpy(redo_stack, history->redo_stack, sizeof redo_stack);
+    redo_count = history->redo_count;
+
+    free(history);
+}
+
 /* places bytes inside a row, one by one, like typing them */
 static void PlaceBytes(int row, int cx, const char *bytes, int length)
 {

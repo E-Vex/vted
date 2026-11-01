@@ -67,6 +67,16 @@ void UndoPushTyping(UndoEntry *entry);
 /* drops both histories (a freshly loaded file has none) */
 void UndoReset(void);
 
+/* takes the whole history out of the module as an opaque token, and
+   leaves it holding an empty one; the token belongs to the caller
+   until it goes back in with UndoAttach() */
+void *UndoDetach(void);
+
+/* puts a token from UndoDetach() back as the module's history,
+   replacing whatever it held; a NULL token leaves an empty history.
+   The token is consumed either way */
+void UndoAttach(void *token);
+
 int EditorUndo(void); /* returns 1 when something was undone */
 int EditorRedo(void); /* returns 1 when something was redone */
 
