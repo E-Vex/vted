@@ -2638,7 +2638,7 @@ void InitVtedEditor(void)
 
     /* the tab stop and whether Tab inserts spaces instead of a tab,
        whether the tabs are drawn as dotted runs, whether the indent
-       guides dot the stops the indents cross, whether long lines
+       guides dot the nesting levels, whether long lines
        wrap over several screen lines, and the column the marker sits
        on, 0 for none */
     vted_editor_config.tab_width = VTED_TAB_STOP;

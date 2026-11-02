@@ -138,12 +138,12 @@ that flows over several screen lines starts each one after it at
 the cell column where its own first line's text starts
 .TP
 .B Alt\-g
-show or hide the indent guides: every tab stop a row's leading
-whitespace crosses carries a · in a quiet slate blue, so the
-levels of the nesting line up as dotted rails down the screen; the
-stops follow the tab width, the cells they sit in take the same
-either way, and a tab shown by Alt\-t keeps its own marker on the
-stop it starts
+show or hide the indent guides: the last cell of every nesting level a
+row sits in, its own indent edge and every shallower one still open
+above it, carries a · in a quiet slate blue, so the levels of the
+nesting line up as dotted rails down the screen whatever widths the
+file indents with, tabs, spaces or both; the cells they sit in take
+the same either way, and a tab shown by Alt\-t keeps its own markers
 .TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
@@ -323,7 +323,7 @@ and
 .B "set indent-guides on"
 or
 .BR off
-(a tab stop a row's leading whitespace crosses carries a ·, so
+(the last cell of every nesting level a row sits in carries a ·, so
 the levels of the nesting line up as dotted rails down the screen),
 and
 .BI "set wrap-column " N

@@ -199,13 +199,16 @@ cells are tracked separately:
   the `HlTab` class — the gray of a comment. The cells a tab takes do
   not change either way, so no measurement of the row does either.
 - When the indent guides are on (`indent_guides`, Alt-g,
-  `set indent-guides on`), a blank of the row's leading whitespace
-  whose first cell sits on a tab stop is drawn as a `·` with the
-  `HlIndent` class — a slate blue a step darker than the tab gray —
-  so the stops an indent crosses line up as dotted rails down the
-  screen. A tab whose first cell is a stop keeps its `»` when the
-  tabs are shown and takes a dot on its first cell when they are
-  not; whitespace past the row's indent is left alone. The cells the
+  `set indent-guides on`), the last cell of every nesting level the
+  row sits in is drawn as a `·` with the `HlIndent` class — a slate
+  blue a step darker than the tab gray. The levels come from
+  `BufferIndentEdges()` in `src/vted_row.c`: the row's own indent
+  edge and every shallower one still open above it, so the rails
+  line up with the code whatever widths it indents with, and a rail
+  carries across the blank lines inside a block. A tab carries its
+  dot on the cell of its run that ends the level, wherever in the
+  run that is, and keeps its `»` and trail when the tabs are shown;
+  whitespace past the row's indent is left alone. The cells the
   guides draw in do not change, so no measurement of the row does
   either.
 - A control character (byte `< 0x20` except tab, or byte `0x7F`) takes

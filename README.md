@@ -197,9 +197,9 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 | Alt-i           | keep the indent on the wrapped lines: a row
   that flows over several screen lines continues under
   its own first line's text                     |
-| Alt-g           | dot the tab stops the indents cross: every
-  blank of a row's leading whitespace that sits on a
-  stop carries a ·, in a quiet slate blue         |
+| Alt-g           | dot the nesting levels the code sits in: the
+  last cell of every indent a row and the rows above
+  it keep open carries a ·, in a quiet slate blue  |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -303,12 +303,13 @@ does, and closing the last buffer starts a fresh empty one.
   trail of · in the gray of a comment taking the same cells either way;
   control characters show as `^X` and invalid bytes
   as `�`, so nothing odd ever reaches your terminal
-- Indent guides with Alt-g (`set indent-guides on`): every tab stop a
-  row's leading whitespace crosses carries a quiet ·, so the levels of
-  the nesting line up as dotted rails down the screen; the stops follow
-  the tab width (Ctrl-W), the cells they sit in take the same room
-  either way, and a tab shown by Alt-t keeps its own » on the stop it
-  starts
+- Indent guides with Alt-g (`set indent-guides on`): the last cell of
+  every nesting level a row sits in carries a quiet ·, its own indent
+  edge and every shallower one still open above it, so the levels of
+  the nesting line up as dotted rails down the screen whatever widths
+  the file indents with — tabs, spaces or both; the cells they sit in
+  take the same room either way, and a tab shown by Alt-t keeps its
+  own » and trail
 - The cursor keeps its display column across short lines when moving
   up and down, and an aim that falls inside a row's indent lands past
   it, on the first non-blank glyph, so the cursor never rests between
