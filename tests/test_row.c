@@ -565,6 +565,47 @@ static void TestBracketBlockWithoutAMatch(void)
     CHECK_INT(BlockAt(1, 0, &first, &last), 0);
 }
 
+static void TestDuplicateRowsCopiesTheSpanInOrder(void)
+{
+    const char *const texts[] = {"a", "b", "c", NULL};
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferDuplicateRows(0, 1), 0);
+    CHECK_INT(vted_buffer.num_rows, 5);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+    CHECK_STR(vted_buffer.rows[1].chars, "b");
+    CHECK_STR(vted_buffer.rows[2].chars, "a"); /* the copies, in order */
+    CHECK_STR(vted_buffer.rows[3].chars, "b");
+    CHECK_STR(vted_buffer.rows[4].chars, "c");
+}
+
+static void TestDuplicateRowsKeepTheirEndings(void)
+{
+    const char *const texts[] = {"a {", "b", "}", NULL};
+
+    MakeBuffer(texts);
+    vted_buffer.rows[0].eol = VTED_EOL_LF;
+    vted_buffer.rows[1].eol = VTED_EOL_CRLF;
+    vted_buffer.rows[2].eol = VTED_EOL_CR;
+
+    CHECK_INT(BufferDuplicateRows(0, 2), 0);
+    CHECK_INT(vted_buffer.rows[3].eol, VTED_EOL_LF);
+    CHECK_INT(vted_buffer.rows[4].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.rows[5].eol, VTED_EOL_CR);
+}
+
+static void TestDuplicateRowsOfOneRow(void)
+{
+    const char *const texts[] = {"only", NULL};
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferDuplicateRows(0, 0), 0);
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "only");
+}
+
 static void TestBracketScanStopsAtTheLimit(void)
 {
     /* a row far past the scan limit: the match at its end counts as
@@ -1347,6 +1388,9 @@ int main(void)
     TestBracketBlockSpansItsRows();
     TestBracketBlockOnOneRowIsThatRow();
     TestBracketBlockWithoutAMatch();
+    TestDuplicateRowsCopiesTheSpanInOrder();
+    TestDuplicateRowsKeepTheirEndings();
+    TestDuplicateRowsOfOneRow();
     TestBracketScanStopsAtTheLimit();
     TestWrapCount();
     TestWrapBreaksAtWordBoundaries();

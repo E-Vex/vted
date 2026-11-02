@@ -1199,6 +1199,31 @@ int BufferFindBracketBlock(int cy, int cx, int *first_row, int *last_row)
     return 1;
 }
 
+int BufferDuplicateRows(int first, int last)
+{
+    /* places copies of the rows first through last below them, in
+       order and each keeping its own text and ending; the rows they
+       were made from stay where they are. Returns 0, or -1 when a
+       copy could not be made */
+    int at;
+
+    for (at = first; at <= last; at++)
+    {
+        /* InsertRow may move the rows array, so the source row is
+           read through it right at the call; the copies land below
+           the last source row, one further down each time */
+        vted_row_t *row = &vted_buffer.rows[at];
+
+        if (InsertRow(last + 1 + (at - first), row->chars, row->size,
+                      row->eol) == -1)
+        {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 void BufferCountMatches(const char *query, int query_len,
                         int row, int col, int *total, int *before)
 {

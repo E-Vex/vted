@@ -217,6 +217,11 @@ int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
    not on a bracket or no match is there to be found */
 int BufferFindBracketBlock(int cy, int cx, int *first_row, int *last_row);
 
+/* places copies of the rows first through last below them, in order
+   and each keeping its own text and ending. Returns 0, or -1 when a
+   copy could not be made */
+int BufferDuplicateRows(int first, int last);
+
 /* counts the matches of query in the whole buffer, and how many of
    them start before (row, col): the place among them all of the
    match the cursor sits on. Matches are counted the way the search
