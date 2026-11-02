@@ -27,13 +27,13 @@ Ready-made packages are attached to every
 | `vted-<v>-<arch>.AppImage`        | any x86_64 distro                    | `chmod +x` and run                         |
 | `vted-<v>-linux-<arch>.tar.gz`    | any x86_64 distro                    | unpack, then `sudo ./install.sh`           |
 
-The examples below use version 0.2.0; grab the file names from the
+The examples below use version 0.3.0; grab the file names from the
 latest release page.
 
 ### Debian, Ubuntu, Mint and friends (.deb)
 
 ```sh
-sudo apt install ./vted_0.2.0_amd64.deb
+sudo apt install ./vted_0.3.0_amd64.deb
 ```
 
 The package carries a statically linked binary, so `apt` has nothing
@@ -44,8 +44,8 @@ the same. Remove it again with `sudo apt remove vted`.
 ### Fedora, RHEL, CentOS, openSUSE (.rpm)
 
 ```sh
-sudo dnf install ./vted-0.2.0-1.x86_64.rpm     # Fedora, RHEL, CentOS
-sudo zypper install ./vted-0.2.0-1.x86_64.rpm  # openSUSE
+sudo dnf install ./vted-0.3.0-1.x86_64.rpm     # Fedora, RHEL, CentOS
+sudo zypper install ./vted-0.3.0-1.x86_64.rpm  # openSUSE
 ```
 
 The RPM is built from source against the system C library, the way RPM
@@ -56,15 +56,15 @@ install time. Remove it with `sudo dnf remove vted` or
 ### Any distro — AppImage
 
 ```sh
-chmod +x vted-0.2.0-x86_64.AppImage
-./vted-0.2.0-x86_64.AppImage
+chmod +x vted-0.3.0-x86_64.AppImage
+./vted-0.3.0-x86_64.AppImage
 ```
 
 Nothing is installed and nothing is extracted — it just runs. To use
 it as plain `vted`, put it on your `PATH`:
 
 ```sh
-install -m 755 vted-0.2.0-x86_64.AppImage ~/.local/bin/vted
+install -m 755 vted-0.3.0-x86_64.AppImage ~/.local/bin/vted
 ```
 
 ### Any distro — static binary tarball
@@ -73,8 +73,8 @@ For everything without `.deb` or `.rpm` support — Arch, Alpine,
 Gentoo, Void, a chroot, a rescue disk:
 
 ```sh
-tar xzf vted-0.2.0-linux-x86_64.tar.gz
-cd vted-0.2.0-linux-x86_64
+tar xzf vted-0.3.0-linux-x86_64.tar.gz
+cd vted-0.3.0-linux-x86_64
 sudo ./install.sh                          # or: PREFIX="$HOME/.local" ./install.sh
 ```
 
