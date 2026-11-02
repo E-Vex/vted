@@ -724,6 +724,69 @@ static int FindMatch(const char *query, int start_row, int start_col,
     return -1;
 }
 
+/* runs the search as it stands and lands the cursor on its match:
+   a jump with the arrows steps from the match the cursor sits on,
+   so every match on a line is reachable; a changed query searches
+   afresh from where the search started, so it refines the match in
+   place. Returns the row of the match it left the cursor on, -1
+   when the query has none */
+static int SearchStep(const char *query, int query_len, int direction,
+                      int last_match_row, int saved_y, int saved_x)
+{
+    int search_row;
+    int search_col;
+    int match_row;
+    int match_col;
+
+    if (last_match_row >= 0)
+    {
+        search_row = vted_editor_config.cursor_y;
+        search_col = vted_editor_config.cursor_x + (direction > 0 ? 1 : 0);
+    }
+    else
+    {
+        search_row = saved_y;
+        search_col = direction > 0 ? 0 : saved_x;
+    }
+
+    if (FindMatch(query, search_row, search_col, direction,
+                  &match_row, &match_col) == 0)
+    {
+        /* drop the old highlight before the new one is painted */
+        if (vted_editor_config.match_row >= 0)
+        {
+            ScreenMarkRowDirty(vted_editor_config.match_row);
+        }
+
+        vted_editor_config.cursor_y = match_row;
+        vted_editor_config.cursor_x = match_col;
+
+        /* a match that left the viewport comes back mid-viewport,
+           the wrapped rows around it counted at their real
+           heights, the way Ctrl-G lands a line; one still on
+           screen keeps the viewport where it is */
+        ScreenCenterCursor();
+
+        /* highlight the match on screen */
+        vted_editor_config.match_row = match_row;
+        vted_editor_config.match_col = match_col;
+        vted_editor_config.match_len = query_len;
+
+        ScreenMarkRowDirty(match_row);
+        return match_row;
+    }
+
+    /* no match for the current query: drop the highlight */
+    if (vted_editor_config.match_row >= 0)
+    {
+        ScreenMarkRowDirty(vted_editor_config.match_row);
+    }
+
+    vted_editor_config.match_row = -1;
+    vted_editor_config.match_len = 0;
+    return -1;
+}
+
 static void EditorFind(void)
 {
     char query[64];
@@ -837,61 +900,8 @@ static void EditorFind(void)
            match the cursor sits on, so every match on a line is
            reachable; a changed query searches afresh from where the
            search started, so it refines the match in place */
-        int search_row;
-        int search_col;
-        if (last_match_row >= 0)
-        {
-            search_row = vted_editor_config.cursor_y;
-            search_col = vted_editor_config.cursor_x + (direction > 0 ? 1 : 0);
-        }
-        else
-        {
-            search_row = saved_y;
-            search_col = direction > 0 ? 0 : saved_x;
-        }
-
-        int match_row;
-        int match_col;
-
-        if (FindMatch(query, search_row, search_col, direction,
-                      &match_row, &match_col) == 0)
-        {
-            /* drop the old highlight before the new one is painted */
-            if (vted_editor_config.match_row >= 0)
-            {
-                ScreenMarkRowDirty(vted_editor_config.match_row);
-            }
-
-            last_match_row = match_row;
-            vted_editor_config.cursor_y = match_row;
-            vted_editor_config.cursor_x = match_col;
-
-            /* a match that left the viewport comes back mid-viewport,
-               the wrapped rows around it counted at their real
-               heights, the way Ctrl-G lands a line; one still on
-               screen keeps the viewport where it is */
-            ScreenCenterCursor();
-
-            /* highlight the match on screen */
-            vted_editor_config.match_row = match_row;
-            vted_editor_config.match_col = match_col;
-            vted_editor_config.match_len = query_len;
-
-            ScreenMarkRowDirty(match_row);
-        }
-        else
-        {
-            last_match_row = -1;
-
-            /* no match for the current query: drop the highlight */
-            if (vted_editor_config.match_row >= 0)
-            {
-                ScreenMarkRowDirty(vted_editor_config.match_row);
-            }
-
-            vted_editor_config.match_row = -1;
-            vted_editor_config.match_len = 0;
-        }
+        last_match_row = SearchStep(query, query_len, direction,
+                                    last_match_row, saved_y, saved_x);
     }
 
     /* leaving the search clears the highlight */
