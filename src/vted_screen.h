@@ -28,6 +28,8 @@ typedef struct
   int show_tabs;     /* 1: tab characters are drawn as dotted runs */
   int wrap;          /* 1: long lines flow over several screen lines instead
                         of scrolling the viewport sideways */
+  int wrap_column;   /* text cells that fit before the column marker is
+                        drawn, 0 to hide it */
 
   char status_message[256]; /* most recent message shown in the message bar */
 } vted_editor_Config_t;

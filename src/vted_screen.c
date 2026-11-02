@@ -733,10 +733,13 @@ static const int *QueryMatchesOfRow(const vted_row_t *row, int *count)
     return found > 0 ? query_match_starts : NULL;
 }
 
-static void AppendStyle(append_buffer_t *ab, int hl_class, int inverted)
+static void AppendStyle(append_buffer_t *ab, int hl_class, int inverted,
+                        int marked)
 {
     /* every change starts from plain text, so no attribute of the
-       previous style can linger */
+       previous style can linger; the wrap column marker's background
+       goes on top of the color, except under an inversion, where the
+       cell already stands out on its own */
     const char *color = SyntaxStyle(hl_class);
 
     AppendToBuffer(ab, "\x1b[m", 3);
@@ -747,6 +750,13 @@ static void AppendStyle(append_buffer_t *ab, int hl_class, int inverted)
     }
 
     AppendToBuffer(ab, color, (int)strlen(color));
+
+    if (marked && !inverted)
+    {
+        const char *marker = SyntaxStyle(HlMarker);
+
+        AppendToBuffer(ab, marker, (int)strlen(marker));
+    }
 }
 
 /* the selection the editor core hands over after every key press; the
@@ -843,10 +853,16 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
     const int *query_matches = NULL;
     int query_match_count = 0;
     int next_query_match = 0;
+    /* the wrap column marker: the text cell it sits on, or nothing
+       when it is hidden; it is drawn on top of whatever glyph covers
+       it, and over the blank tail of the line when none does */
+    int marker = vted_editor_config.wrap_column;
+    int emitted = left; /* the next cell the stream of output reaches */
     int cell = 0;
     int at = 0;
     int in_run = 0;
     int inverted = 0;
+    int is_marked = 0;
     int style = HlNormal;
     int sel_start = -1;
     int sel_end = -1;
@@ -903,6 +919,8 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
         int in_query_match = 0;
         int want_inverted = is_control || in_match || in_bracket ||
                             (sel_start >= 0 && glyph_at >= sel_start && glyph_at < sel_end);
+        int marked = marker > 0 && marker >= left && marker < right &&
+                     placed <= marker && marker < placed + width;
         int glyph_class;
 
         if (query_match_count > 0)
@@ -938,14 +956,56 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
             }
         }
 
-        if (want_inverted != inverted || glyph_class != style)
+        if (want_inverted != inverted || glyph_class != style ||
+            marked != is_marked)
         {
             style = glyph_class;
             inverted = want_inverted;
-            AppendStyle(ab, style, inverted);
+            is_marked = marked;
+            AppendStyle(ab, style, inverted, is_marked);
         }
 
         AppendGlyph(ab, row, glyph_at, next, placed, width, left, right);
+
+        if (placed <= emitted && placed + width > emitted)
+        {
+            /* the stream of output reaches past this glyph, never past
+               the viewport's right edge; a glyph the wrap moved down
+               starts past the padding it left, and the padding stays
+               blank: the marker may have to be drawn there */
+            emitted = placed + width < right ? placed + width : right;
+        }
+    }
+
+    /* the marker over the blank tail of the line: past the text, or
+       past the run a wrap moved down, no glyph carries it there */
+    if (marker > 0 && marker >= left && marker < right && marker >= emitted)
+    {
+        int pad;
+
+        if (inverted || style != HlNormal)
+        {
+            AppendToBuffer(ab, "\x1b[m", 3);
+            inverted = 0;
+            style = HlNormal;
+            is_marked = 0;
+        }
+
+        for (pad = emitted; pad < marker; pad++)
+        {
+            AppendToBuffer(ab, " ", 1);
+        }
+
+        {
+            const char *marker_style = SyntaxStyle(HlMarker);
+
+            AppendToBuffer(ab, marker_style, (int)strlen(marker_style));
+            AppendToBuffer(ab, " ", 1);
+        }
+
+        /* the blank cell after the marker is erased with ESC[K, which
+           keeps the background it finds: back to plain before then */
+        AppendToBuffer(ab, "\x1b[m", 3);
     }
 
     if (inverted || style != HlNormal)
@@ -2335,12 +2395,14 @@ void InitVtedEditor(void)
     vted_editor_config.gutter_width = 0;
 
     /* the tab stop and whether Tab inserts spaces instead of a tab,
-       whether the tabs are drawn as dotted runs, and whether long
-       lines wrap over several screen lines */
+       whether the tabs are drawn as dotted runs, whether long lines
+       wrap over several screen lines, and the column the marker sits
+       on, 0 for none */
     vted_editor_config.tab_width = VTED_TAB_STOP;
     vted_editor_config.insert_spaces = 0;
     vted_editor_config.show_tabs = 0;
     vted_editor_config.wrap = 0;
+    vted_editor_config.wrap_column = 0;
     RowSetTabWidth(vted_editor_config.tab_width);
 
     /* no search match highlighted yet */

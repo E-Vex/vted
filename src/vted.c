@@ -135,6 +135,7 @@ static void ApplySettings(const vted_settings_t *settings)
     vted_editor_config.show_line_numbers = settings->show_line_numbers;
     vted_editor_config.show_tabs = settings->show_tabs;
     vted_editor_config.wrap = settings->wrap;
+    vted_editor_config.wrap_column = settings->wrap_column;
 
     /* the width reaches every buffer open at startup, so they all
        begin with it; Ctrl-W later sets the live one's alone */
