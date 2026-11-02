@@ -292,6 +292,17 @@ rows in between, and from the start of the bottom row to `right`.
 search match. When `match_len > 0`, the bytes `[match_col,
 match_col + match_len)` of `match_row` are drawn inverted.
 
+While a search runs, the editor core also hands the query itself to
+the renderer with `ScreenSetSearchQuery(query, len)` — borrowed, not
+copied. Every match of it is drawn with the `HlMatch` background (an
+amber one, `48;5;94` on a 256-color terminal), the match under the
+cursor inverted as before. A row being drawn is scanned once for the
+places the query matches (`QueryMatchesOfRow()`, on top of
+`RowFindNext()`), and the walk over the glyphs and the walk over the
+matches advance together, so a row costs one pass. A changed query
+marks every row dirty: the matches move with every keystroke, so the
+viewport — the only thing painted — is where they all live.
+
 ### Matching bracket
 
 The editor core looks for the partner of the bracket under the cursor

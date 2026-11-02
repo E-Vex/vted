@@ -205,7 +205,8 @@ Ctrl-L set while editing.
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
 | Alt-1 .. Alt-9  | jump to the buffer with that number               |
 | Ctrl-G          | go to a line number (ESC cancels)                |
-| Ctrl-F          | incremental search: arrows step between matches,
+| Ctrl-F          | incremental search: every match lights up while
+  you type and the prompt counts them, arrows step between matches,
   a match that left the viewport lands mid-viewport, ESC restores |
 | Ctrl-N          | show or hide the line numbers                    |
 | Ctrl-L          | wrap long lines over several screen lines,
@@ -301,9 +302,12 @@ does, and closing the last buffer starts a fresh empty one.
 - Status bar with filename, line count, modified marker and the cursor's line
   and display column
 - Message bar for status and warnings
-- Incremental search (Ctrl-F) with match highlighting; stepping to a
-  match that left the viewport lands it mid-viewport, the wrapped rows
-  around it counted at their real heights
+- Incremental search (Ctrl-F): every match of the query lights up
+  while it is being typed — amber behind the text, the one under the
+  cursor inverted — and the prompt counts where that match stands
+  among them all ("3 of 17", "no matches"); arrows step through
+  them, a match that left the viewport lands it mid-viewport, the
+  wrapped rows around it counted at their real heights
 - Go to a line with Ctrl-G; a number past the end lands on the last
   line, and the line lands mid-viewport, the tall rows of wrapping
   counted at their real heights
