@@ -40,6 +40,7 @@ static void TestDefaults(void)
     CHECK_INT(settings.show_tabs, 0);
     CHECK_INT(settings.wrap, 0);
     CHECK_INT(settings.wrap_indent, 1);
+    CHECK_INT(settings.indent_guides, 0);
 }
 
 static void TestTabWidth(void)
@@ -164,6 +165,21 @@ static void TestWrapIndent(void)
     CHECK_INT(settings.wrap_indent, 1);
 }
 
+static void TestIndentGuides(void)
+{
+    vted_settings_t settings;
+
+    CHECK_INT(LoadLines("set indent-guides on\n", &settings), 0);
+    CHECK_INT(settings.indent_guides, 1);
+
+    CHECK_INT(LoadLines("set indent-guides off\n", &settings), 0);
+    CHECK_INT(settings.indent_guides, 0);
+
+    /* anything else is not a setting */
+    CHECK_INT(LoadLines("set indent-guides maybe\n", &settings), 1);
+    CHECK_INT(settings.indent_guides, 0);
+}
+
 static void TestCommentsAndBlankLines(void)
 {
     vted_settings_t settings;
@@ -261,6 +277,7 @@ int main(void)
     TestShowTabs();
     TestWrapColumn();
     TestWrapIndent();
+    TestIndentGuides();
     TestCommentsAndBlankLines();
     TestUnknownKeyIsCountedBad();
     TestALaterLineWins();

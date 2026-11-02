@@ -26,6 +26,8 @@ typedef struct
                               0 to hide it */
     int wrap_indent;       /* 1: the lines a row wraps onto keep the row's
                               own indent at their start */
+    int indent_guides;     /* 1: mark the tab stops the rows' indents
+                              cross with dots */
 } vted_settings_t;
 
 /* the settings the editor starts from: the built-in defaults */

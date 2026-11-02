@@ -18,6 +18,7 @@ vted_settings_t SettingsDefaults(void)
     settings.wrap = 0;
     settings.wrap_column = 0;
     settings.wrap_indent = 1;
+    settings.indent_guides = 0;
 
     return settings;
 }
@@ -229,6 +230,19 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->wrap_indent = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "indent-guides"))
+        {
+            int on_off = ParseOnOff(value, value_len);
+
+            if (on_off == -1)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->indent_guides = on_off;
             }
         }
         else
