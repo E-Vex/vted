@@ -108,6 +108,14 @@ int RowRxToCx(const vted_row_t *row, int rx);
    run to the edge and on past it, because it is blank space */
 int RowWrapCount(const vted_row_t *row, int cols);
 
+/* the cell a run of non-blank glyphs that starts at byte index at is
+   placed at when it begins at start_cell on lines of cols cells: a
+   run that does not fit the rest of its line moves down to the next
+   one whole, as long as one line is room enough for it — a run
+   longer than a line breaks at the line's edge instead, and one that
+   starts a line is already as far left as it goes */
+int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols);
+
 /* where byte index cx sits when the row flows over lines of cols
    cells: the screen line it is on (one past the row's own lines when
    the text ends exactly at a line edge) and the cell column within

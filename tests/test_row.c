@@ -653,6 +653,41 @@ static void TestWrapCursorPosition(void)
     CHECK_INT(col, 0);
 }
 
+static void TestWrapRunStart(void)
+{
+    /* a run of non-blank glyphs that does not fit the rest of its
+       line moves down to the next one whole; one that fits, one that
+       starts a line, and one longer than a line stay where they are */
+    vted_row_t row = MakeRow("ab cdef");
+
+    /* "cdef" takes 4 cells: it does not fit the 2 cells line 0 has
+       left from cell 2, so it starts line 1 */
+    CHECK_INT(RowWrapRunStart(&row, 3, 2, 4), 4);
+
+    /* from the start of a line there is a whole line of room: no
+       move, wherever the run would begin */
+    CHECK_INT(RowWrapRunStart(&row, 3, 4, 4), 4);
+    CHECK_INT(RowWrapRunStart(&row, 3, 0, 4), 0);
+
+    /* "ab" takes 2 cells and fits the rest of line 0 from cell 2 */
+    CHECK_INT(RowWrapRunStart(&row, 0, 2, 4), 2);
+    CHECK_INT(RowWrapRunStart(&row, 0, 3, 4), 4);
+
+    /* a run of only blanks takes no cells and never moves */
+    {
+        vted_row_t blanks = MakeRow("  ");
+
+        CHECK_INT(RowWrapRunStart(&blanks, 0, 2, 4), 2);
+    }
+
+    /* a run longer than a whole line breaks at the edge instead */
+    {
+        vted_row_t long_run = MakeRow("abcdef");
+
+        CHECK_INT(RowWrapRunStart(&long_run, 0, 2, 4), 2);
+    }
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -686,6 +721,7 @@ int main(void)
     TestWrapMovesWideGlyphsDown();
     TestWrapLetsTabsCrossTheEdge();
     TestWrapCursorPosition();
+    TestWrapRunStart();
 
     return TestSummary("row");
 }

@@ -551,6 +551,45 @@ static Utf8Class RowClassAt(const vted_row_t *row, int at)
     return Utf8CharClass(code_point);
 }
 
+int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols)
+{
+    /* the run's cells, counted only as far as one line's worth: past
+       that the run is longer than a line, breaks at the line's edge
+       instead, and its exact size no longer matters */
+    int cells = 0;
+    int i = at;
+
+    if (cols < 1)
+    {
+        cols = 1;
+    }
+
+    while (i < row->size && RowClassAt(row, i) != Utf8ClassBlank)
+    {
+        /* a non-blank glyph's width does not depend on the cell it
+           starts at, so the cells add up the same wherever the run
+           is placed */
+        cells += RowCharWidth(row, i, 0);
+
+        if (cells > cols)
+        {
+            break; /* longer than a line */
+        }
+
+        i = Utf8NextBoundary(row->chars, row->size, i);
+    }
+
+    if (start_cell % cols != 0 && cells <= cols &&
+        start_cell + cells > (start_cell / cols + 1) * cols)
+    {
+        /* the run does not fit the rest of its line: the next line's
+           first cell is where it starts */
+        return (start_cell / cols + 1) * cols;
+    }
+
+    return start_cell;
+}
+
 int RowWordRight(const vted_row_t *row, int cx)
 {
     int at = cx;
