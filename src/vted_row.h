@@ -103,22 +103,28 @@ int RowCxToRx(const vted_row_t *row, int cx);
 int RowRxToCx(const vted_row_t *row, int rx);
 
 /* how many screen lines the row takes when it flows over lines of
-   cols cells: a glyph that would cross the right edge of a line
-   starts the next one instead of being cut in half, while a tab may
-   run to the edge and on past it, because it is blank space */
+   cols cells: wrapping breaks at word boundaries, a run of
+   non-blank glyphs that does not fit the rest of a line starting the
+   next one whole — only a run longer than a line, or a wide glyph at
+   the very edge, breaks mid-run — while a tab may run to the edge
+   and on past it, because it is blank space */
 int RowWrapCount(const vted_row_t *row, int cols);
 
 /* advances one glyph through the row as the wrapped layout places
-   it: cols cells per screen line, with a glyph that would cross a
-   line's right edge moved onto the next line instead of being cut in
-   half (a tab, being blank space, may run to the edge and on past
-   it). With wrap 0 the row lays out on one endless line instead,
-   which is what a viewport that scrolls sideways shows. The walk's
-   byte index and cell are kept in *at and *cell and moved past the
-   glyph; the cell the glyph was placed at is returned, so renderer
-   and cursor math can walk a row one glyph at a time and always
-   agree on the layout */
-int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell);
+   it: cols cells per screen line, with wrapping breaking at word
+   boundaries — a run of non-blank glyphs that does not fit the rest
+   of its line starts the next one whole, and only a run longer than
+   a line, like a wide glyph at the very edge, breaks mid-run (a tab,
+   being blank space, may run to the edge and on past it). With wrap 0
+   the row lays out on one endless line instead, which is what a
+   viewport that scrolls sideways shows. The walk's byte index and
+   cell are kept in *at and *cell and moved past the glyph, and
+   *in_run keeps whether it is inside a run of non-blank glyphs: it
+   starts at 0 and is carried from glyph to glyph. The cell the glyph
+   was placed at is returned, so renderer and cursor math can walk a
+   row one glyph at a time and always agree on the layout */
+int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell,
+                   int *in_run);
 
 /* the cell a run of non-blank glyphs that starts at byte index at is
    placed at when it begins at start_cell on lines of cols cells: a

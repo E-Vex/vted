@@ -428,15 +428,28 @@ int RowRxToCx(const vted_row_t *row, int rx)
     return row->size;
 }
 
+static Utf8Class RowClassAt(const vted_row_t *row, int at)
+{
+    int code_point;
+
+    Utf8Decode(&row->chars[at], row->size - at, &code_point);
+    return Utf8CharClass(code_point);
+}
+
 /* advances one glyph through the row as the wrapped layout places
-   it: cols cells per screen line, with a glyph that would cross a
-   line's right edge moved onto the next line instead of being cut in
-   half (a tab, being blank space, may run to the edge and on past
-   it). With wrap 0 the row lays out on one endless line instead,
-   which is what a viewport that scrolls sideways shows. The walk's
-   byte index and cell are kept in *at and *cell and moved past the
-   glyph; the cell the glyph was placed at is returned */
-int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell)
+   it: cols cells per screen line, with wrapping breaking at word
+   boundaries — a run of non-blank glyphs that does not fit the rest
+   of its line starts the next one whole, and only a run longer than
+   a line, like a wide glyph at the very edge, breaks mid-run (a tab,
+   being blank space, may run to the edge and on past it). With wrap 0
+   the row lays out on one endless line instead, which is what a
+   viewport that scrolls sideways shows. The walk's byte index and
+   cell are kept in *at and *cell and moved past the glyph, and
+   *in_run keeps whether it is inside a run of non-blank glyphs: it
+   starts at 0 and is carried from glyph to glyph. The cell the glyph
+   was placed at is returned */
+int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell,
+                   int *in_run)
 {
     int width = RowCharWidth(row, *at, *cell);
     int placed;
@@ -446,6 +459,18 @@ int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell
         if (cols < 1)
         {
             cols = 1;
+        }
+
+        if (RowClassAt(row, *at) == Utf8ClassBlank)
+        {
+            *in_run = 0;
+        }
+        else if (*in_run == 0)
+        {
+            /* the glyph starts a run: the run moves down whole when
+               it does not fit the rest of its line */
+            *cell = RowWrapRunStart(row, *at, *cell, cols);
+            *in_run = 1;
         }
 
         if (row->chars[*at] != '\t' && *cell + width > (*cell / cols + 1) * cols)
@@ -463,18 +488,21 @@ int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell
     return placed;
 }
 
-/* walks the row the way the renderer wraps it: cols cells per screen
-   line, with a glyph that would cross a line's right edge moved onto
-   the next line instead of being cut in half (a tab, being blank
-   space, may run to the edge and on past it). Reports the number of
-   screen lines the row takes, and where byte index cx lands: the
-   screen line it is on and the cell column within that line */
+/* walks the row the way the renderer wraps it: cols cells per
+   screen line, with wrapping breaking at word boundaries — a run of
+   non-blank glyphs that does not fit the rest of a line starts the
+   next one whole, and only a run longer than a line breaks at the
+   edge, the way a wide glyph does too (a tab, being blank space, may
+   run to the edge and on past it). Reports the number of screen
+   lines the row takes, and where byte index cx lands: the screen
+   line it is on and the cell column within that line */
 static void WrapWalk(const vted_row_t *row, int cols, int cx,
                      int *out_lines, int *out_line, int *out_col)
 {
     int lines = 1;
     int cell = 0;
     int at = 0;
+    int in_run = 0;
 
     if (cols < 1)
     {
@@ -484,7 +512,7 @@ static void WrapWalk(const vted_row_t *row, int cols, int cx,
     while (at < row->size)
     {
         int glyph_at = at;
-        int placed = RowWrapAdvance(row, 1, cols, &at, &cell);
+        int placed = RowWrapAdvance(row, 1, cols, &at, &cell, &in_run);
         int line = placed / cols;
 
         if (line + 1 > lines)
@@ -546,14 +574,6 @@ int RowIndentLength(const vted_row_t *row, int limit)
     }
 
     return length;
-}
-
-static Utf8Class RowClassAt(const vted_row_t *row, int at)
-{
-    int code_point;
-
-    Utf8Decode(&row->chars[at], row->size - at, &code_point);
-    return Utf8CharClass(code_point);
 }
 
 int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols)

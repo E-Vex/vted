@@ -535,6 +535,97 @@ static void TestBracketScanStopsAtTheLimit(void)
     FreeBuffer();
 }
 
+static void TestWrapBreaksAtWordBoundaries(void)
+{
+    /* words move down whole: "aaa b ccc dddd e" over lines of 4
+       cells never cuts a run of non-blank glyphs in half */
+    vted_row_t row = MakeRow("aaa b ccc dddd e");
+    int line;
+    int col;
+
+    /* line 0 "aaa", line 1 " b", line 2 "ccc", line 3 "dddd",
+       line 4 " e" */
+    CHECK_INT(RowWrapCount(&row, 4), 5);
+
+    /* "ccc" does not fit the cells line 1 has left after " b", so it
+       starts line 2 */
+    RowCxToWrapped(&row, 6, 4, &line, &col); /* c */
+    CHECK_INT(line, 2);
+    CHECK_INT(col, 0);
+
+    RowCxToWrapped(&row, 10, 4, &line, &col); /* d */
+    CHECK_INT(line, 3);
+    CHECK_INT(col, 0);
+
+    /* "e" fits the cell line 4 has left after the blank */
+    RowCxToWrapped(&row, 15, 4, &line, &col); /* e */
+    CHECK_INT(line, 4);
+    CHECK_INT(col, 1);
+
+    /* the blank the moved run left behind ends its line */
+    RowCxToWrapped(&row, 5, 4, &line, &col); /* the blank before ccc */
+    CHECK_INT(line, 1);
+    CHECK_INT(col, 1);
+
+    /* a run that fits the rest of its line stays on it */
+    {
+        vted_row_t fits = MakeRow("a bc");
+
+        CHECK_INT(RowWrapCount(&fits, 4), 1); /* "bc" fits from cell 2 */
+    }
+
+    /* a run exactly as long as a line moves down when it starts
+       mid-line */
+    {
+        vted_row_t exact = MakeRow("a bbbb");
+
+        CHECK_INT(RowWrapCount(&exact, 4), 2);
+    }
+}
+
+static void TestWrapBreaksLongRunsByCharacter(void)
+{
+    /* a run longer than a whole line wraps by character inside
+       itself, while the runs around it still move down whole */
+    vted_row_t row = MakeRow("aa aaaaaaaa bb");
+    int line;
+    int col;
+
+    /* line 0 "aa a", line 1 "aaaa", line 2 "aaa ", line 3 "bb" */
+    CHECK_INT(RowWrapCount(&row, 4), 4);
+
+    RowCxToWrapped(&row, 3, 4, &line, &col); /* the long run's first a */
+    CHECK_INT(line, 0);
+    CHECK_INT(col, 3);
+
+    RowCxToWrapped(&row, 7, 4, &line, &col); /* inside the long run */
+    CHECK_INT(line, 1);
+    CHECK_INT(col, 3);
+
+    RowCxToWrapped(&row, 12, 4, &line, &col); /* b */
+    CHECK_INT(line, 3);
+    CHECK_INT(col, 0);
+}
+
+static void TestWrapMovesWideRunsDown(void)
+{
+    /* a run with a wide glyph in it moves down whole too */
+    vted_row_t row = MakeRow("ab cd \xE4\xB8\xAD" "x");
+    int line;
+    int col;
+
+    /* line 0 "ab", line 1 " cd", line 2 the wide glyph and x */
+    CHECK_INT(RowWrapCount(&row, 4), 3);
+
+    RowCxToWrapped(&row, 6, 4, &line, &col); /* the wide glyph */
+    CHECK_INT(line, 2);
+    CHECK_INT(col, 0);
+
+    RowCxToWrapped(&row, 9, 4, &line, &col); /* x */
+    CHECK_INT(line, 2);
+    CHECK_INT(col, 2);
+}
+
 static void TestWrapCount(void)
 {
     vted_row_t row = MakeRow("abcdefghijkl"); /* 12 cells */
@@ -718,6 +809,9 @@ int main(void)
     TestBracketOutOfTheBuffer();
     TestBracketScanStopsAtTheLimit();
     TestWrapCount();
+    TestWrapBreaksAtWordBoundaries();
+    TestWrapBreaksLongRunsByCharacter();
+    TestWrapMovesWideRunsDown();
     TestWrapMovesWideGlyphsDown();
     TestWrapLetsTabsCrossTheEdge();
     TestWrapCursorPosition();
