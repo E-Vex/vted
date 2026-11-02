@@ -182,7 +182,8 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
   aim that falls inside a row's indent lands past it, on
   the first non-blank                         |
 | Ctrl-Left/Right | move by word (Alt-arrows and Alt-b/f work too)   |
-| Home / End      | start / end of the line, or of the wrapped
+| Home / End      | the first non-blank of the line, then its very
+  start on a second press; End ends it — or of the wrapped
   screen line it sits on                             |
 | PageUp/Down     | move one viewport up / down, of screen
   lines when wrapping is on                       |
@@ -264,8 +265,9 @@ does, and closing the last buffer starts a fresh empty one.
   boundaries so a word never straddles two lines — one longer than a
   line breaks by character — the up and down arrows then stepping over
   the wrapped lines and PageUp/PageDown paging a viewport of them, and
-  a line taller than the viewport scrolling inside itself; Home and End
-  start and end the screen line the cursor sits on
+  a line taller than the viewport scrolling inside itself; Home lands
+  on the first non-blank of the screen line the cursor sits on and a
+  second press on its very start, and End ends it
 - Viewport-relative jumps with Alt-h, Alt-m and Alt-l: the cursor lands
   on the start of the top, the middle or the bottom screen line of the
   viewport, the way H, M and L work in vi; a wrapped layout is walked
