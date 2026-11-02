@@ -95,7 +95,11 @@ status messages and warnings.
 .SH KEYS
 .TP
 .B arrows
-move the cursor, wrapping across line ends
+move the cursor, wrapping across line ends; a vertical move aims for
+the display column it started from, and an aim that falls inside a
+row's indent lands past it, on the first non-blank glyph, so the
+cursor never rests between the blanks (a scroll that drags the
+cursor along keeps the spot it lands on)
 .TP
 .B Ctrl\-Left / Ctrl\-Right
 move by word; Alt\-Left, Alt\-Right, Alt\-b and Alt\-f do the same

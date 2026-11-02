@@ -150,7 +150,11 @@ the buffer (the row the cursor lands on after the last line). `cursor_rx`
 is the same spot as a display-cell column within the row, recomputed
 every frame by `RowCxToRx()`. `preferred_rx` is the display column
 vertical moves aim for; it is -1 when unset and is forgotten by every
-non-vertical key.
+non-vertical key. An aim that would land inside a row's leading
+indent lands past it instead, on the first non-blank glyph, so the
+cursor never rests between the blanks — only a remembered column
+does this, and a cursor a scroll drags along or a jump places keeps
+the spot it was given.
 
 `UpdateScroll()` clamps the viewport around the cursor:
 

@@ -178,7 +178,9 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 
 | Key             | Action                                           |
 | --------------- | ------------------------------------------------ |
-| arrows          | move the cursor (wraps across lines)             |
+| arrows          | move the cursor (wraps across lines); a vertical
+  aim that falls inside a row's indent lands past it, on
+  the first non-blank                         |
 | Ctrl-Left/Right | move by word (Alt-arrows and Alt-b/f work too)   |
 | Home / End      | start / end of the line, or of the wrapped
   screen line it sits on                             |
@@ -306,7 +308,10 @@ does, and closing the last buffer starts a fresh empty one.
   either way, and a tab shown by Alt-t keeps its own » on the stop it
   starts
 - The cursor keeps its display column across short lines when moving
-  up and down
+  up and down, and an aim that falls inside a row's indent lands past
+  it, on the first non-blank glyph, so the cursor never rests between
+  the blanks — a scroll that drags the cursor along keeps the spot it
+  lands on
 - Line numbers in a gutter, the current one in bold; Ctrl-N hides them and
   a terminal too narrow for them drops them on its own
 - The bracket the cursor sits on (or the one right behind it) has its
