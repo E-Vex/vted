@@ -64,6 +64,16 @@ beside it drops the numbers. A line that wraps over several screen
 lines is numbered on its first one; the lines under it line up in
 blanks.
 .PP
+With
+.B "set wrap-column"
+.I N
+a column marker is drawn over the text cell N cells in from the left
+edge of the text area, on every text row on screen: a quiet gray
+background that the glyph crossing it carries under its own color,
+and that is padded into the blank cells past the text of a shorter
+row. 0, the default, hides it, and a column wider than the terminal
+is never on screen.
+.PP
 The text is colored by what it means: comments, strings, numbers,
 keywords, types and preprocessor lines, the added, removed and
 context lines of a diff, and the name a function is defined by,
@@ -283,7 +293,11 @@ or
 and
 .B "set wrap on"
 or
-.BR off .
+.BR off ,
+and
+.BI "set wrap-column " N
+(the text cells that fit before the column marker, 0 to 512, 0
+hides it).
 Blank lines and lines starting with # are skipped, and a later line
 wins over an earlier one. A line that cannot be used is reported in
 the message bar while the setting it would have set stays at its

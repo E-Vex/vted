@@ -164,6 +164,7 @@ set insert-spaces on
 set line-numbers off
 set show-tabs on
 set wrap on
+set wrap-column 80
 ```
 
 Blank lines and `#` comments are skipped, a later line wins over an
@@ -306,6 +307,10 @@ does, and closing the last buffer starts a fresh empty one.
   16-color fallbacks
 - Status bar with filename, line count, modified marker and the cursor's line
   and display column
+- A column marker at a set width (`set wrap-column 80`): a quiet gray
+  background over that text cell of every row on screen, carried by
+  the glyph that crosses it and padded into the blank cells past the
+  text, so it is plain where a line should end
 - Message bar for status and warnings
 - Incremental search (Ctrl-F): every match of the query lights up
   while it is being typed — amber behind the text, the one under the

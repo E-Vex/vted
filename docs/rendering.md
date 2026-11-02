@@ -307,6 +307,17 @@ matches advance together, so a row costs one pass. A changed query
 marks every row dirty: the matches move with every keystroke, so the
 viewport — the only thing painted — is where they all live.
 
+### Wrap column marker
+
+`wrap_column` names the text cell the marker sits on; 0 hides it.
+`AppendStyle()` adds the `HlMarker` background on top of the color of
+whatever it draws, so the glyph crossing the column carries it under
+its own color (an inverted glyph does not: it already stands out).
+Where the line is blank past its text — or past the run a wrap moved
+down — `DrawRowText()` pads the blank cells up to the column and
+draws the marker on the empty spot, resetting the style right after
+so the `ESC[K` that follows erases with a plain background.
+
 ### Matching bracket
 
 The editor core looks for the partner of the bracket under the cursor
