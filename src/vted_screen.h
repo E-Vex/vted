@@ -50,6 +50,15 @@ void UpdateScroll(void);
    of it instead of an edge */
 void ScreenCenterCursor(void);
 
+/* scrolls the viewport count screen lines down (a positive count) or
+   up (a negative one) without moving the cursor through the text: the
+   lines a row wraps into count as lines of their own, and the cursor
+   only comes along when the scroll would leave it off screen. The
+   scroll stops at the first line of the text and where the last line
+   of the text, with the phantom row past the end, reaches the
+   viewport's bottom */
+void ScreenScroll(int count);
+
 void SetStatusMessage(const char *format, ...);
 
 void RefreshScreen(void);

@@ -1851,6 +1851,140 @@ void MoveCursor(int key)
     }
 }
 
+/* is there a screen line below the viewport: the rows it shows, laid
+   out from the line the top one is entered at, are followed by more
+   lines. The phantom row past the end of the text counts as the last
+   line there is, so the viewport stops scrolling once the last of the
+   text and the phantom row sit on screen */
+static int LayoutHasALineBelow(void)
+{
+    int row = vted_editor_config.row_offset;
+    int line = vted_editor_config.line_offset;
+    int left = vted_editor_config.screen_rows + 1; /* one line more than the viewport shows */
+
+    if (row > vted_buffer.num_rows)
+    {
+        return 0; /* a stale offset past the phantom row */
+    }
+
+    while (left > 0 && row <= vted_buffer.num_rows)
+    {
+        int lines = row < vted_buffer.num_rows
+                        ? RowLines(row) - (row == vted_editor_config.row_offset ? line : 0)
+                        : 1; /* the phantom row past the end */
+
+        if (lines >= left)
+        {
+            return 1; /* the row's lines alone reach past the bottom */
+        }
+
+        left -= lines;
+        row++;
+    }
+
+    return 0; /* the layout ran out before the viewport did */
+}
+
+/* scrolls the viewport one screen line down (a positive direction) or
+   up (a negative one) without moving the cursor through the text: the
+   lines a row wraps into count as lines of their own. The cursor
+   keeps its place and only comes along when the scroll would leave it
+   off screen. Returns 1 when the viewport moved */
+static int ScrollOneLine(int direction)
+{
+    if (direction > 0)
+    {
+        if (LayoutHasALineBelow() == 0)
+        {
+            return 0; /* the last line is on screen: nothing below it */
+        }
+
+        /* the top moves one screen line down: deeper into the top
+           row, or past it into the next one */
+        if (vted_editor_config.row_offset < vted_buffer.num_rows &&
+            vted_editor_config.line_offset + 1 < RowLines(vted_editor_config.row_offset))
+        {
+            vted_editor_config.line_offset++;
+        }
+        else
+        {
+            vted_editor_config.row_offset++;
+            vted_editor_config.line_offset = 0;
+        }
+
+        /* a cursor scrolled off the top comes one line along */
+        if (CursorOnScreen() == 0)
+        {
+            if (vted_editor_config.wrap != 0)
+            {
+                MoveDisplayLines(1);
+            }
+            else
+            {
+                vted_editor_config.cursor_y++;
+                ClampCursorToRow();
+            }
+        }
+    }
+    else
+    {
+        /* a stale offset past the phantom row counts as the phantom
+           row itself: the line above it is the last row's last */
+        if (vted_editor_config.row_offset > vted_buffer.num_rows)
+        {
+            vted_editor_config.row_offset = vted_buffer.num_rows;
+        }
+
+        if (vted_editor_config.row_offset == 0 && vted_editor_config.line_offset == 0)
+        {
+            return 0; /* the first line is already the top */
+        }
+
+        /* the top moves one screen line up: into the lines the top
+           row starts with, or onto the last one of the row above */
+        if (vted_editor_config.line_offset > 0)
+        {
+            vted_editor_config.line_offset--;
+        }
+        else
+        {
+            vted_editor_config.row_offset--;
+            vted_editor_config.line_offset = RowLines(vted_editor_config.row_offset) - 1;
+        }
+
+        /* a cursor scrolled off the bottom comes one line along */
+        if (CursorOnScreen() == 0)
+        {
+            if (vted_editor_config.wrap != 0)
+            {
+                MoveDisplayLines(-1);
+            }
+            else
+            {
+                vted_editor_config.cursor_y--;
+                ClampCursorToRow();
+            }
+        }
+    }
+
+    return 1;
+}
+
+void ScreenScroll(int count)
+{
+    /* scrolls the viewport count screen lines down (a positive count)
+       or up (a negative one) through the layout ScrollOneLine walks */
+    while (count > 0 && ScrollOneLine(1))
+    {
+        count--;
+    }
+
+    while (count < 0 && ScrollOneLine(-1))
+    {
+        count++;
+    }
+}
+
 void ScreenFree(void)
 {
     /* the highlight classes are kept between frames so that drawing

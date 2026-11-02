@@ -381,6 +381,115 @@ static void TestCenteringOverWordWrappedRows(void)
     CHECK_INT(vted_editor_config.line_offset, 3);
 }
 
+static void TestScrollThroughAWrappedRow(void)
+{
+    /* ten words, one per screen line, for a viewport of 4: the top
+       walks line by line through the row, the cursor with it, and
+       the scroll stops where the last three words and the phantom
+       row past the end fill the viewport */
+    BeginWordWrappedRow(10);
+
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 3); /* the second word */
+
+    ScreenScroll(8);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 7);
+    CHECK_INT(vted_editor_config.cursor_x, 21); /* the eighth word */
+
+    /* the last three words and the phantom row are all there is
+       below the top: nothing to scroll to */
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.line_offset, 7);
+    CHECK_INT(vted_editor_config.cursor_x, 21);
+}
+
+static void TestScrollUpIntoTheLinesOfATallRow(void)
+{
+    /* scrolling back up out of a word-wrapped row drags the cursor
+       up the wrapped lines until the row's top is the viewport's */
+    BeginWordWrappedRow(10);
+    vted_editor_config.line_offset = 9;
+    CursorAt(0, 27); /* the last word, on the row's last line */
+
+    ScreenScroll(-9);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 9); /* the fourth word */
+
+    ScreenScroll(-1); /* the first line is already the top */
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+}
+
+static void TestScrollAcrossRowsWhileWrapping(void)
+{
+    /* a two-line row over three one-line rows: the top crosses from
+       the tall row's second line onto the row below */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("ab cd", 5, VTED_EOL_LF);
+    AppendRow("xy", 2, VTED_EOL_LF);
+    AppendRow("pq", 2, VTED_EOL_LF);
+    AppendRow("zz", 2, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+    CursorAt(0, 0);
+
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 3); /* cd, dragged along */
+
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 1);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* the three one-line rows and the phantom row fill the viewport
+       from there: nothing below them */
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 1);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+}
+
+static void TestScrollOnAnEmptyBuffer(void)
+{
+    BeginWrapped("", 4);
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+
+    ScreenScroll(-1);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+}
+
+static void TestScrollUpFromAStaleOffset(void)
+{
+    /* the viewport arrived from another buffer, or its row shrank
+       under an edit: an offset past the phantom row scrolls up onto
+       the last row's last line instead of walking into garbage */
+    BeginWrapped("ab cd", 4); /* two screen lines */
+    vted_editor_config.row_offset = 5; /* past the one row there is */
+    vted_editor_config.line_offset = 0;
+
+    ScreenScroll(-1);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 1);
+}
+
 static void TestViewportJumpsOnWordWrappedLines(void)
 {
     /* "ab cd ab cd ab cd" over lines of 4 cells: one word per screen
@@ -594,6 +703,46 @@ static void BeginPlain(int rows)
     vted_editor_config.preferred_rx = -1;
     vted_editor_config.row_offset = 0;
     vted_editor_config.line_offset = 0;
+}
+
+static void TestScrollMovesTheViewportNotTheCursor(void)
+{
+    /* ten one-line rows for a viewport of 4: the scroll moves the
+       viewport, and the cursor only comes along when it would
+       otherwise leave the screen */
+    BeginPlain(10);
+    CursorAt(2, 0);
+
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 1);
+    CHECK_INT(vted_editor_config.cursor_y, 2); /* still on screen */
+
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 2);
+    CHECK_INT(vted_editor_config.cursor_y, 2); /* the top line now */
+
+    /* the third scroll would leave the cursor above the viewport:
+       it comes one line along */
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.row_offset, 3);
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+}
+
+static void TestScrollStopsAtBothEnds(void)
+{
+    /* ten rows and the phantom row past the end are eleven lines, so
+       a viewport of 4 scrolls at most seven down; scrolling back up
+       stops at the first line, dragging the cursor along the bottom */
+    BeginPlain(10);
+    CursorAt(2, 0);
+
+    ScreenScroll(20);
+    CHECK_INT(vted_editor_config.row_offset, 7);
+    CHECK_INT(vted_editor_config.cursor_y, 7);
+
+    ScreenScroll(-20);
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.cursor_y, 3);
 }
 
 static void TestCenteringPutsTheCursorMidViewport(void)
@@ -1014,6 +1163,13 @@ int main(void)
     TestWordWrappedRowFallsAwayForARowBelow();
     TestPagingOverWordWrappedRows();
     TestCenteringOverWordWrappedRows();
+    TestScrollMovesTheViewportNotTheCursor();
+    TestScrollStopsAtBothEnds();
+    TestScrollThroughAWrappedRow();
+    TestScrollUpIntoTheLinesOfATallRow();
+    TestScrollAcrossRowsWhileWrapping();
+    TestScrollOnAnEmptyBuffer();
+    TestScrollUpFromAStaleOffset();
     TestDeepCursorScrollsIntoATallRow();
     TestCursorOnTheTopLinesOfATallRow();
     TestPastTheEndScrollsToTheLastLine();
