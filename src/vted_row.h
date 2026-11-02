@@ -107,8 +107,10 @@ int RowRxToCx(const vted_row_t *row, int rx);
    non-blank glyphs that does not fit the rest of a line starting the
    next one whole — only a run longer than a line, or a wide glyph at
    the very edge, breaks mid-run — while a tab may run to the edge
-   and on past it, because it is blank space */
-int RowWrapCount(const vted_row_t *row, int cols);
+   and on past it, because it is blank space. The indent is the cells
+   every line after the first keeps blank at its start, which the
+   row's content flows around */
+int RowWrapCount(const vted_row_t *row, int cols, int indent);
 
 /* advances one glyph through the row as the wrapped layout places
    it: cols cells per screen line, with wrapping breaking at word
@@ -144,15 +146,21 @@ int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols,
 /* where byte index cx sits when the row flows over lines of cols
    cells: the screen line it is on (one past the row's own lines when
    the text ends exactly at a line edge) and the cell column within
-   that line */
-void RowCxToWrapped(const vted_row_t *row, int cx, int cols, int *line, int *col);
+   that line. The indent is the cells every line after the first
+   keeps blank at its start */
+void RowCxToWrapped(const vted_row_t *row, int cx, int cols, int indent,
+                    int *line, int *col);
 
 /* the inverse: the byte index of the glyph at screen line line, cell
-   column col of the wrapped layout. The glyph that covers the spot
-   is the answer; the padding a moved run leaves at a line's end
-   gives the line's last glyph, and a spot past the row's text its
-   end, so a cursor aimed there stays on the line it was aimed at */
-int RowWrappedToCx(const vted_row_t *row, int line, int col, int cols);
+   column col of the wrapped layout, which keeps indent cells blank
+   at the start of every line after the first. The glyph that covers
+   the spot is the answer; the padding a moved run leaves at a line's
+   end gives the line's last glyph, the padding a continuation line
+   keeps for its indent gives the line's own first glyph, and a spot
+   past the row's text its end, so a cursor aimed there stays on the
+   line it was aimed at */
+int RowWrappedToCx(const vted_row_t *row, int line, int col, int cols,
+                   int indent);
 
 /* number of leading blanks (spaces and tabs) of the row, looking at
    no more than the first limit bytes; the indent a new line copies */

@@ -545,25 +545,25 @@ static void TestWrapBreaksAtWordBoundaries(void)
 
     /* line 0 "aaa", line 1 " b", line 2 "ccc", line 3 "dddd",
        line 4 " e" */
-    CHECK_INT(RowWrapCount(&row, 4), 5);
+    CHECK_INT(RowWrapCount(&row, 4, 0), 5);
 
     /* "ccc" does not fit the cells line 1 has left after " b", so it
        starts line 2 */
-    RowCxToWrapped(&row, 6, 4, &line, &col); /* c */
+    RowCxToWrapped(&row, 6, 4, 0, &line, &col); /* c */
     CHECK_INT(line, 2);
     CHECK_INT(col, 0);
 
-    RowCxToWrapped(&row, 10, 4, &line, &col); /* d */
+    RowCxToWrapped(&row, 10, 4, 0, &line, &col); /* d */
     CHECK_INT(line, 3);
     CHECK_INT(col, 0);
 
     /* "e" fits the cell line 4 has left after the blank */
-    RowCxToWrapped(&row, 15, 4, &line, &col); /* e */
+    RowCxToWrapped(&row, 15, 4, 0, &line, &col); /* e */
     CHECK_INT(line, 4);
     CHECK_INT(col, 1);
 
     /* the blank the moved run left behind ends its line */
-    RowCxToWrapped(&row, 5, 4, &line, &col); /* the blank before ccc */
+    RowCxToWrapped(&row, 5, 4, 0, &line, &col); /* the blank before ccc */
     CHECK_INT(line, 1);
     CHECK_INT(col, 1);
 
@@ -571,7 +571,7 @@ static void TestWrapBreaksAtWordBoundaries(void)
     {
         vted_row_t fits = MakeRow("a bc");
 
-        CHECK_INT(RowWrapCount(&fits, 4), 1); /* "bc" fits from cell 2 */
+        CHECK_INT(RowWrapCount(&fits, 4, 0), 1); /* "bc" fits from cell 2 */
     }
 
     /* a run exactly as long as a line moves down when it starts
@@ -579,7 +579,7 @@ static void TestWrapBreaksAtWordBoundaries(void)
     {
         vted_row_t exact = MakeRow("a bbbb");
 
-        CHECK_INT(RowWrapCount(&exact, 4), 2);
+        CHECK_INT(RowWrapCount(&exact, 4, 0), 2);
     }
 }
 
@@ -592,17 +592,17 @@ static void TestWrapBreaksLongRunsByCharacter(void)
     int col;
 
     /* line 0 "aa a", line 1 "aaaa", line 2 "aaa ", line 3 "bb" */
-    CHECK_INT(RowWrapCount(&row, 4), 4);
+    CHECK_INT(RowWrapCount(&row, 4, 0), 4);
 
-    RowCxToWrapped(&row, 3, 4, &line, &col); /* the long run's first a */
+    RowCxToWrapped(&row, 3, 4, 0, &line, &col); /* the long run's first a */
     CHECK_INT(line, 0);
     CHECK_INT(col, 3);
 
-    RowCxToWrapped(&row, 7, 4, &line, &col); /* inside the long run */
+    RowCxToWrapped(&row, 7, 4, 0, &line, &col); /* inside the long run */
     CHECK_INT(line, 1);
     CHECK_INT(col, 3);
 
-    RowCxToWrapped(&row, 12, 4, &line, &col); /* b */
+    RowCxToWrapped(&row, 12, 4, 0, &line, &col); /* b */
     CHECK_INT(line, 3);
     CHECK_INT(col, 0);
 }
@@ -615,13 +615,13 @@ static void TestWrapMovesWideRunsDown(void)
     int col;
 
     /* line 0 "ab", line 1 " cd", line 2 the wide glyph and x */
-    CHECK_INT(RowWrapCount(&row, 4), 3);
+    CHECK_INT(RowWrapCount(&row, 4, 0), 3);
 
-    RowCxToWrapped(&row, 6, 4, &line, &col); /* the wide glyph */
+    RowCxToWrapped(&row, 6, 4, 0, &line, &col); /* the wide glyph */
     CHECK_INT(line, 2);
     CHECK_INT(col, 0);
 
-    RowCxToWrapped(&row, 9, 4, &line, &col); /* x */
+    RowCxToWrapped(&row, 9, 4, 0, &line, &col); /* x */
     CHECK_INT(line, 2);
     CHECK_INT(col, 2);
 }
@@ -630,21 +630,21 @@ static void TestWrapCount(void)
 {
     vted_row_t row = MakeRow("abcdefghijkl"); /* 12 cells */
 
-    CHECK_INT(RowWrapCount(&row, 12), 1); /* exactly one line */
-    CHECK_INT(RowWrapCount(&row, 11), 2); /* one cell over */
-    CHECK_INT(RowWrapCount(&row, 4), 3);  /* 12 cells of 4 */
-    CHECK_INT(RowWrapCount(&row, 5), 3);  /* 5+5+2 */
+    CHECK_INT(RowWrapCount(&row, 12, 0), 1); /* exactly one line */
+    CHECK_INT(RowWrapCount(&row, 11, 0), 2); /* one cell over */
+    CHECK_INT(RowWrapCount(&row, 4, 0), 3);  /* 12 cells of 4 */
+    CHECK_INT(RowWrapCount(&row, 5, 0), 3);  /* 5+5+2 */
 
-    CHECK_INT(RowWrapCount(&row, 1), 12); /* every cell its own line */
+    CHECK_INT(RowWrapCount(&row, 1, 0), 12); /* every cell its own line */
 
     /* a width of nothing is treated as one cell */
-    CHECK_INT(RowWrapCount(&row, 0), 12);
+    CHECK_INT(RowWrapCount(&row, 0, 0), 12);
 
     /* an empty row takes the one line the cursor sits on */
     {
         vted_row_t empty = MakeRow("");
 
-        CHECK_INT(RowWrapCount(&empty, 4), 1);
+        CHECK_INT(RowWrapCount(&empty, 4, 0), 1);
     }
 }
 
@@ -656,19 +656,19 @@ static void TestWrapMovesWideGlyphsDown(void)
     int line;
     int col;
 
-    CHECK_INT(RowWrapCount(&row, 4), 2);
+    CHECK_INT(RowWrapCount(&row, 4, 0), 2);
 
-    RowCxToWrapped(&row, 3, 4, &line, &col); /* the wide one itself */
+    RowCxToWrapped(&row, 3, 4, 0, &line, &col); /* the wide one itself */
     CHECK_INT(line, 1);
     CHECK_INT(col, 0);
 
-    RowCxToWrapped(&row, 6, 4, &line, &col); /* x after it */
+    RowCxToWrapped(&row, 6, 4, 0, &line, &col); /* x after it */
     CHECK_INT(line, 1);
     CHECK_INT(col, 2);
 
     /* without wrapping pressure the ideograph stays on the first line */
-    CHECK_INT(RowWrapCount(&row, 5), 2);
-    RowCxToWrapped(&row, 3, 5, &line, &col);
+    CHECK_INT(RowWrapCount(&row, 5, 0), 2);
+    RowCxToWrapped(&row, 3, 5, 0, &line, &col);
     CHECK_INT(line, 0);
     CHECK_INT(col, 3);
 
@@ -677,8 +677,8 @@ static void TestWrapMovesWideGlyphsDown(void)
     {
         vted_row_t control = MakeRow("abc\x01");
 
-        CHECK_INT(RowWrapCount(&control, 4), 2);
-        RowCxToWrapped(&control, 3, 4, &line, &col);
+        CHECK_INT(RowWrapCount(&control, 4, 0), 2);
+        RowCxToWrapped(&control, 3, 4, 0, &line, &col);
         CHECK_INT(line, 1);
         CHECK_INT(col, 0);
     }
@@ -694,9 +694,9 @@ static void TestWrapLetsTabsCrossTheEdge(void)
 
     RowSetTabWidth(8);
 
-    CHECK_INT(RowWrapCount(&row, 4), 3); /* c lands on the third line */
+    CHECK_INT(RowWrapCount(&row, 4, 0), 3); /* c lands on the third line */
 
-    RowCxToWrapped(&row, 3, 4, &line, &col); /* c */
+    RowCxToWrapped(&row, 3, 4, 0, &line, &col); /* c */
     CHECK_INT(line, 2);
     CHECK_INT(col, 0);
 
@@ -704,7 +704,7 @@ static void TestWrapLetsTabsCrossTheEdge(void)
     {
         vted_row_t trailing = MakeRow("ab\t");
 
-        CHECK_INT(RowWrapCount(&trailing, 4), 2);
+        CHECK_INT(RowWrapCount(&trailing, 4, 0), 2);
     }
 
     RowSetTabWidth(VTED_TAB_STOP);
@@ -716,30 +716,30 @@ static void TestWrapCursorPosition(void)
     int line;
     int col;
 
-    RowCxToWrapped(&row, 0, 4, &line, &col);
+    RowCxToWrapped(&row, 0, 4, 0, &line, &col);
     CHECK_INT(line, 0);
     CHECK_INT(col, 0);
 
-    RowCxToWrapped(&row, 4, 4, &line, &col); /* e starts the second line */
+    RowCxToWrapped(&row, 4, 4, 0, &line, &col); /* e starts the second line */
     CHECK_INT(line, 1);
     CHECK_INT(col, 0);
 
-    RowCxToWrapped(&row, 7, 4, &line, &col); /* h, the line's last cell */
+    RowCxToWrapped(&row, 7, 4, 0, &line, &col); /* h, the line's last cell */
     CHECK_INT(line, 1);
     CHECK_INT(col, 3);
 
     /* the end of the row sits after its last glyph: the line after
        the row's own ones, since the text ends exactly at a line edge */
-    RowCxToWrapped(&row, 12, 4, &line, &col);
+    RowCxToWrapped(&row, 12, 4, 0, &line, &col);
     CHECK_INT(line, 3);
     CHECK_INT(col, 0);
 
-    RowCxToWrapped(&row, 8, 4, &line, &col); /* i starts the third line */
+    RowCxToWrapped(&row, 8, 4, 0, &line, &col); /* i starts the third line */
     CHECK_INT(line, 2);
     CHECK_INT(col, 0);
 
     /* past the end asks for the same place */
-    RowCxToWrapped(&row, 99, 4, &line, &col);
+    RowCxToWrapped(&row, 99, 4, 0, &line, &col);
     CHECK_INT(line, 3);
     CHECK_INT(col, 0);
 }
@@ -750,28 +750,28 @@ static void TestWrappedToCx(void)
        cell of padding, line 2 "cc" */
     vted_row_t row = MakeRow("aaaa b cc");
 
-    CHECK_INT(RowWrappedToCx(&row, 0, 0, 4), 0); /* a */
-    CHECK_INT(RowWrappedToCx(&row, 0, 3, 4), 3); /* the last a */
-    CHECK_INT(RowWrappedToCx(&row, 1, 0, 4), 4); /* the blank */
-    CHECK_INT(RowWrappedToCx(&row, 1, 1, 4), 5); /* b */
-    CHECK_INT(RowWrappedToCx(&row, 1, 2, 4), 6); /* the blank after b */
+    CHECK_INT(RowWrappedToCx(&row, 0, 0, 4, 0), 0); /* a */
+    CHECK_INT(RowWrappedToCx(&row, 0, 3, 4, 0), 3); /* the last a */
+    CHECK_INT(RowWrappedToCx(&row, 1, 0, 4, 0), 4); /* the blank */
+    CHECK_INT(RowWrappedToCx(&row, 1, 1, 4, 0), 5); /* b */
+    CHECK_INT(RowWrappedToCx(&row, 1, 2, 4, 0), 6); /* the blank after b */
 
     /* the padding a moved run leaves: the spot lands on the line's
        last glyph instead of dropping onto the next line */
-    CHECK_INT(RowWrappedToCx(&row, 1, 3, 4), 6);
+    CHECK_INT(RowWrappedToCx(&row, 1, 3, 4, 0), 6);
 
-    CHECK_INT(RowWrappedToCx(&row, 2, 0, 4), 7); /* c */
-    CHECK_INT(RowWrappedToCx(&row, 2, 1, 4), 8); /* the second c */
+    CHECK_INT(RowWrappedToCx(&row, 2, 0, 4, 0), 7); /* c */
+    CHECK_INT(RowWrappedToCx(&row, 2, 1, 4, 0), 8); /* the second c */
 
     /* a spot past the line's text is the end of the row */
-    CHECK_INT(RowWrappedToCx(&row, 2, 2, 4), 9);
+    CHECK_INT(RowWrappedToCx(&row, 2, 2, 4, 0), 9);
 
     /* a tab that runs past the edge covers the cells it blanks */
     {
         vted_row_t tabs = MakeRow("ab\tc");
 
         RowSetTabWidth(8);
-        CHECK_INT(RowWrappedToCx(&tabs, 1, 0, 4), 2); /* the tab */
+        CHECK_INT(RowWrappedToCx(&tabs, 1, 0, 4, 0), 2); /* the tab */
         RowSetTabWidth(VTED_TAB_STOP);
     }
 
@@ -780,10 +780,73 @@ static void TestWrappedToCx(void)
     {
         vted_row_t plain = MakeRow("abcdefghijkl");
 
-        CHECK_INT(RowWrappedToCx(&plain, 1, 2, 4), 6); /* g */
-        CHECK_INT(RowWrappedToCx(&plain, 2, 0, 4), 8); /* i */
+        CHECK_INT(RowWrappedToCx(&plain, 1, 2, 4, 0), 6); /* g */
+        CHECK_INT(RowWrappedToCx(&plain, 2, 0, 4, 0), 8); /* i */
     }
 }
+
+static void TestWrapWalkersKeepAnIndent(void)
+{
+    /* the walkers answer for a layout whose continuation lines keep
+       their first cells blank: "aa bb cc" over lines of 4 cells with
+       an indent of 2 lays out "aa", then "bb" past the indent, then
+       the blank of " cc" past its own, then "cc" past it again */
+    vted_row_t row = MakeRow("aa bb cc");
+    int line;
+    int col;
+
+    CHECK_INT(RowWrapCount(&row, 4, 2), 4);
+
+    RowCxToWrapped(&row, 0, 4, 2, &line, &col); /* a */
+    CHECK_INT(line, 0);
+    CHECK_INT(col, 0);
+
+    RowCxToWrapped(&row, 3, 4, 2, &line, &col); /* b, past the indent */
+    CHECK_INT(line, 1);
+    CHECK_INT(col, 2);
+
+    RowCxToWrapped(&row, 5, 4, 2, &line, &col); /* the blank of " cc" */
+    CHECK_INT(line, 2);
+    CHECK_INT(col, 2);
+
+    RowCxToWrapped(&row, 6, 4, 2, &line, &col); /* c, past the indent */
+    CHECK_INT(line, 3);
+    CHECK_INT(col, 2);
+
+    /* one past the last glyph: the walk stops in the padding of the
+       line after the text and rests right after the indent */
+    RowCxToWrapped(&row, 8, 4, 2, &line, &col);
+    CHECK_INT(line, 4);
+    CHECK_INT(col, 2);
+
+    /* the inverse: a spot on a continuation line past its indent is
+       the glyph that sits there */
+    CHECK_INT(RowWrappedToCx(&row, 1, 2, 4, 2), 3); /* b */
+    CHECK_INT(RowWrappedToCx(&row, 3, 2, 4, 2), 6); /* c */
+
+    /* a spot inside the indent of a continuation line lands on the
+       line's own first glyph, not on the line before it */
+    CHECK_INT(RowWrappedToCx(&row, 1, 0, 4, 2), 3); /* b */
+    CHECK_INT(RowWrappedToCx(&row, 1, 1, 4, 2), 3); /* b */
+
+    /* the blank that stayed behind on the first line sits where it
+       always did, and the padding a moved run leaves at a line's end
+       keeps the line's last glyph */
+    CHECK_INT(RowWrappedToCx(&row, 0, 2, 4, 2), 2); /* the blank */
+    CHECK_INT(RowWrappedToCx(&row, 2, 3, 4, 2), 5); /* the blank */
+
+    /* a line that filled up: one past its last glyph rests past the
+       indent of the line after it (a wide indent leaves a line one
+       content cell, so the rest of the row takes a line each) */
+    {
+        vted_row_t full = MakeRow("abcdefgh");
+
+        RowCxToWrapped(&full, 8, 4, 3, &line, &col);
+        CHECK_INT(line, 5);
+        CHECK_INT(col, 3);
+    }
+}
+
 
 static void TestWrapRunStart(void)
 {
@@ -1078,6 +1141,7 @@ int main(void)
     TestWrapLetsTabsCrossTheEdge();
     TestWrapCursorPosition();
     TestWrappedToCx();
+    TestWrapWalkersKeepAnIndent();
     TestWrapRunStart();
     TestWrapRunStartKeepsAnIndent();
     TestWrapAdvanceKeepsAnIndent();
