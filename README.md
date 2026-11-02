@@ -248,6 +248,18 @@ does, and closing the last buffer starts a fresh empty one.
 
 ## Features
 
+New in 0.3.1:
+
+- Ctrl-D duplicates the whole block: a bracket under the cursor (or
+  right behind one) copies every row its partner encloses, each line
+  keeping its own ending, as one undo step
+- The bracket match takes a color of your choosing: `set bracket-color
+  red` — or green, yellow, blue, magenta, cyan or gray — lights the
+  partner with that color instead of inverted video, and `invert` puts
+  the video back
+- The Ctrl-W prompt opens with the tab width in place, so Enter alone
+  keeps the width and only the digits change it
+
 New in 0.3.0:
 
 - Word wrapping: long lines break at word boundaries, the cursor and
