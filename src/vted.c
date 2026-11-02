@@ -573,53 +573,6 @@ static void EditorPickBuffer(void)
     }
 }
 
-/* the first match of query that starts inside the byte range
-   [from, to) of a row, or -1 */
-static int RowFindFrom(const vted_row_t *row, int from, int to,
-                       const char *query, int query_len)
-{
-    int at;
-
-    if (from < 0)
-    {
-        from = 0;
-    }
-
-    for (at = from; at < to && at + query_len <= row->size; at++)
-    {
-        if (memcmp(row->chars + at, query, (size_t)query_len) == 0)
-        {
-            return at;
-        }
-    }
-
-    return -1;
-}
-
-/* the last match of query that starts inside the byte range
-   [from, to) of a row, or -1 */
-static int RowFindLastFrom(const vted_row_t *row, int from, int to,
-                           const char *query, int query_len)
-{
-    int at;
-
-    if (to > row->size)
-    {
-        to = row->size;
-    }
-
-    for (at = to - 1; at >= from; at--)
-    {
-        if (at + query_len <= row->size &&
-            memcmp(row->chars + at, query, (size_t)query_len) == 0)
-        {
-            return at;
-        }
-    }
-
-    return -1;
-}
-
 static int FindMatch(const char *query, int start_row, int start_col,
                      int direction, int *match_row, int *match_col)
 {
@@ -644,7 +597,7 @@ static int FindMatch(const char *query, int start_row, int start_col,
 
     if (direction > 0)
     {
-        hit = RowFindFrom(&vted_buffer.rows[start_row], start_col,
+        hit = RowFindNext(&vted_buffer.rows[start_row], start_col,
                           vted_buffer.rows[start_row].size, query, query_len);
         if (hit >= 0)
         {
@@ -655,7 +608,7 @@ static int FindMatch(const char *query, int start_row, int start_col,
 
         for (row = start_row + 1; row < row_count; row++)
         {
-            hit = RowFindFrom(&vted_buffer.rows[row], 0,
+            hit = RowFindNext(&vted_buffer.rows[row], 0,
                               vted_buffer.rows[row].size, query, query_len);
             if (hit >= 0)
             {
@@ -667,7 +620,7 @@ static int FindMatch(const char *query, int start_row, int start_col,
 
         for (row = 0; row < start_row; row++)
         {
-            hit = RowFindFrom(&vted_buffer.rows[row], 0,
+            hit = RowFindNext(&vted_buffer.rows[row], 0,
                               vted_buffer.rows[row].size, query, query_len);
             if (hit >= 0)
             {
@@ -679,7 +632,7 @@ static int FindMatch(const char *query, int start_row, int start_col,
 
         /* the head of the starting row: a match before the one the
            search started from */
-        hit = RowFindFrom(&vted_buffer.rows[start_row], 0, start_col,
+        hit = RowFindNext(&vted_buffer.rows[start_row], 0, start_col,
                           query, query_len);
         if (hit >= 0)
         {
@@ -690,8 +643,8 @@ static int FindMatch(const char *query, int start_row, int start_col,
     }
     else
     {
-        hit = RowFindLastFrom(&vted_buffer.rows[start_row], 0, start_col,
-                              query, query_len);
+        hit = RowFindPrev(&vted_buffer.rows[start_row], 0, start_col,
+                          query, query_len);
         if (hit >= 0)
         {
             *match_row = start_row;
@@ -701,8 +654,8 @@ static int FindMatch(const char *query, int start_row, int start_col,
 
         for (row = start_row - 1; row >= 0; row--)
         {
-            hit = RowFindLastFrom(&vted_buffer.rows[row], 0,
-                                  vted_buffer.rows[row].size, query, query_len);
+            hit = RowFindPrev(&vted_buffer.rows[row], 0,
+                              vted_buffer.rows[row].size, query, query_len);
             if (hit >= 0)
             {
                 *match_row = row;
@@ -713,8 +666,8 @@ static int FindMatch(const char *query, int start_row, int start_col,
 
         for (row = row_count - 1; row > start_row; row--)
         {
-            hit = RowFindLastFrom(&vted_buffer.rows[row], 0,
-                                  vted_buffer.rows[row].size, query, query_len);
+            hit = RowFindPrev(&vted_buffer.rows[row], 0,
+                              vted_buffer.rows[row].size, query, query_len);
             if (hit >= 0)
             {
                 *match_row = row;
