@@ -212,6 +212,10 @@ Alt-t, Ctrl-L, Alt-i, Alt-g and Alt-c set while editing.
 | Ctrl-D          | duplicate the line under the cursor, or the whole
   block it encloses when the cursor sits on a bracket (or right
   behind one) whose partner the highlight marks |
+| Ctrl-/          | comment the line under the cursor, or every line the
+  selection spans, and take the comment off again; the
+  token of the language goes in front of the first
+  non-blank, a space behind it                |
 | Ctrl-Up/Down    | move the current line up or down                 |
 | Shift-Arrows    | start or extend a character selection            |
 | Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
@@ -322,6 +326,11 @@ New in 0.3.0:
   and where the last line, with the phantom row past the end, reaches
   the bottom of the viewport
 - Insert and delete text, split lines with Enter, merge with Backspace
+- Comment the line or the selection with Ctrl-/: the token of the
+  language goes in front of the first non-blank, a space behind it,
+  and comes off again on a second press — one undo step, the selection
+  and the cursor riding the shift; a language that comments only in
+  blocks, or none at all, is named in the message bar
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
   or down with Ctrl-Up/Down; a bracket under the cursor duplicates the
   whole block its partner closes, each line keeping its own ending, as

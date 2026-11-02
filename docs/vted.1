@@ -177,6 +177,17 @@ whole block that bracket and its partner enclose — the partner the
 highlight marks — with the cursor landing on the copy of its own row,
 each line keeping its ending and the whole block one undo step
 .TP
+.B Ctrl\-/
+comment the line under the cursor, or every line the selection spans,
+and take the comment off the lines that carry it: the token the
+language writes — // in C, # in Python, either spelling it knows coming
+off — goes in front of the first non-blank of each line with a space
+behind it, blank lines stay as they are, and a line already carrying
+the token keeps the one it has; one press is one undo step, the cursor
+and both ends of the selection ride the shift, and the selection lives
+on so a second press takes the comment back off. A language that
+comments only in blocks, or none at all, is named in the message bar
+.TP
 .B Ctrl\-Up / Ctrl\-Down
 move the current line up or down; the cursor rides the line
 .TP
