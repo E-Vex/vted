@@ -174,6 +174,14 @@ int RowIndentLength(const vted_row_t *row, int limit);
    a line's last cell */
 int RowWrapIndentCells(const vted_row_t *row, int cols);
 
+/* the nesting levels the row sits in, as the cell columns where each
+   level's indent ends: its own edge first, then every shallower one
+   still open above it. Empty rows and rows of nothing but blanks
+   hold no level of their own — blank lines inside a block do not end
+   the levels above them — and at most max edges are kept, the deepest
+   ones. How many were written is returned */
+int BufferIndentEdges(int row, int *edges, int max);
+
 /* word movement: a word is a run of characters of one class (see
    Utf8CharClass), so "foo_bar" is one word and "->" is another.
    RowWordRight gives the byte index of the start of the next word,

@@ -1140,6 +1140,124 @@ static void TestCountMatchesThatShareBytes(void)
     CHECK_INT(before, 1);
 }
 
+static void TestIndentEdges(void)
+{
+    /* the levels a row sits in: its own indent edge first, then every
+       shallower one still open above it */
+    const char *const texts[] = {
+        "int main() {",
+        "    if (x) {",
+        "        foo();",
+        "    }",
+        "}",
+        NULL,
+    };
+    int edges[8];
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentEdges(2, edges, 8), 2); /* foo: its own 8 and the if's 4 */
+    CHECK_INT(edges[0], 8);
+    CHECK_INT(edges[1], 4);
+
+    CHECK_INT(BufferIndentEdges(1, edges, 8), 1); /* the if: its own 4 alone */
+    CHECK_INT(edges[0], 4);
+
+    CHECK_INT(BufferIndentEdges(0, edges, 8), 0); /* flush left: no level */
+
+    CHECK_INT(BufferIndentEdges(3, edges, 8), 1); /* the closing brace: 4 again */
+    CHECK_INT(edges[0], 4);
+
+    CHECK_INT(BufferIndentEdges(4, edges, 8), 0); /* so has the last one */
+}
+
+static void TestIndentEdgesAcrossBlankRows(void)
+{
+    /* an empty row and a row of nothing but blanks hold no level of
+       their own: the levels above them stay open, and a blank row
+       keeps its whole width as its own — the level its blanks sit at */
+    const char *const texts[] = {
+        "int main() {",
+        "  if (x) {",
+        "",
+        "    foo();",
+        "      ",
+        "    bar();",
+        NULL,
+    };
+    int edges[8];
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentEdges(3, edges, 8), 2);
+    CHECK_INT(edges[0], 4);
+    CHECK_INT(edges[1], 2);
+
+    /* the blank row: its own 6, then the foo's 4 and the if's 2 it
+       sits inside */
+    CHECK_INT(BufferIndentEdges(4, edges, 8), 3);
+    CHECK_INT(edges[0], 6);
+    CHECK_INT(edges[1], 4);
+    CHECK_INT(edges[2], 2);
+
+    CHECK_INT(BufferIndentEdges(5, edges, 8), 2);
+    CHECK_INT(edges[0], 4);
+    CHECK_INT(edges[1], 2);
+}
+
+static void TestIndentEdgesLayTabsOut(void)
+{
+    /* a tab's edge is where it ends, laid out the way the row is
+       drawn, so tabs and spaces that indent to the same column mark
+       the same level */
+    const char *const texts[] = {
+        "int main() {",
+        "\tif (x) {",
+        "\t\tfoo();",
+        "                bar();",
+        NULL,
+    };
+    int edges[8];
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentEdges(1, edges, 8), 1);
+    CHECK_INT(edges[0], 8);
+
+    CHECK_INT(BufferIndentEdges(2, edges, 8), 2);
+    CHECK_INT(edges[0], 16);
+    CHECK_INT(edges[1], 8);
+
+    /* the sixteen spaces sit in the same levels the tabs indent to */
+    CHECK_INT(BufferIndentEdges(3, edges, 8), 2);
+    CHECK_INT(edges[0], 16);
+    CHECK_INT(edges[1], 8);
+}
+
+static void TestIndentEdgesRunOut(void)
+{
+    /* at most max edges are kept, the deepest ones, and a row outside
+       the buffer has none at all */
+    const char *const texts[] = {
+        "a",
+        "  b",
+        "    c",
+        "      d",
+        NULL,
+    };
+    int edges[2];
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentEdges(3, edges, 2), 2);
+    CHECK_INT(edges[0], 6);
+    CHECK_INT(edges[1], 4);
+
+    CHECK_INT(BufferIndentEdges(3, edges, 0), 0);
+    CHECK_INT(BufferIndentEdges(9, edges, 2), 0);
+    CHECK_INT(BufferIndentEdges(-1, edges, 2), 0);
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -1187,6 +1305,10 @@ int main(void)
     TestFindInsideAMultibyteCharacter();
     TestCountMatches();
     TestCountMatchesThatShareBytes();
+    TestIndentEdges();
+    TestIndentEdgesAcrossBlankRows();
+    TestIndentEdgesLayTabsOut();
+    TestIndentEdgesRunOut();
 
     return TestSummary("row");
 }

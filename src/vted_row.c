@@ -723,6 +723,73 @@ int RowWrapIndentCells(const vted_row_t *row, int cols)
     return cells;
 }
 
+/* the cell column where a row's indent ends: its leading whitespace
+   laid out the way the row is drawn. A row of nothing but blanks
+   keeps the whole of it — the level its blanks sit at — and an empty
+   row none at all */
+static int RowIndentEdge(const vted_row_t *row)
+{
+    return RowCxToRx(row, RowIndentLength(row, row->size));
+}
+
+int BufferIndentEdges(int row, int *edges, int max)
+{
+    /* the nesting levels the row sits in, one cell column each: its
+       own indent edge first, then the edge of every shallower indent
+       still open above it, so guides drawn on them follow the widths
+       the file really indents with — tabs, spaces or both — instead
+       of the fixed tab stops. An empty row, or one of nothing but
+       blanks, holds no level of its own: blank lines inside a block
+       do not end the levels above them. At most max edges are kept,
+       the deepest ones; a row outside the buffer has none */
+    int count = 0;
+    int shallowest;
+    int at;
+
+    if (row < 0 || row >= vted_buffer.num_rows || max <= 0)
+    {
+        return 0;
+    }
+
+    shallowest = RowIndentEdge(&vted_buffer.rows[row]);
+
+    if (shallowest < 1)
+    {
+        return 0; /* no indent of its own: no level to mark */
+    }
+
+    edges[count++] = shallowest;
+
+    for (at = row - 1; at >= 0 && shallowest > 1 && count < max; at--)
+    {
+        const vted_row_t *above = &vted_buffer.rows[at];
+        int leading = RowIndentLength(above, above->size);
+        int edge;
+
+        if (leading >= above->size)
+        {
+            continue; /* empty, or nothing but blanks */
+        }
+
+        edge = RowCxToRx(above, leading);
+
+        if (edge == 0)
+        {
+            break; /* level zero: nothing shallower to mark */
+        }
+
+        if (edge >= shallowest)
+        {
+            continue; /* same or deeper: not a level this row sits in */
+        }
+
+        edges[count++] = edge;
+        shallowest = edge;
+    }
+
+    return count;
+}
+
 int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols,
                     int indent)
 {
