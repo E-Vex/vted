@@ -167,6 +167,7 @@ set wrap on
 set wrap-indent off
 set wrap-column 80
 set indent-guides on
+set bracket-color red
 ```
 
 Blank lines and `#` comments are skipped, a later line wins over an
@@ -339,7 +340,10 @@ New in 0.3.0:
   a terminal too narrow for them drops them on its own
 - The bracket the cursor sits on (or the one right behind it) has its
   partner highlighted, across as many lines as nesting takes; a match
-  farther than a megabyte away counts as missing
+  farther than a megabyte away counts as missing. `set bracket-color
+  red` — or green, yellow, blue, magenta, cyan or gray — lights the
+  partner with that color instead of inverted video, and `invert`
+  puts the video back
 - Syntax highlighting picked from the file name: C, C++, Python, shell
   scripts, Makefiles, JavaScript, TypeScript, Rust, Go, JSON,
   Markdown, HTML, XML, CSS, Lua, Ruby, YAML, TOML, INI, SQL,

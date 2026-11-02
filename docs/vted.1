@@ -270,7 +270,9 @@ separate them. At the end or the start of a line a word move continues
 on the neighbouring line.
 .PP
 The bracket the cursor sits on, or the one right behind it, has its
-partner drawn in inverted video: the scan counts brackets of the same
+partner drawn in inverted video, or with the background the
+.BR bracket\-color
+setting names: the scan counts brackets of the same
 pair, so nesting comes out right, and it reaches a megabyte before a
 match counts as missing.
 .SH EXAMPLES
@@ -374,6 +376,11 @@ or
 .BR off
 (the last cell of every nesting level a row sits in carries a ·, so
 the levels of the nesting line up as dotted rails down the screen),
+and
+.BI "set bracket-color " name
+(the background of the matching bracket's partner: red, green,
+yellow, blue, magenta, cyan or gray, or invert for the inverted video
+that is the default),
 and
 .BI "set wrap-column " N
 (the text cells that fit before the column marker, 0 to 512, 0
