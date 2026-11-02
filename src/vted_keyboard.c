@@ -355,6 +355,14 @@ int ReadKeyPress()
         user_input = ParseArrowKey();
     }
 
+    /* Ctrl-/ arrives as 0x1F, the byte Ctrl-_ has always been: the
+       terminals that spell it as a CSI u code are not spoken to, and
+       a terminal that sends the byte for either key takes both */
+    else if (user_input == 0x1F)
+    {
+        return CommentToggle;
+    }
+
     return user_input;
 }
 

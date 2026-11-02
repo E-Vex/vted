@@ -227,6 +227,18 @@ static void TestBracketColorPrompt(void)
     CHECK_INT(ReadKeyPress(), 'c');
 }
 
+static void TestCommentToggleKey(void)
+{
+    /* Ctrl-/ arrives as the byte 0x1F, the one Ctrl-_ has always
+       been: a terminal that sends it for either key takes both */
+    FeedInput("\x1f");
+    CHECK_INT(ReadKeyPress(), CommentToggle);
+
+    /* a plain / is still text */
+    FeedInput("/");
+    CHECK_INT(ReadKeyPress(), '/');
+}
+
 static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -382,6 +394,7 @@ int main(void)
     TestWrapIndentToggle();
     TestIndentGuidesToggle();
     TestBracketColorPrompt();
+    TestCommentToggleKey();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();

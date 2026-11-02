@@ -51,6 +51,8 @@ typedef enum
     WrapIndentToggle,   /* Alt-i: the wrapped lines keep the row's indent */
     IndentGuidesToggle, /* Alt-g: show or hide the indent guides */
     BracketColorPrompt, /* Alt-c: the color the bracket match lights up with */
+    CommentToggle,      /* Ctrl-/ (or Ctrl-_): comment the line or the
+                            selection, or take the comment off again */
 
 } EditorKey;
 
