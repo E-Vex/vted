@@ -35,6 +35,10 @@ typedef enum
     HlTab, /* a tab character drawn as a dotted run: never given out by
              the scanner either, the renderer hands it to tabs when
              they are asked to be shown */
+    HlIndent, /* a blank the indent guides mark: never given out by the
+                 scanner either, the renderer hands it to the whitespace
+                 that sits on a tab stop inside a row's indent when the
+                 guides are asked to be shown */
     HlMarker /* the wrap column marker: a background the renderer adds
                 over the cells of that column on top of whatever else
                 they carry, so the column shows even where text crosses

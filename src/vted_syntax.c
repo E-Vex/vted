@@ -1483,6 +1483,21 @@ const char *SyntaxStyle(int hl_class)
             return escape;
         }
         return "\x1b[90m";
+    case HlIndent:
+        /* a slate blue a step darker than the tab gray: the guides
+           mark the shape of the code, one quiet dot per stop, and
+           must not compete with the text they stand beside */
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;100;110;125m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;60m");
+            return escape;
+        }
+        return "\x1b[90m";
     case HlMarker:
         /* a quiet background, so the marker reads as a line through
            the text rather than a box around it */

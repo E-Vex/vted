@@ -1200,6 +1200,7 @@ static void TestStyles(void)
     CHECK(strlen(SyntaxStyle(HlFunction)) > 0);
     CHECK(strlen(SyntaxStyle(HlMatch)) > 0);
     CHECK(strlen(SyntaxStyle(HlTab)) > 0);
+    CHECK(strlen(SyntaxStyle(HlIndent)) > 0);
     CHECK(strlen(SyntaxStyle(HlMarker)) > 0);
 }
 
