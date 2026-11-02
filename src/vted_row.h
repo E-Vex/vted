@@ -222,6 +222,18 @@ int BufferFindBracketBlock(int cy, int cx, int *first_row, int *last_row);
    copy could not be made */
 int BufferDuplicateRows(int first, int last);
 
+/* puts the line comment in front of the first non-blank of every row
+   first through last — or takes it off the rows that carry it, when
+   the first row that is not all blanks already does. The token goes
+   in with a space behind it and comes off with that space when it is
+   there; a row of only blanks is never given one, and a row that
+   already carries a token, either spelling, keeps the one it has, so
+   a mixed span comes out of one press all one way. How many rows
+   changed is reported through *out_changed, negative when they were
+   uncommented. Returns 0, or -1 when memory ran out half way */
+int BufferToggleComment(int first, int last, const char *token,
+                        const char *token2, int *out_changed);
+
 /* counts the matches of query in the whole buffer, and how many of
    them start before (row, col): the place among them all of the
    match the cursor sits on. Matches are counted the way the search

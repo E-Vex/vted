@@ -1224,6 +1224,149 @@ int BufferDuplicateRows(int first, int last)
     return 0;
 }
 
+/* does the row's text at byte index at start with the token? */
+static int RowStartsWith(const vted_row_t *row, int at, const char *token)
+{
+    size_t length = strlen(token);
+
+    return (size_t)(row->size - at) >= length &&
+           memcmp(&row->chars[at], token, length) == 0;
+}
+
+/* how wide the line comment the row carries at its indent is: the
+   spelling its text starts with there, or 0 when it starts with
+   neither */
+static int RowCommentWidth(const vted_row_t *row, int indent,
+                           const char *token, const char *token2)
+{
+    if (token != NULL && RowStartsWith(row, indent, token))
+    {
+        return (int)strlen(token);
+    }
+
+    if (token2 != NULL && RowStartsWith(row, indent, token2))
+    {
+        return (int)strlen(token2);
+    }
+
+    return 0;
+}
+
+int BufferToggleComment(int first, int last, const char *token,
+                        const char *token2, int *out_changed)
+{
+    /* puts the line comment in front of the first non-blank of every
+       row first through last — or takes it off the rows that carry
+       it, when the first row that is not all blanks already does. The
+       token goes in with a space behind it and comes off with that
+       space when it is there; a row of only blanks is never given
+       one, and a row that already carries a token, either spelling,
+       keeps the one it has, so a mixed span comes out of one press
+       all one way. How many rows changed is reported through
+       *out_changed, negative when they were uncommented. Returns 0,
+       or -1 when memory ran out half way */
+    int direction = 0; /* 1 the token goes in, -1 it comes off */
+    int changed = 0;
+    int row;
+
+    *out_changed = 0;
+
+    if (token == NULL || vted_buffer.num_rows == 0)
+    {
+        return 0;
+    }
+
+    /* only the rows the span names that are really there */
+    if (first < 0)
+    {
+        first = 0;
+    }
+    if (last > vted_buffer.num_rows - 1)
+    {
+        last = vted_buffer.num_rows - 1;
+    }
+    if (first > last)
+    {
+        return 0;
+    }
+
+    /* the first row that is not all blanks says which way it goes: a
+       commented one takes the token off the span, an uncommented one
+       puts it in */
+    for (row = first; row <= last; row++)
+    {
+        vted_row_t *line = &vted_buffer.rows[row];
+        int indent = RowIndentLength(line, line->size);
+
+        if (indent < line->size)
+        {
+            direction = RowCommentWidth(line, indent, token, token2) > 0 ? -1 : 1;
+            break;
+        }
+    }
+
+    if (direction == 0)
+    {
+        return 0; /* nothing but blanks: nothing to comment */
+    }
+
+    for (row = first; row <= last; row++)
+    {
+        vted_row_t *line = &vted_buffer.rows[row];
+        int indent = RowIndentLength(line, line->size);
+
+        if (direction > 0)
+        {
+            int token_len = (int)strlen(token);
+
+            if (indent == line->size ||
+                RowCommentWidth(line, indent, token, token2) > 0)
+            {
+                continue; /* all blanks, or commented already */
+            }
+
+            if (RowInsertString(line, indent, token, token_len) == -1 ||
+                RowInsertString(line, indent + token_len, " ", 1) == -1)
+            {
+                return -1;
+            }
+
+            changed++;
+        }
+        else
+        {
+            int width = RowCommentWidth(line, indent, token, token2);
+            int removing = width;
+
+            if (width == 0)
+            {
+                continue; /* no comment to take off */
+            }
+
+            /* the space the commenter left behind comes off with the
+               token */
+            if (indent + width < line->size &&
+                line->chars[indent + width] == ' ')
+            {
+                removing++;
+            }
+
+            while (removing-- > 0)
+            {
+                if (RowRemoveChar(line, indent) == -1)
+                {
+                    return -1;
+                }
+            }
+
+            changed--;
+        }
+    }
+
+    *out_changed = changed;
+    return 0;
+}
+
 void BufferCountMatches(const char *query, int query_len,
                         int row, int col, int *total, int *before)
 {

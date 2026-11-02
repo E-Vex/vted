@@ -606,6 +606,182 @@ static void TestDuplicateRowsOfOneRow(void)
     CHECK_STR(vted_buffer.rows[1].chars, "only");
 }
 
+static void TestToggleCommentPutsItInFrontOfTheFirstNonBlank(void)
+{
+    const char *const texts[] = {"code", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferToggleComment(0, 0, "//", NULL, &changed), 0);
+    CHECK_INT(changed, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "// code");
+
+    /* the indent stays in front of the token */
+    {
+        const char *const indented[] = {"    code", NULL};
+
+        MakeBuffer(indented);
+
+        CHECK_INT(BufferToggleComment(0, 0, "//", NULL, &changed), 0);
+        CHECK_INT(changed, 1);
+        CHECK_STR(vted_buffer.rows[0].chars, "    // code");
+    }
+}
+
+static void TestToggleCommentTakesItOffAgain(void)
+{
+    const char *const texts[] = {"// code", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferToggleComment(0, 0, "//", NULL, &changed), 0);
+    CHECK_INT(changed, -1);
+    CHECK_STR(vted_buffer.rows[0].chars, "code");
+
+    /* a comment with no space behind it loses only the token */
+    {
+        const char *const tight[] = {"//code", NULL};
+
+        MakeBuffer(tight);
+
+        CHECK_INT(BufferToggleComment(0, 0, "//", NULL, &changed), 0);
+        CHECK_STR(vted_buffer.rows[0].chars, "code");
+    }
+
+    /* a comment with the indent still in front */
+    {
+        const char *const indented[] = {"    // code", NULL};
+
+        MakeBuffer(indented);
+
+        CHECK_INT(BufferToggleComment(0, 0, "//", NULL, &changed), 0);
+        CHECK_STR(vted_buffer.rows[0].chars, "    code");
+    }
+
+    /* a line that is only the comment and its space empties out */
+    {
+        const char *const bare[] = {"// ", NULL};
+
+        MakeBuffer(bare);
+
+        CHECK_INT(BufferToggleComment(0, 0, "//", NULL, &changed), 0);
+        CHECK_STR(vted_buffer.rows[0].chars, "");
+    }
+}
+
+static void TestToggleCommentRoundTrips(void)
+{
+    /* commenting and uncommenting brings back exactly what the
+       toggle itself wrote, indent and all */
+    const char *const texts[] = {"one", "    two", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferToggleComment(0, 1, "//", NULL, &changed), 0);
+    CHECK_INT(changed, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "// one");
+    CHECK_STR(vted_buffer.rows[1].chars, "    // two");
+
+    CHECK_INT(BufferToggleComment(0, 1, "//", NULL, &changed), 0);
+    CHECK_INT(changed, -2);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "    two");
+}
+
+static void TestToggleCommentSkipsBlankRows(void)
+{
+    /* a row of only blanks stays as it is, and a span of nothing but
+       them changes nothing at all */
+    const char *const texts[] = {"", "   ", "code", "", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferToggleComment(0, 4, "//", NULL, &changed), 0);
+    CHECK_INT(changed, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+    CHECK_STR(vted_buffer.rows[1].chars, "   ");
+    CHECK_STR(vted_buffer.rows[2].chars, "// code");
+    CHECK_STR(vted_buffer.rows[3].chars, "");
+
+    /* the direction comes from the first row that is not blanks,
+       blank rows in between included */
+    {
+        const char *const blanks[] = {"", "  ", NULL};
+
+        MakeBuffer(blanks);
+
+        CHECK_INT(BufferToggleComment(0, 1, "//", NULL, &changed), 0);
+        CHECK_INT(changed, 0);
+        CHECK_STR(vted_buffer.rows[0].chars, "");
+        CHECK_STR(vted_buffer.rows[1].chars, "  ");
+    }
+}
+
+static void TestToggleCommentDirectionOfAMixedSpan(void)
+{
+    /* the first row that is not blanks decides for the whole span:
+       an uncommented one comments them all, a commented one takes
+       the tokens off, and rows already the other way stay put */
+    const char *const texts[] = {"one", "// two", "three", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferToggleComment(0, 2, "//", NULL, &changed), 0);
+    CHECK_INT(changed, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "// one");
+    CHECK_STR(vted_buffer.rows[1].chars, "// two");
+    CHECK_STR(vted_buffer.rows[2].chars, "// three");
+
+    CHECK_INT(BufferToggleComment(0, 2, "//", NULL, &changed), 0);
+    CHECK_INT(changed, -3);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_STR(vted_buffer.rows[2].chars, "three");
+}
+
+static void TestToggleCommentKnowsBothSpellings(void)
+{
+    /* INI comments with # and knows ; besides: the first is written
+       in, and either one comes off */
+    const char *const texts[] = {"key = 1", "; note", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferToggleComment(0, 1, "#", ";", &changed), 0);
+    CHECK_INT(changed, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "# key = 1");
+    CHECK_STR(vted_buffer.rows[1].chars, "; note"); /* the other spelling: kept */
+
+    CHECK_INT(BufferToggleComment(1, 1, "#", ";", &changed), 0);
+    CHECK_INT(changed, -1);
+    CHECK_STR(vted_buffer.rows[1].chars, "note");
+}
+
+static void TestToggleCommentBounds(void)
+{
+    /* a span wider than the buffer is cut down to it, and a token
+       that is not there at all leaves the buffer be */
+    const char *const texts[] = {"a", "b", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferToggleComment(-2, 9, "//", NULL, &changed), 0);
+    CHECK_INT(changed, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "// a");
+    CHECK_STR(vted_buffer.rows[1].chars, "// b");
+
+    CHECK_INT(BufferToggleComment(0, 1, NULL, NULL, &changed), 0);
+    CHECK_INT(changed, 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "// a");
+}
+
 static void TestBracketScanStopsAtTheLimit(void)
 {
     /* a row far past the scan limit: the match at its end counts as
@@ -1391,6 +1567,13 @@ int main(void)
     TestDuplicateRowsCopiesTheSpanInOrder();
     TestDuplicateRowsKeepTheirEndings();
     TestDuplicateRowsOfOneRow();
+    TestToggleCommentPutsItInFrontOfTheFirstNonBlank();
+    TestToggleCommentTakesItOffAgain();
+    TestToggleCommentRoundTrips();
+    TestToggleCommentSkipsBlankRows();
+    TestToggleCommentDirectionOfAMixedSpan();
+    TestToggleCommentKnowsBothSpellings();
+    TestToggleCommentBounds();
     TestBracketScanStopsAtTheLimit();
     TestWrapCount();
     TestWrapBreaksAtWordBoundaries();
