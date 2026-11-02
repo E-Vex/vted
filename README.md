@@ -164,13 +164,14 @@ set insert-spaces on
 set line-numbers off
 set show-tabs on
 set wrap on
+set wrap-indent off
 set wrap-column 80
 ```
 
 Blank lines and `#` comments are skipped, a later line wins over an
 earlier one, and a line that cannot be used is reported in the
 message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N,
-Alt-t and Ctrl-L set while editing.
+Alt-t, Ctrl-L and Alt-i set while editing.
 
 ## Keys
 
@@ -189,6 +190,9 @@ Alt-t and Ctrl-L set while editing.
   the buffer and redo here)                       |
 | Alt-t           | show or hide the tab characters: a shown tab
   carries a » and a trail of ·, in the gray of a comment |
+| Alt-i           | keep the indent on the wrapped lines: a row
+  that flows over several screen lines continues under
+  its own first line's text                     |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |

@@ -246,6 +246,32 @@ index to its screen line and column within that layout;
 on the line's last glyph rather than the next line's first, so a
 cursor aimed past a line's end stays on that line.
 
+### The indent the wrapped lines keep
+
+With `wrap-indent` on (`Alt-i`, the default), every screen line after
+the first that a row flows onto keeps the row's own indent at its
+start: the cells from the line's left edge to the cell column where
+the row's first non-blank glyph sits — `RowWrapIndentCells()` in
+`src/vted_row.c` answers it, leading tabs laid out — stay blank, and
+the row's text continues past them. Nested code keeps its shape while
+it wraps, instead of the continuation lines starting flush left:
+
+```
+    if (someVeryLongCondition && anotherCondition &&
+    moreOfThem) {            ← wrap-indent off
+    if (someVeryLongCondition && anotherCondition &&
+        moreOfThem) {        ← wrap-indent on
+```
+
+The indent rides in the layout itself, not around it: the wrap step
+skips the padding when the walk lands in it, a run only moves down
+while a line has room for it past the indent, and the indent is
+clamped to leave every line at least one content cell. A cursor that
+lands inside an indent rests on the line's own first glyph, so Home
+on a continuation line starts at its text, and the renderer writes
+the padding out plain, so the glyphs after it land where the layout
+put them.
+
 Text styling
 ------------
 

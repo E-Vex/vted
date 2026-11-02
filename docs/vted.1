@@ -126,6 +126,11 @@ show or hide the tab characters: a shown tab carries a » on its
 first cell and a · on the rest, in the gray of a comment, and takes
 the same cells either way, so nothing else about the layout changes
 .TP
+.B Alt\-i
+keep the indent on the wrapped lines, or take it back off: a row
+that flows over several screen lines starts each one after it at
+the cell column where its own first line's text starts
+.TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
 the current one
@@ -295,14 +300,20 @@ and
 or
 .BR off ,
 and
+.B "set wrap-indent on"
+or
+.BR off
+(a row that wraps over several screen lines starts each one after
+the first at the cell column where the row's own text starts),
+and
 .BI "set wrap-column " N
 (the text cells that fit before the column marker, 0 to 512, 0
 hides it).
 Blank lines and lines starting with # are skipped, and a later line
 wins over an earlier one. A line that cannot be used is reported in
 the message bar while the setting it would have set stays at its
-default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N, Alt\-t and
-Ctrl\-L set while editing.
+default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N, Alt\-t,
+Ctrl\-L and Alt\-i set while editing.
 .PP
 Line endings are kept as found: LF, CRLF, CR and mixed files save
 back unchanged, byte for byte, and a file without a trailing newline
