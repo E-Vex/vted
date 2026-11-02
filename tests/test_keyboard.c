@@ -187,6 +187,16 @@ static void TestViewportScrolls(void)
     CHECK_INT(ReadKeyPress(), 'y');
 }
 
+static void TestShowTabsToggle(void)
+{
+    FeedInput("\x1b" "t");
+    CHECK_INT(ReadKeyPress(), ShowTabsToggle);
+
+    /* plain t is still text */
+    FeedInput("t");
+    CHECK_INT(ReadKeyPress(), 't');
+}
+
 static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -338,6 +348,7 @@ int main(void)
     TestAltDigitsSelectBuffers();
     TestViewportJumps();
     TestViewportScrolls();
+    TestShowTabsToggle();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();

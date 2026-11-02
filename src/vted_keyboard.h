@@ -47,6 +47,7 @@ typedef enum
     ViewportBottom, /* Alt-l: the bottom screen line of the viewport */
     ViewportScrollDown, /* Alt-e: the viewport one screen line down */
     ViewportScrollUp,   /* Alt-y: the viewport one screen line up */
+    ShowTabsToggle,     /* Alt-t: show or hide the tab characters */
 
 } EditorKey;
 

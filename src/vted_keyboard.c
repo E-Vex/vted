@@ -307,6 +307,13 @@ int ParseArrowKey(void)
         return ViewportScrollUp;
     }
 
+    /* Alt-t shows or hides the tab characters: Ctrl-T is taken by
+       the choice between spaces and a real tab */
+    if (introducer == 't')
+    {
+        return ShowTabsToggle;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')
