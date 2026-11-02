@@ -1164,6 +1164,17 @@ int main(int argc, char *argv[])
                 SetStatusMessage("Tabs %s",
                                  vted_editor_config.show_tabs ? "shown" : "hidden");
             }
+            else if (c_in == WrapIndentToggle)
+            {
+                /* Alt-i keeps the indent on the wrapped lines, or
+                   puts them back edge to edge: the whole viewport
+                   lays out differently now, so every row repaints */
+                vted_editor_config.wrap_indent = !vted_editor_config.wrap_indent;
+                ScreenMarkAllDirty();
+
+                SetStatusMessage("Wrap indent %s",
+                                 vted_editor_config.wrap_indent ? "on" : "off");
+            }
             else if (c_in == MoveLineUp || c_in == MoveLineDown)
             {
                 EditClearSelection();

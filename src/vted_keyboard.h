@@ -48,6 +48,7 @@ typedef enum
     ViewportScrollDown, /* Alt-e: the viewport one screen line down */
     ViewportScrollUp,   /* Alt-y: the viewport one screen line up */
     ShowTabsToggle,     /* Alt-t: show or hide the tab characters */
+    WrapIndentToggle,   /* Alt-i: the wrapped lines keep the row's indent */
 
 } EditorKey;
 

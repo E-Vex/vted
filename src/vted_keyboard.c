@@ -314,6 +314,13 @@ int ParseArrowKey(void)
         return ShowTabsToggle;
     }
 
+    /* Alt-i keeps the indent on the wrapped lines, or takes it back
+       off: Ctrl-I is the Tab key, so the i goes with Alt */
+    if (introducer == 'i')
+    {
+        return WrapIndentToggle;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')
