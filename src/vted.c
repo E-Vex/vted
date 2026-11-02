@@ -703,7 +703,34 @@ static void EditorFind(void)
 
     while (1)
     {
-        SetStatusMessage("Find: %s (ESC cancel, Enter keep, arrows next/prev)", query);
+        /* the prompt says where the match the cursor sits on stands
+           among all of them, so typing tells at a glance whether the
+           query is any good before a single arrow is pressed */
+        if (query_len > 0)
+        {
+            int total;
+            int before;
+
+            BufferCountMatches(query, query_len,
+                               vted_editor_config.cursor_y,
+                               vted_editor_config.cursor_x,
+                               &total, &before);
+
+            if (total > 0)
+            {
+                SetStatusMessage("Find: %s (%d of %d, ESC cancel, Enter keep, arrows next/prev)",
+                                 query, before + 1, total);
+            }
+            else
+            {
+                SetStatusMessage("Find: %s (no matches, ESC cancel, Enter keep, arrows next/prev)",
+                                 query);
+            }
+        }
+        else
+        {
+            SetStatusMessage("Find: %s (ESC cancel, Enter keep, arrows next/prev)", query);
+        }
         RefreshScreen();
 
         int c = ReadKeyPress();
