@@ -1244,6 +1244,72 @@ static void TestStyles(void)
     CHECK(strlen(SyntaxStyle(HlMarker)) > 0);
 }
 
+/* the escape of every class in every color mode, spelled out: what a
+   terminal is told to draw is the contract of the module, so a change
+   to how the colors are kept must leave every one of these as it was */
+static void TestDefaultEscapes(void)
+{
+    static const struct
+    {
+        int hl_class;
+        const char *escape[3]; /* the 16-color, 256-color and RGB spelling */
+    } expected[] = {
+    {HlComment, {"\x1b[90m", "\x1b[38;5;245m", "\x1b[38;2;128;128;128m"}},
+    {HlString, {"\x1b[32m", "\x1b[38;5;28m", "\x1b[38;2;0;170;0m"}},
+    {HlNumber, {"\x1b[35m", "\x1b[38;5;127m", "\x1b[38;2;170;0;170m"}},
+    {HlKeyword, {"\x1b[33m", "\x1b[38;5;220m", "\x1b[38;2;170;130;0m"}},
+    {HlType, {"\x1b[36m", "\x1b[38;5;81m", "\x1b[38;2;0;150;150m"}},
+    {HlPreproc, {"\x1b[94m", "\x1b[38;5;63m", "\x1b[38;2;0;110;255m"}},
+    {HlRemoved, {"\x1b[91m", "\x1b[38;5;160m", "\x1b[38;2;204;0;0m"}},
+    {HlContext, {"\x1b[90m", "\x1b[38;5;240m", "\x1b[38;2;105;105;105m"}},
+    {HlFunction, {"\x1b[93m", "\x1b[38;5;208m", "\x1b[38;2;255;140;0m"}},
+    {HlMatch, {"\x1b[43m", "\x1b[48;5;94m", "\x1b[48;2;135;95;0m"}},
+    {HlTab, {"\x1b[90m", "\x1b[38;5;245m", "\x1b[38;2;128;128;128m"}},
+    {HlIndent, {"\x1b[90m", "\x1b[38;5;60m", "\x1b[38;2;100;110;125m"}},
+    {HlMarker, {"\x1b[100m", "\x1b[48;5;236m", "\x1b[48;2;60;60;60m"}},
+    };
+    size_t i;
+    int mode;
+
+    for (i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)
+    {
+        for (mode = 0; mode < 3; mode++)
+        {
+            SyntaxSetColorMode(mode);
+            CHECK_STR(SyntaxStyle(expected[i].hl_class), expected[i].escape[mode]);
+        }
+    }
+
+    /* the bracket match: no color is the inverted video, and each of
+       the seven colors is a background of its own in every mode */
+    static const char *const bracket[7][3] = {
+        {"\x1b[41m", "\x1b[48;5;124m", "\x1b[48;2;170;45;45m"},
+        {"\x1b[42m", "\x1b[48;5;28m", "\x1b[48;2;45;140;60m"},
+        {"\x1b[43m", "\x1b[48;5;130m", "\x1b[48;2;170;140;0m"},
+        {"\x1b[44m", "\x1b[48;5;62m", "\x1b[48;2;70;100;200m"},
+        {"\x1b[45m", "\x1b[48;5;127m", "\x1b[48;2;165;55;165m"},
+        {"\x1b[46m", "\x1b[48;5;37m", "\x1b[48;2;40;150;160m"},
+        {"\x1b[100m", "\x1b[48;5;244m", "\x1b[48;2;120;120;120m"}
+    };
+    int color;
+
+    for (mode = 0; mode < 3; mode++)
+    {
+        SyntaxSetColorMode(mode);
+        SyntaxSetBracketColor(0);
+        CHECK_STR(SyntaxStyle(HlBracket), "");
+
+        for (color = 1; color <= 7; color++)
+        {
+            SyntaxSetBracketColor(color);
+            CHECK_STR(SyntaxStyle(HlBracket), bracket[color - 1][mode]);
+        }
+    }
+
+    SyntaxSetBracketColor(0);
+    SyntaxSetColorMode(-1);
+}
+
 static void TestColorMode(void)
 {
     /* a forced mode is the one the escapes are drawn in: the comment
@@ -1335,6 +1401,7 @@ int main(void)
     TestPhp();
     TestDotenv();
     TestStyles();
+    TestDefaultEscapes();
     TestColorMode();
     TestBracketMatchStyle();
 
