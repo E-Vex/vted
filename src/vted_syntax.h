@@ -32,9 +32,13 @@ typedef enum
                 by the scanner, the renderer hands it to the matches of
                 the search query so they light up with a background of
                 their own */
-    HlTab /* a tab character drawn as a dotted run: never given out by
+    HlTab, /* a tab character drawn as a dotted run: never given out by
              the scanner either, the renderer hands it to tabs when
              they are asked to be shown */
+    HlMarker /* the wrap column marker: a background the renderer adds
+                over the cells of that column on top of whatever else
+                they carry, so the column shows even where text crosses
+                it */
 } HlClass;
 
 /* picks the language for a file name ("main.c" is C); NULL, or a name

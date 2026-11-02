@@ -1483,6 +1483,20 @@ const char *SyntaxStyle(int hl_class)
             return escape;
         }
         return "\x1b[90m";
+    case HlMarker:
+        /* a quiet background, so the marker reads as a line through
+           the text rather than a box around it */
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[48;2;60;60;60m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[48;5;236m");
+            return escape;
+        }
+        return "\x1b[100m";
     default:
         return "";
     }
