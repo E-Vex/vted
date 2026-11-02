@@ -227,6 +227,18 @@ static void TestBracketColorPrompt(void)
     CHECK_INT(ReadKeyPress(), 'c');
 }
 
+static void TestBracketJumpKey(void)
+{
+    /* Alt-%: the jump of vi's % on the Alt spelling, because a plain
+       % is a character of the text */
+    FeedInput("\x1b" "%");
+    CHECK_INT(ReadKeyPress(), BracketJump);
+
+    /* a plain % is still text */
+    FeedInput("%");
+    CHECK_INT(ReadKeyPress(), '%');
+}
+
 static void TestCommentToggleKey(void)
 {
     /* Ctrl-/ arrives as the byte 0x1F, the one Ctrl-_ has always
@@ -394,6 +406,7 @@ int main(void)
     TestWrapIndentToggle();
     TestIndentGuidesToggle();
     TestBracketColorPrompt();
+    TestBracketJumpKey();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
