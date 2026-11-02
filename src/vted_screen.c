@@ -1917,6 +1917,58 @@ static void JumpToViewportLine(int key)
     }
 }
 
+/* where Home puts the cursor: on the first non-blank glyph of the
+   line — the screen line the cursor sits on when wrapping is on, the
+   row itself when it is not — or, when the cursor already rests
+   there, on the line's very start, so Home toggles between the two
+   the way it does in the editors people know. A line that holds
+   nothing but blanks has no first non-blank: Home just starts it */
+static int HomeTarget(const vted_row_t *row, int cx, int cols, int indent)
+{
+    int start; /* the byte the line starts at */
+    int end;   /* one past the line's last byte */
+    int at;
+
+    if (cols <= 0)
+    {
+        /* wrapping off: the row is one endless line */
+        start = 0;
+        end = row->size;
+    }
+    else
+    {
+        int line;
+        int col;
+        int lines = RowWrapCount(row, cols, indent);
+
+        RowCxToWrapped(row, cx, cols, indent, &line, &col);
+
+        if (line >= lines)
+        {
+            line = lines - 1; /* past the end rests on the last line */
+        }
+
+        start = RowWrappedToCx(row, line, 0, cols, indent);
+        end = line + 1 < lines
+                  ? RowWrappedToCx(row, line + 1, 0, cols, indent)
+                  : row->size;
+    }
+
+    at = start;
+
+    while (at < end && (row->chars[at] == ' ' || row->chars[at] == '\t'))
+    {
+        at++;
+    }
+
+    if (at < end && cx != at)
+    {
+        return at; /* the line's first non-blank */
+    }
+
+    return start; /* already there, or nothing but blanks: the line's start */
+}
+
 void MoveCursor(int key)
 {
     /* moving the cursor logically, bounded by the text in the buffer.
@@ -2108,34 +2160,28 @@ void MoveCursor(int key)
         break;
 
     case HomeKey:
-        if (vted_editor_config.wrap != 0 && row != NULL)
+        if (row == NULL)
         {
-            /* the start of the screen line the cursor is on: the
-               rows flow over lines of their own, so a line has a
-               start of its own. The position past the row's last
+            vted_editor_config.cursor_x = 0; /* the phantom row keeps column zero */
+        }
+        else if (vted_editor_config.wrap != 0)
+        {
+            /* the first non-blank of the screen line the cursor is
+               on, then its very start on a second press: the rows
+               flow over lines of their own, so a line has a first
+               non-blank of its own. The position past the row's last
                glyph rests on the last line */
-            int line;
-            int col;
-            int lines = RowWrapCount(row, vted_editor_config.text_cols,
-                                     WrapIndentOf(row, vted_editor_config.text_cols));
-
-            RowCxToWrapped(row, vted_editor_config.cursor_x,
-                           vted_editor_config.text_cols,
-                           WrapIndentOf(row, vted_editor_config.text_cols),
-                           &line, &col);
-
-            if (line >= lines)
-            {
-                line = lines - 1;
-            }
-
             vted_editor_config.cursor_x =
-                RowWrappedToCx(row, line, 0, vted_editor_config.text_cols,
-                               WrapIndentOf(row, vted_editor_config.text_cols));
+                HomeTarget(row, vted_editor_config.cursor_x,
+                           vted_editor_config.text_cols,
+                           WrapIndentOf(row, vted_editor_config.text_cols));
         }
         else
         {
-            vted_editor_config.cursor_x = 0;
+            /* without wrapping the row is the line: the toggle is
+               between its first non-blank and column zero */
+            vted_editor_config.cursor_x =
+                HomeTarget(row, vted_editor_config.cursor_x, 0, 0);
         }
         break;
 

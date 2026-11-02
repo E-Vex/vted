@@ -87,6 +87,76 @@ static void TestHomeBeforeAWideGlyphMovedDown(void)
     CHECK_INT(vted_editor_config.cursor_x, 0);
 }
 
+static void TestHomeTogglesWithTheFirstNonBlank(void)
+{
+    /* Home lands on the row's first non-blank and, pressed again, on
+       its very start: the toggle the editors people know have, here
+       without wrapping */
+    BeginWrapped("    foo", 40);
+    vted_editor_config.wrap = 0;
+
+    CursorAt(0, 6); /* inside foo */
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 4); /* the f */
+
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 0); /* the toggle */
+
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 4); /* and back */
+
+    /* a row of nothing but blanks has no first non-blank: Home just
+       starts it */
+    BeginWrapped("   ", 40);
+    vted_editor_config.wrap = 0;
+
+    CursorAt(0, 2);
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* the phantom row past the end keeps column zero */
+    CursorAt(1, 0);
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestHomeTogglesOnTheWrappedLines(void)
+{
+    /* "abcd ef" over 4 cells: the second line starts with the blank
+       that followed the run, so it has a first non-blank of its own
+       to toggle with */
+    BeginWrapped("abcd ef", 4);
+
+    CursorAt(0, 6); /* f, on the second line */
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 5); /* e, the line's first non-blank */
+
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 4); /* the blank the line starts with */
+
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 5); /* and back */
+
+    /* the first line's first non-blank is the row's own */
+    CursorAt(0, 2);
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestHomeTogglesOnAnIndentedRow(void)
+{
+    /* "  foo" over 10 cells stays on one line: with wrapping on the
+       toggle is still between the f and column zero */
+    BeginWrapped("  foo", 10);
+
+    CursorAt(0, 4); /* o */
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 2); /* f */
+
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
 static void TestEndEndsTheScreenLine(void)
 {
     BeginWrapped("abcdefghijkl", 4);
@@ -1243,6 +1313,9 @@ int main(void)
     TestHomeStartsTheScreenLine();
     TestHomeFromPastTheEnd();
     TestHomeBeforeAWideGlyphMovedDown();
+    TestHomeTogglesWithTheFirstNonBlank();
+    TestHomeTogglesOnTheWrappedLines();
+    TestHomeTogglesOnAnIndentedRow();
     TestEndEndsTheScreenLine();
     TestEndBeforeAWideGlyphMovedDown();
     TestEndBeforeATabThatCrossesTheEdge();
