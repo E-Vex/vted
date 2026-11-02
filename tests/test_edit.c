@@ -4,6 +4,7 @@
 #include "src/vted_screen.h"
 #include "src/vted_row.h"
 #include "src/vted_edit.h"
+#include "src/vted_syntax.h"
 #include "src/vted_undo.h"
 /*===============================*/
 
@@ -207,6 +208,127 @@ static void TestDuplicateLine(void)
     CHECK_STR(vted_buffer.rows[1].chars, "ab");
     CHECK_INT(vted_editor_config.cursor_y, 1);
     CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestToggleCommentOnTheLine(void)
+{
+    /* the token goes in front of the first non-blank with a space
+       behind it, and the cursor rides the shift */
+    Begin("code");
+    CursorAt(0, 2);
+    SyntaxSelectForFile("main.c");
+
+    EditorToggleComment();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "// code");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    /* a column inside the indent stays where it is */
+    Begin("  code");
+    CursorAt(0, 1);
+    SyntaxSelectForFile("main.c");
+
+    EditorToggleComment();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "  // code");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestToggleCommentUndoesAsOneStep(void)
+{
+    Begin("one");
+    AppendRow("two", 3, VTED_EOL_LF);
+    UndoReset();
+    CursorAt(0, 0);
+    SyntaxSelectForFile("main.c");
+
+    EditSetAnchor(0, 0);
+    CursorAt(1, 3);
+
+    EditorToggleComment();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "// one");
+    CHECK_STR(vted_buffer.rows[1].chars, "// two");
+
+    /* the selection lives on, its ends riding the shift, so a second
+       press takes the comment back off */
+    CHECK_INT(EditSelectionActive(), 1);
+    {
+        int top;
+        int left;
+        int bottom;
+        int right;
+
+        EditSelectionRange(&top, &left, &bottom, &right);
+        CHECK_INT(top, 0);
+        CHECK_INT(left, 3); /* the anchor rode the shift of its row */
+        CHECK_INT(bottom, 1);
+        CHECK_INT(right, 6);
+    }
+
+    EditorToggleComment();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_INT(EditSelectionActive(), 1);
+
+    /* one undo takes the whole span back, cursor and all */
+    EditorToggleComment();
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    /* and one redo comments it again */
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "// one");
+    CHECK_STR(vted_buffer.rows[1].chars, "// two");
+
+    EditClearSelection();
+}
+
+static void TestToggleCommentOnLanguageWithoutOne(void)
+{
+    /* a language that comments only in blocks changes nothing and
+       records nothing to undo */
+    Begin("<p>text</p>");
+    UndoReset();
+    CursorAt(0, 1);
+    SyntaxSelectForFile("page.html");
+
+    EditorToggleComment();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "<p>text</p>");
+    CHECK_INT(vted_buffer.dirty, 0);
+    CHECK_INT(EditorUndo(), 0);
+
+    /* and plain text is the same story */
+    SyntaxSelectForFile(NULL);
+
+    EditorToggleComment();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "<p>text</p>");
+    CHECK_INT(EditorUndo(), 0);
+}
+
+static void TestToggleCommentOnAllBlankLines(void)
+{
+    /* blank rows are never given a token, and a span of nothing but
+       them leaves nothing to undo */
+    Begin(" ");
+    AppendRow("   ", 3, VTED_EOL_LF);
+    UndoReset();
+    CursorAt(0, 0);
+    SyntaxSelectForFile("main.c");
+
+    EditorToggleComment();
+
+    CHECK_STR(vted_buffer.rows[0].chars, " ");
+    CHECK_STR(vted_buffer.rows[1].chars, "   ");
+    CHECK_INT(EditorUndo(), 0);
 }
 
 /* a small C-shaped block, the cursor on its opener */
@@ -704,6 +826,10 @@ int main(void)
     TestDeleteLineClampsColumn();
     TestDeleteOnlyLine();
     TestDuplicateLine();
+    TestToggleCommentOnTheLine();
+    TestToggleCommentUndoesAsOneStep();
+    TestToggleCommentOnLanguageWithoutOne();
+    TestToggleCommentOnAllBlankLines();
     TestDuplicateTheBlockABracketEncloses();
     TestDuplicateTheBlockFromTheCloser();
     TestDuplicateTheBlockKeepsTheEndings();

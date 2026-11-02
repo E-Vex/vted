@@ -6,6 +6,7 @@
 #include "vted_screen.h"
 #include "vted_row.h"
 #include "vted_utf8.h"
+#include "vted_syntax.h"
 #include "vted_edit.h"
 #include "vted_undo.h"
 /*===============================*/
@@ -886,6 +887,225 @@ void EditorCut(void)
 
         EditorDeleteLine();
         SetStatusMessage("Cut %d bytes", length);
+    }
+}
+
+/* how a column rides the comment toggle of its row: the text past
+   the row's indent shifts with the token, so a column at or past
+   where the token went in moves along with it, one inside the
+   indent stays put, and a column the token came off moves back, no
+   further than the indent */
+static int ShiftForComment(int old_indent, int old_size, int new_size, int x)
+{
+    if (new_size > old_size)
+    {
+        return x >= old_indent ? x + (new_size - old_size) : x;
+    }
+
+    if (new_size < old_size && x > old_indent)
+    {
+        int back = x - (old_size - new_size);
+
+        return back > old_indent ? back : old_indent;
+    }
+
+    return x;
+}
+
+void EditorToggleComment(void)
+{
+    /* Ctrl-/ comments the line under the cursor — or every line the
+       selection spans — with the token the language comments lines
+       with, and takes the token off again when the lines carry it.
+       The whole span is one undo step, and the selection and the
+       cursor ride the text as it shifts */
+
+    const char *token = SyntaxLineComment();
+    const char *language = SyntaxLanguageName();
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    int had_selection = EditSelectionActive();
+    int first;
+    int last;
+    int changed;
+    int count;
+    int total;
+    int at;
+    int i;
+    char *blob;
+
+    if (token == NULL)
+    {
+        /* a language that comments only in blocks, or none at all,
+           has nothing for a line comment to work with */
+        SetStatusMessage(language != NULL
+                             ? "No line comment in %s"
+                             : "No line comment for plain text",
+                         language);
+        return;
+    }
+
+    if (vted_buffer.num_rows == 0 ||
+        vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        return; /* on the phantom row past the end: nothing to comment */
+    }
+
+    /* the selection says which rows, whole ones whatever part of
+       them it covers; without one, the row of the cursor */
+    if (had_selection)
+    {
+        int left;
+        int right;
+
+        EditSelectionRange(&first, &left, &last, &right);
+    }
+    else
+    {
+        first = last = vted_editor_config.cursor_y;
+    }
+
+    if (last >= vted_buffer.num_rows)
+    {
+        last = vted_buffer.num_rows - 1;
+    }
+
+    /* the old texts of the span, joined by newlines the way the
+       undo entry wants them: a row never holds one itself. The sizes
+       and the indents of the rows the cursor and the anchor sit on
+       are kept along the way, so their columns can ride the shift */
+    count = last - first + 1;
+    total = count - 1;
+
+    for (i = first; i <= last; i++)
+    {
+        total += vted_buffer.rows[i].size;
+    }
+
+    blob = malloc((size_t)(total > 0 ? total : 1));
+
+    if (blob == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    {
+        int cursor_old_size = -1;
+        int cursor_old_indent = 0;
+        int anchor_old_size = -1;
+        int anchor_old_indent = 0;
+
+        at = 0;
+        for (i = first; i <= last; i++)
+        {
+            vted_row_t *line = &vted_buffer.rows[i];
+
+            if (i > first)
+            {
+                blob[at++] = '\n';
+            }
+
+            memcpy(blob + at, line->chars, (size_t)line->size);
+            at += line->size;
+
+            if (i == vted_editor_config.cursor_y)
+            {
+                cursor_old_size = line->size;
+                cursor_old_indent = RowIndentLength(line, line->size);
+            }
+
+            if (i == sel_anchor_y)
+            {
+                anchor_old_size = line->size;
+                anchor_old_indent = RowIndentLength(line, line->size);
+            }
+        }
+
+        if (BufferToggleComment(first, last, token, SyntaxLineComment2(),
+                                &changed) == -1)
+        {
+            KillApp("BufferToggleComment");
+        }
+
+        if (changed == 0)
+        {
+            /* nothing but blank rows: nothing to comment, nothing to
+               take back */
+            free(blob);
+            SetStatusMessage("Nothing to comment");
+            return;
+        }
+
+        /* the cursor rides the shift of its own row */
+        if (cursor_old_size >= 0)
+        {
+            int new_size = vted_buffer.rows[vted_editor_config.cursor_y].size;
+
+            vted_editor_config.cursor_x =
+                ShiftForComment(cursor_old_indent, cursor_old_size,
+                                new_size, vted_editor_config.cursor_x);
+
+            if (vted_editor_config.cursor_x > new_size)
+            {
+                vted_editor_config.cursor_x = new_size;
+            }
+        }
+
+        /* and so does the anchor end of the selection, which lives
+           on to take the comment off with a second press */
+        if (anchor_old_size >= 0)
+        {
+            int new_size = vted_buffer.rows[sel_anchor_y].size;
+
+            sel_anchor_x = ShiftForComment(anchor_old_indent, anchor_old_size,
+                                           new_size, sel_anchor_x);
+
+            if (sel_anchor_x > new_size)
+            {
+                sel_anchor_x = new_size;
+            }
+
+            {
+                int top;
+                int left;
+                int bottom;
+                int right;
+
+                EditSelectionRange(&top, &left, &bottom, &right);
+                ScreenSetSelection(top, left, bottom, right);
+            }
+        }
+    }
+
+    {
+        UndoEntry entry = {
+            .kind = UndoKindCommentRows,
+            .row = first,
+            .cx = last,
+            .bytes = blob,
+            .length = total,
+            .undo_y = before_y,
+            .undo_x = before_x,
+            .redo_y = vted_editor_config.cursor_y,
+            .redo_x = vted_editor_config.cursor_x,
+        };
+
+        UndoPush(&entry);
+    }
+
+    free(blob);
+
+    vted_buffer.dirty = 1;
+
+    if (changed > 0)
+    {
+        SetStatusMessage("Commented %d line%s", changed,
+                         changed == 1 ? "" : "s");
+    }
+    else
+    {
+        SetStatusMessage("Uncommented %d line%s", -changed,
+                         changed == -1 ? "" : "s");
     }
 }
 

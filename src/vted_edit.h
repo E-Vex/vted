@@ -28,6 +28,14 @@ void EditorDuplicateLine(void);
 void EditorMoveLineUp(void);
 void EditorMoveLineDown(void);
 
+/* comments the line under the cursor — or every line the selection
+   spans — with the token the language comments lines with, and takes
+   the token off again when the lines carry it: the whole span is one
+   undo step, and the selection and the cursor ride the text as it
+   shifts. A language without a line comment, or none at all, is
+   only reported in the message bar */
+void EditorToggleComment(void);
+
 /* selection: anchor/cursor model. The anchor is set with
    EditSetAnchor(); the cursor is the other end of the selection. */
 void EditSetAnchor(int y, int x);

@@ -1580,6 +1580,14 @@ int main(int argc, char *argv[])
 
                 EditorDuplicateLine();
             }
+            else if (c_in == CommentToggle)
+            {
+                /* Ctrl-/ comments the line under the cursor, or every
+                   line the selection spans, and takes the comment off
+                   again: the selection lives on, so a second press
+                   takes it back off */
+                EditorToggleComment();
+            }
             else if (c_in == CTRL_KEY('z') || c_in == CTRL_KEY('Z'))
             {
                 /* Ctrl-Z steps the buffer back through its changes */
