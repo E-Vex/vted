@@ -272,6 +272,54 @@ The bracket the cursor sits on, or the one right behind it, has its
 partner drawn in inverted video: the scan counts brackets of the same
 pair, so nesting comes out right, and it reaches a megabyte before a
 match counts as missing.
+.SH EXAMPLES
+.PP
+Open a file and start editing; Ctrl\-S writes it back and Ctrl\-Q
+leaves:
+.RS
+.nf
+vted src/vted.c
+.fi
+.RE
+.PP
+Open a file with the cursor on the line a compiler complained about:
+.RS
+.nf
+vted +128 src/vted_screen.c
+.fi
+.RE
+.PP
+Edit several files at once, each in a buffer of its own; Alt\-, and
+Alt\-\. step through them, Alt\-1 to Alt\-9 jump to one by number and
+Ctrl\-B picks one from a list:
+.RS
+.nf
+vted main.c util.c README.md
+.fi
+.RE
+.PP
+Edit what another command prints: the text arrives as an unnamed
+buffer, and Ctrl\-S asks where to save it:
+.RS
+.nf
+grep \-rn TODO src | vted \-
+.fi
+.RE
+.PP
+Start with an empty buffer and give it a name on the first save:
+.RS
+.nf
+vted
+.fi
+.RE
+.PP
+Tune the editor itself: the settings file is plain text, so it can be
+edited in the very editor it configures:
+.RS
+.nf
+vted ~/.config/vted/vtedrc
+.fi
+.RE
 .SH EXIT STATUS
 .B vted
 exits with status 0 after a normal quit, and with status 0 again for
