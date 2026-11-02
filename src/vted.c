@@ -24,11 +24,13 @@
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
 #define PROMPT_MAX 1024
 
-static char *EditorPrompt(const char *label)
+static char *EditorPrompt(const char *label, const char *initial)
 {
-    /* asks for one line of text in the message bar. Returns it in a
-       heap buffer the caller frees, or NULL when the person cancels
-       with ESC or confirms an empty answer */
+    /* asks for one line of text in the message bar, opening with the
+       given answer when there is one: Enter takes it as it stands and
+       a backspace takes it apart. Returns it in a heap buffer the
+       caller frees, or NULL when the person cancels with ESC or
+       confirms an empty answer */
     char *answer = malloc(PROMPT_MAX + 1);
     int length = 0;
 
@@ -38,6 +40,26 @@ static char *EditorPrompt(const char *label)
     }
 
     answer[0] = '\0';
+
+    if (initial != NULL)
+    {
+        /* the answer opens with the initial text, kept inside the room
+           a prompt has and never cut inside a character */
+        length = (int)strlen(initial);
+
+        if (length > PROMPT_MAX)
+        {
+            length = PROMPT_MAX;
+        }
+
+        while (length > 0 && ((unsigned char)initial[length - 1] & 0xC0) == 0x80)
+        {
+            length--; /* a continuation byte: the cut split a character */
+        }
+
+        memcpy(answer, initial, (size_t)length);
+        answer[length] = '\0';
+    }
 
     while (1)
     {
@@ -90,7 +112,7 @@ static char *EditorPrompt(const char *label)
 
 static void EditorGoToLine(void)
 {
-    char *answer = EditorPrompt("Go to line: ");
+    char *answer = EditorPrompt("Go to line: ", NULL);
 
     if (answer == NULL)
     {
@@ -199,7 +221,7 @@ static void EditorLoadSettings(void)
 
 static void EditorSetTabWidth(void)
 {
-    char *answer = EditorPrompt("Tab width (1-32): ");
+    char *answer = EditorPrompt("Tab width (1-32): ", NULL);
 
     if (answer == NULL)
     {
@@ -236,7 +258,7 @@ static void EditorSave(void)
     {
         /* an unnamed buffer asks where to go; the buffer takes the
            name only when the file could actually be written */
-        char *name = EditorPrompt("Save as: ");
+        char *name = EditorPrompt("Save as: ", NULL);
 
         if (name == NULL)
         {
@@ -275,7 +297,7 @@ static void EditorSave(void)
 
 static void EditorOpenFile(void)
 {
-    char *path = EditorPrompt("Open: ");
+    char *path = EditorPrompt("Open: ", NULL);
 
     if (path == NULL)
     {
@@ -877,7 +899,7 @@ static void EditorReplace(void)
     EditClearSelection();
     ScreenSetSelection(-1, 0, -1, 0);
 
-    char *query = EditorPrompt("Replace: ");
+    char *query = EditorPrompt("Replace: ", NULL);
 
     if (query == NULL)
     {
@@ -885,7 +907,7 @@ static void EditorReplace(void)
         return;
     }
 
-    char *replacement = EditorPrompt("with: ");
+    char *replacement = EditorPrompt("with: ", NULL);
 
     if (replacement == NULL)
     {
