@@ -39,10 +39,14 @@ typedef enum
                  scanner either, the renderer hands it to the whitespace
                  that ends a nesting level inside a row's indent when
                  the guides are asked to be shown */
-    HlMarker /* the wrap column marker: a background the renderer adds
+    HlMarker, /* the wrap column marker: a background the renderer adds
                 over the cells of that column on top of whatever else
                 they carry, so the column shows even where text crosses
                 it */
+    HlBracket /* the partner of the bracket the cursor sits on: never
+                 given out by the scanner either, the renderer hands it
+                 to that one cell when the person chose a color for the
+                 match; without one the cell inverts video as before */
 } HlClass;
 
 /* picks the language for a file name ("main.c" is C); NULL, or a name
@@ -62,6 +66,13 @@ void SyntaxHighlightRow(int at, unsigned char *hl);
 
 /* the terminal escape sequence that switches to the color of a class */
 const char *SyntaxStyle(int hl_class);
+
+/* the color the matching bracket lights up with: 0 leaves the match
+   in inverted video, and 1 to 7 are the colors the bracket-color
+   setting names. The choice is held here the way the language is,
+   and the renderer asks which it is before drawing the match */
+void SyntaxSetBracketColor(int color);
+int SyntaxBracketColor(void);
 
 /* gives back the memory the module holds */
 void SyntaxFree(void);

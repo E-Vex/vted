@@ -1341,6 +1341,21 @@ static int ColorMode(void)
     return mode;
 }
 
+/* the color the matching bracket lights up with: 0 inverts video, the
+   default, and the numbers are the colors the bracket-color setting
+   names. The choice arrives once, from the settings at startup */
+static int bracket_color;
+
+void SyntaxSetBracketColor(int color)
+{
+    bracket_color = color;
+}
+
+int SyntaxBracketColor(void)
+{
+    return bracket_color;
+}
+
 const char *SyntaxStyle(int hl_class)
 {
     static char escape[32];
@@ -1512,6 +1527,29 @@ const char *SyntaxStyle(int hl_class)
             return escape;
         }
         return "\x1b[100m";
+    case HlBracket:
+    {
+        /* a background of the color the bracket-color setting chose,
+           the way a search match carries its amber: the text on top of
+           it stays readable. invert, the default, never asks for a
+           style: the match inverts video instead */
+        static const char *const backgrounds[7][3] = {
+            {"\x1b[41m", "\x1b[48;5;124m", "\x1b[48;2;170;45;45m"},   /* red */
+            {"\x1b[42m", "\x1b[48;5;28m", "\x1b[48;2;45;140;60m"},    /* green */
+            {"\x1b[43m", "\x1b[48;5;130m", "\x1b[48;2;170;140;0m"},   /* yellow */
+            {"\x1b[44m", "\x1b[48;5;62m", "\x1b[48;2;70;100;200m"},   /* blue */
+            {"\x1b[45m", "\x1b[48;5;127m", "\x1b[48;2;165;55;165m"},  /* magenta */
+            {"\x1b[46m", "\x1b[48;5;37m", "\x1b[48;2;40;150;160m"},   /* cyan */
+            {"\x1b[100m", "\x1b[48;5;244m", "\x1b[48;2;120;120;120m"} /* gray */
+        };
+
+        if (bracket_color >= 1 && bracket_color <= 7)
+        {
+            return backgrounds[bracket_color - 1][ColorMode()];
+        }
+
+        return "";
+    }
     default:
         return "";
     }

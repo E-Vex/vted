@@ -1204,6 +1204,34 @@ static void TestStyles(void)
     CHECK(strlen(SyntaxStyle(HlMarker)) > 0);
 }
 
+static void TestBracketMatchStyle(void)
+{
+    const char *red;
+    const char *green;
+
+    /* without a color chosen the match inverts video, so the class
+       carries no style of its own */
+    SyntaxSetBracketColor(0);
+    CHECK_STR(SyntaxStyle(HlBracket), "");
+
+    /* the colors the bracket-color setting names each light the match
+       up with a background, and no two of them draw the same one */
+    SyntaxSetBracketColor(1);
+    red = SyntaxStyle(HlBracket);
+    CHECK(strlen(red) > 0);
+
+    SyntaxSetBracketColor(2);
+    green = SyntaxStyle(HlBracket);
+    CHECK(strlen(green) > 0);
+    CHECK(strcmp(red, green) != 0);
+
+    /* the choice stays where the renderer asks for it */
+    CHECK_INT(SyntaxBracketColor(), 2);
+
+    SyntaxSetBracketColor(0);
+    CHECK_INT(SyntaxBracketColor(), 0);
+}
+
 int main(void)
 {
     TestSelectingTheLanguage();
@@ -1244,6 +1272,7 @@ int main(void)
     TestPhp();
     TestDotenv();
     TestStyles();
+    TestBracketMatchStyle();
 
     FreeBuffer();
     SyntaxFree();
