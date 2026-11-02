@@ -62,9 +62,59 @@ static void TestHex(void)
     CHECK_INT(color.green, 255);
 }
 
+static void TestNames(void)
+{
+    vted_rgb_t color = {1, 2, 3};
+
+    CHECK_INT(Parse("black", &color), 0);
+    CHECK_INT(color.red + color.green + color.blue, 0);
+
+    CHECK_INT(Parse("red", &color), 0);
+    CHECK_INT(color.red, 204);
+    CHECK_INT(color.green, 0);
+    CHECK_INT(color.blue, 0);
+
+    CHECK_INT(Parse("orange", &color), 0);
+    CHECK_INT(color.red, 255);
+    CHECK_INT(color.green, 140);
+
+    /* the two spellings of gray are the same color */
+    vted_rgb_t grey;
+
+    CHECK_INT(Parse("gray", &color), 0);
+    CHECK_INT(Parse("grey", &grey), 0);
+    CHECK_INT(memcmp(&color, &grey, sizeof(color)), 0);
+
+    /* every name answers, and a word that is none does not; names are
+       lower case and whole, and the answer is left alone */
+    static const char *const all[] = {
+        "black", "red", "green", "yellow", "blue", "magenta", "cyan",
+        "white", "gray", "grey", "orange"
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(all) / sizeof(all[0]); i++)
+    {
+        CHECK_INT(Parse(all[i], &color), 0);
+    }
+
+    color.red = 7;
+    CHECK_INT(Parse("Red", &color), -1);
+    CHECK_INT(Parse("purple", &color), -1);
+    CHECK_INT(Parse("redd", &color), -1);
+    CHECK_INT(Parse("re", &color), -1);
+    CHECK_INT(Parse(" red", &color), -1);
+    CHECK_INT(color.red, 7);
+
+    /* the length bounds the name as it bounds a hex color */
+    CHECK_INT(ColorParse("redish", 3, &color), 0);
+    CHECK_INT(color.red, 204);
+}
+
 int main(void)
 {
     TestHex();
+    TestNames();
 
     return TestSummary("color");
 }

@@ -22,7 +22,8 @@ typedef struct
 } vted_rgb_t;
 
 /* reads the len bytes at text as a color: "#rrggbb" or "#rgb" in
-   hexadecimal, either case. Returns 0 and fills color, or -1 when the
+   hexadecimal, either case, or a name: black, red, green, yellow,
+   blue, magenta, cyan, white, gray (or grey) and orange. Returns 0 and fills color, or -1 when the
    text is not a color, leaving color alone */
 int ColorParse(const char *text, size_t len, vted_rgb_t *color);
 
