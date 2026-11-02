@@ -15,7 +15,8 @@ SRC = \
 	src/vted_config.c \
 	src/vted_syntax.c \
 	src/vted_utf8.c \
-	src/vted_buffers.c
+	src/vted_buffers.c \
+	src/vted_color.c
 
 TARGET = vted
 
