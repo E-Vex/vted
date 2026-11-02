@@ -27,6 +27,7 @@
 /* the answer the search prompts keep, so the next one opens with
    it: Enter alone repeats the search as it stands */
 static char last_query[PROMPT_MAX + 1];
+static char last_replacement[PROMPT_MAX + 1];
 
 /* keeps a copy of the answer for the next prompt to open with */
 static void RememberAnswer(char *slot, const char *answer)
@@ -975,7 +976,7 @@ static void EditorReplace(void)
     EditClearSelection();
     ScreenSetSelection(-1, 0, -1, 0);
 
-    char *query = EditorPrompt("Replace: ", NULL);
+    char *query = EditorPrompt("Replace: ", last_query);
 
     if (query == NULL)
     {
@@ -983,7 +984,12 @@ static void EditorReplace(void)
         return;
     }
 
-    char *replacement = EditorPrompt("with: ", NULL);
+    /* the query is settled even while the answer is still open: a
+       replace cancelled at the answer keeps the query for the next
+       one, the way a cancelled search keeps its own */
+    RememberAnswer(last_query, query);
+
+    char *replacement = EditorPrompt("with: ", last_replacement);
 
     if (replacement == NULL)
     {
@@ -991,6 +997,8 @@ static void EditorReplace(void)
         SetStatusMessage("Replace cancelled");
         return;
     }
+
+    RememberAnswer(last_replacement, replacement);
 
     int count = BufferReplaceAll(query, replacement);
 
