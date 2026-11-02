@@ -203,6 +203,29 @@ static void UpdateBracketMatch(void)
     }
 }
 
+/* Alt-% lands the cursor on the partner of the bracket it sits on,
+   or the one right behind it: the partner the highlight marks, given
+   the middle of the viewport when the jump leaves it — a partner that
+   stays on screen keeps the viewport as it is */
+static void EditorJumpToBracket(void)
+{
+    int match_y = 0;
+    int match_x = 0;
+
+    if (!BufferFindBracketMatch(vted_editor_config.cursor_y,
+                                vted_editor_config.cursor_x,
+                                &match_y, &match_x))
+    {
+        SetStatusMessage("No bracket to jump to");
+        return;
+    }
+
+    vted_editor_config.cursor_y = match_y;
+    vted_editor_config.cursor_x = match_x;
+
+    ScreenCenterCursor();
+}
+
 static void EditorLoadSettings(void)
 {
     vted_settings_t settings = SettingsDefaults();
@@ -1303,6 +1326,15 @@ int main(int argc, char *argv[])
                 EditClearSelection();
                 ScreenSetSelection(-1, 0, -1, 0);
                 ScreenScroll(c_in == ViewportScrollDown ? 1 : -1);
+            }
+            else if (c_in == BracketJump)
+            {
+                /* Alt-% jumps to the partner of the bracket under the
+                   cursor, the way % does in vi: a movement, so the
+                   selection is gone on arrival */
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+                EditorJumpToBracket();
             }
             else if (c_in == ShowTabsToggle)
             {
