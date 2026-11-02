@@ -173,7 +173,7 @@ set bracket-color red
 Blank lines and `#` comments are skipped, a later line wins over an
 earlier one, and a line that cannot be used is reported in the
 message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N,
-Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
+Alt-t, Ctrl-L, Alt-i, Alt-g and Alt-c set while editing.
 
 ## Keys
 
@@ -201,6 +201,9 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 | Alt-g           | dot the nesting levels the code sits in: the
   last cell of every indent a row and the rows above
   it keep open carries a ·, in a quiet slate blue  |
+| Alt-c           | set the color the bracket match lights up with;
+  the prompt opens with the color in place, so Enter
+  keeps it and only a name changes it              |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -363,7 +366,8 @@ New in 0.3.0:
   farther than a megabyte away counts as missing. `set bracket-color
   red` — or green, yellow, blue, magenta, cyan or gray — lights the
   partner with that color instead of inverted video, and `invert`
-  puts the video back
+  puts the video back; Alt-c answers the same names while editing,
+  opening with the color in place so Enter alone keeps it
 - Syntax highlighting picked from the file name: C, C++, Python, shell
   scripts, Makefiles, JavaScript, TypeScript, Rust, Go, JSON,
   Markdown, HTML, XML, CSS, Lua, Ruby, YAML, TOML, INI, SQL,

@@ -145,6 +145,14 @@ nesting line up as dotted rails down the screen whatever widths the
 file indents with, tabs, spaces or both; the cells they sit in take
 the same either way, and a tab shown by Alt\-t keeps its own markers
 .TP
+.B Alt\-c
+set the color the matching bracket lights up with: the prompt opens
+with the color in place, so Enter alone keeps it and only a name
+changes it — the same names the
+.B bracket\-color
+setting of the rc
+file takes
+.TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
 the current one
@@ -278,7 +286,9 @@ on the neighbouring line.
 The bracket the cursor sits on, or the one right behind it, has its
 partner drawn in inverted video, or with the background the
 .BR bracket\-color
-setting names: the scan counts brackets of the same
+setting names — a name Alt\-c answers while editing,
+the prompt opening with the color in place: the scan counts brackets
+of the same
 pair, so nesting comes out right, and it reaches a megabyte before a
 match counts as missing.
 .SH EXAMPLES
@@ -386,7 +396,7 @@ and
 .BI "set bracket-color " name
 (the background of the matching bracket's partner: red, green,
 yellow, blue, magenta, cyan or gray, or invert for the inverted video
-that is the default),
+that is the default; Alt\-c answers the same names while editing),
 and
 .BI "set wrap-column " N
 (the text cells that fit before the column marker, 0 to 512, 0
