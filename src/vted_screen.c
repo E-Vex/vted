@@ -947,6 +947,33 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
                      placed <= marker && marker < placed + width;
         int glyph_class;
 
+        if (placed > emitted)
+        {
+            /* the layout left cells blank since the stream's end: the
+               padding a continuation line keeps for its indent. They
+               are written out so the glyphs after them land where the
+               layout put them, plain as the background they are */
+            int pad;
+
+            if (inverted || style != HlNormal || is_marked)
+            {
+                AppendToBuffer(ab, "\x1b[m", 3);
+                inverted = 0;
+                style = HlNormal;
+                is_marked = 0;
+            }
+
+            for (pad = emitted; pad < placed; pad++)
+            {
+                if (pad >= left && pad < right)
+                {
+                    AppendToBuffer(ab, " ", 1);
+                }
+            }
+
+            emitted = placed;
+        }
+
         if (query_match_count > 0)
         {
             /* skip the matches that end before this glyph; the first
