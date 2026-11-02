@@ -161,6 +161,10 @@ static void ApplySettings(const vted_settings_t *settings)
     vted_editor_config.wrap_indent = settings->wrap_indent;
     vted_editor_config.indent_guides = settings->indent_guides;
 
+    /* the color of the bracket match reaches the syntax module, which
+       holds it the way it holds the language of the file */
+    SyntaxSetBracketColor(settings->bracket_color);
+
     /* the width reaches every buffer open at startup, so they all
        begin with it; Ctrl-W later sets the live one's alone */
     BuffersSetTabWidth(settings->tab_width);

@@ -926,9 +926,10 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
     /* one pass over the row: every character is laid out in terminal
        cells, then clipped to the cells [left, right). Syntax colors
        come from the highlight classes; control characters, the
-       selection, the bracket match and the active search match are
-       drawn in inverted video, the other matches of the search query
-       with a background of their own */
+       selection and the active search match are drawn in inverted
+       video, the bracket match too unless a color was chosen for it,
+       and the other matches of the search query with a background of
+       their own */
     const unsigned char *classes = ClassesOfRow(buffer_row, row->size);
     int match_end = vted_editor_config.match_col + vted_editor_config.match_len;
     const int *query_matches = NULL;
@@ -1017,8 +1018,12 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
         int is_control = (byte < 0x20 && byte != '\t') || byte == 0x7F;
         int in_match = has_match && glyph_at >= vted_editor_config.match_col && glyph_at < match_end;
         int in_bracket = buffer_row == bracket_row && glyph_at == bracket_col;
+        /* a color was chosen for the match: its cell takes that
+           background instead of inverted video */
+        int bracket_colored = in_bracket && SyntaxBracketColor() > 0;
         int in_query_match = 0;
-        int want_inverted = is_control || in_match || in_bracket ||
+        int want_inverted = is_control || in_match ||
+                            (in_bracket && !bracket_colored) ||
                             (sel_start >= 0 && glyph_at >= sel_start && glyph_at < sel_end);
         int marked = marker > 0 && marker >= left && marker < right &&
                      placed <= marker && marker < placed + width;
@@ -1067,15 +1072,20 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
         }
 
         /* a glyph that stands out in inverted video keeps the color
-           of its text under the inversion; a plain one inside a
-           match of the query gets the match background, a tab
-           whose run is dotted in gets the tab gray, and a blank
-           the indent guides mark gets their blue */
+           of its text under the inversion; a plain one that is the
+           partner of the bracket the cursor sits on takes the color
+           chosen for it, one inside a match of the query gets the
+           match background, a tab whose run is dotted in gets the tab
+           gray, and a blank the indent guides mark gets their blue */
         glyph_class = classes[glyph_at];
 
         if (!want_inverted)
         {
-            if (in_query_match)
+            if (bracket_colored)
+            {
+                glyph_class = HlBracket;
+            }
+            else if (in_query_match)
             {
                 glyph_class = HlMatch;
             }
