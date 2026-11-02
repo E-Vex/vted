@@ -260,6 +260,127 @@ static void TestVerticalMovesOverWordWrappedLines(void)
     CHECK_INT(vted_editor_config.cursor_x, 7);
 }
 
+/* one row of "ab cd ab cd ..." pairs over lines of 4 cells: one word
+   per screen line, word k starting at byte 3k */
+static void BeginWordWrappedRow(int words)
+{
+    char *text = malloc((size_t)words * 3 + 1);
+    int i;
+
+    if (text == NULL)
+    {
+        fprintf(stderr, "  malloc failed\n");
+        _exit(2);
+    }
+
+    for (i = 0; i < words; i++)
+    {
+        text[i * 3] = i % 2 == 0 ? 'a' : 'c';
+        text[i * 3 + 1] = i % 2 == 0 ? 'b' : 'd';
+        text[i * 3 + 2] = ' ';
+    }
+
+    text[words * 3] = '\0'; /* the row ends with the last word, no blank */
+
+    FreeBuffer();
+    AppendRow(text, words * 3 - 1, VTED_EOL_LF);
+    free(text);
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
+}
+
+static void TestUpdateScrollOverWordWrappedRows(void)
+{
+    /* ten words, one per screen line, for a viewport of 4 */
+    BeginWordWrappedRow(10);
+
+    /* the sixth word is on line 5: the row becomes the top, entered
+       where the cursor lands on the last viewport line */
+    CursorAt(0, 15);
+    UpdateScroll();
+
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 2);
+
+    /* a shallower cursor scrolls the row back up to its own line */
+    CursorAt(0, 3); /* line 1 */
+    UpdateScroll();
+    CHECK_INT(vted_editor_config.line_offset, 1);
+
+    CursorAt(0, 0);
+    UpdateScroll();
+    CHECK_INT(vted_editor_config.line_offset, 0);
+
+    /* the position past the last word rests on the row's last line:
+       line 9, one viewport up from the bottom */
+    CursorAt(0, 29);
+    UpdateScroll();
+    CHECK_INT(vted_editor_config.line_offset, 6);
+}
+
+static void TestWordWrappedRowFallsAwayForARowBelow(void)
+{
+    /* a row taller than the viewport cannot share it with another
+       one: a cursor on the row below makes that row the top */
+    BeginWordWrappedRow(10);
+    AppendRow("tail", 4, VTED_EOL_LF);
+
+    CursorAt(1, 3);
+    UpdateScroll();
+
+    CHECK_INT(vted_editor_config.row_offset, 1);
+    CHECK_INT(vted_editor_config.line_offset, 0);
+}
+
+static void TestPagingOverWordWrappedRows(void)
+{
+    /* three rows over lines of 4 cells: 3, 1 and 2 screen lines */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("ab cd ab", 8, VTED_EOL_LF);
+    AppendRow("xy", 2, VTED_EOL_LF);
+    AppendRow("ab cd", 5, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+
+    /* a viewport of 4 lines down: the rest of the first row, the
+       one-line row, and the start of the last */
+    CursorAt(0, 0);
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* another viewport: past the last row, onto the phantom row */
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestCenteringOverWordWrappedRows(void)
+{
+    /* the cursor deep in a word-wrapped row centers with its own row
+       as the top, entered at the line half a viewport above it */
+    BeginWordWrappedRow(10);
+
+    CursorAt(0, 15); /* line 5, off screen from the row's top */
+    ScreenCenterCursor();
+
+    CHECK_INT(vted_editor_config.row_offset, 0);
+    CHECK_INT(vted_editor_config.line_offset, 3);
+}
+
 static void TestViewportJumpsOnWordWrappedLines(void)
 {
     /* "ab cd ab cd ab cd" over lines of 4 cells: one word per screen
@@ -889,6 +1010,10 @@ int main(void)
     TestHomeAndEndOnAnEmptyRow();
     TestHomeAndEndOnWordWrappedLines();
     TestVerticalMovesOverWordWrappedLines();
+    TestUpdateScrollOverWordWrappedRows();
+    TestWordWrappedRowFallsAwayForARowBelow();
+    TestPagingOverWordWrappedRows();
+    TestCenteringOverWordWrappedRows();
     TestDeepCursorScrollsIntoATallRow();
     TestCursorOnTheTopLinesOfATallRow();
     TestPastTheEndScrollsToTheLastLine();
