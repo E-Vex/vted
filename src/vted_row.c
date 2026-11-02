@@ -443,15 +443,18 @@ static Utf8Class RowClassAt(const vted_row_t *row, int at)
    a line, like a wide glyph at the very edge, breaks mid-run (a tab,
    being blank space, may run to the edge and on past it). With wrap 0
    the row lays out on one endless line instead, which is what a
-   viewport that scrolls sideways shows. The walk's byte index and
-   cell are kept in *at and *cell and moved past the glyph, and
-   *in_run keeps whether it is inside a run of non-blank glyphs: it
-   starts at 0 and is carried from glyph to glyph. The cell the glyph
-   was placed at is returned */
-int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell,
-                   int *in_run)
+   viewport that scrolls sideways shows. The indent is the cells every
+   line after the first keeps blank at its start: a walk that lands
+   in that padding skips over it, and a glyph the layout puts past
+   the first line starts at the next line's first cell after it. The
+   walk's byte index and cell are kept in *at and *cell and moved
+   past the glyph, and *in_run keeps whether it is inside a run of
+   non-blank glyphs: it starts at 0 and is carried from glyph to
+   glyph. The cell the glyph was placed at is returned */
+int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int indent,
+                   int *at, int *cell, int *in_run)
 {
-    int width = RowCharWidth(row, *at, *cell);
+    int width;
     int placed;
 
     if (wrap)
@@ -461,6 +464,30 @@ int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell
             cols = 1;
         }
 
+        if (indent < 0)
+        {
+            indent = 0;
+        }
+
+        if (indent >= cols)
+        {
+            /* every line keeps at least one content cell */
+            indent = cols - 1;
+        }
+
+        if (indent > 0 && *cell / cols > 0 && *cell % cols < indent)
+        {
+            /* the walk reached the padding a continuation line keeps
+               for its indent: the first cell past it is where its
+               content starts */
+            *cell = (*cell / cols) * cols + indent;
+        }
+    }
+
+    width = RowCharWidth(row, *at, *cell);
+
+    if (wrap)
+    {
         if (RowClassAt(row, *at) == Utf8ClassBlank)
         {
             *in_run = 0;
@@ -469,15 +496,15 @@ int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell
         {
             /* the glyph starts a run: the run moves down whole when
                it does not fit the rest of its line */
-            *cell = RowWrapRunStart(row, *at, *cell, cols);
+            *cell = RowWrapRunStart(row, *at, *cell, cols, indent);
             *in_run = 1;
         }
 
         if (row->chars[*at] != '\t' && *cell + width > (*cell / cols + 1) * cols)
         {
             /* the glyph would cross the right edge of its line: the
-               next line is where it starts */
-            *cell = (*cell / cols + 1) * cols;
+               next line's first content cell is where it starts */
+            *cell = (*cell / cols + 1) * cols + indent;
         }
     }
 
@@ -512,7 +539,7 @@ static void WrapWalk(const vted_row_t *row, int cols, int cx,
     while (at < row->size)
     {
         int glyph_at = at;
-        int placed = RowWrapAdvance(row, 1, cols, &at, &cell, &in_run);
+        int placed = RowWrapAdvance(row, 1, cols, 0, &at, &cell, &in_run);
         int line = placed / cols;
 
         if (line + 1 > lines)
@@ -586,7 +613,7 @@ int RowWrappedToCx(const vted_row_t *row, int line, int col, int cols)
     while (at < row->size)
     {
         int glyph_at = at;
-        int placed = RowWrapAdvance(row, 1, cols, &at, &cell, &in_run);
+        int placed = RowWrapAdvance(row, 1, cols, 0, &at, &cell, &in_run);
         int width = cell - placed;
 
         if (placed == target)
@@ -623,18 +650,35 @@ int RowIndentLength(const vted_row_t *row, int limit)
     return length;
 }
 
-int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols)
+int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols,
+                    int indent)
 {
     /* the run's cells, counted only as far as one line's worth: past
        that the run is longer than a line, breaks at the line's edge
        instead, and its exact size no longer matters */
     int cells = 0;
     int i = at;
+    int room;
+    int line;
+    int content_start;
 
     if (cols < 1)
     {
         cols = 1;
     }
+
+    if (indent < 0)
+    {
+        indent = 0;
+    }
+
+    if (indent >= cols)
+    {
+        indent = cols - 1;
+    }
+
+    /* the cells a continuation line offers its content */
+    room = cols - indent;
 
     while (i < row->size && RowClassAt(row, i) != Utf8ClassBlank)
     {
@@ -651,12 +695,16 @@ int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols)
         i = Utf8NextBoundary(row->chars, row->size, i);
     }
 
-    if (start_cell % cols != 0 && cells <= cols &&
-        start_cell + cells > (start_cell / cols + 1) * cols)
+    line = start_cell / cols;
+    content_start = line * cols + (line > 0 ? indent : 0);
+
+    if (start_cell != content_start && cells <= room &&
+        start_cell + cells > (line + 1) * cols)
     {
-        /* the run does not fit the rest of its line: the next line's
-           first cell is where it starts */
-        return (start_cell / cols + 1) * cols;
+        /* the run does not fit the rest of its line, and a line
+           offers room enough for it past the indent: the next
+           line's first content cell is where it starts */
+        return (line + 1) * cols + indent;
     }
 
     return start_cell;

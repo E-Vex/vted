@@ -117,22 +117,29 @@ int RowWrapCount(const vted_row_t *row, int cols);
    a line, like a wide glyph at the very edge, breaks mid-run (a tab,
    being blank space, may run to the edge and on past it). With wrap 0
    the row lays out on one endless line instead, which is what a
-   viewport that scrolls sideways shows. The walk's byte index and
-   cell are kept in *at and *cell and moved past the glyph, and
-   *in_run keeps whether it is inside a run of non-blank glyphs: it
-   starts at 0 and is carried from glyph to glyph. The cell the glyph
-   was placed at is returned, so renderer and cursor math can walk a
-   row one glyph at a time and always agree on the layout */
-int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell,
-                   int *in_run);
+   viewport that scrolls sideways shows. The indent is the cells every
+   line after the first keeps blank at its start, so a wrapped row
+   continues under its own leading whitespace: a glyph the layout
+   puts past the first line starts at that line's first cell after
+   the indent, and the indent is clamped to leave the line at least
+   one content cell. The walk's byte index and cell are kept in *at
+   and *cell and moved past the glyph, and *in_run keeps whether it
+   is inside a run of non-blank glyphs: it starts at 0 and is carried
+   from glyph to glyph. The cell the glyph was placed at is returned,
+   so renderer and cursor math can walk a row one glyph at a time and
+   always agree on the layout */
+int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int indent,
+                   int *at, int *cell, int *in_run);
 
 /* the cell a run of non-blank glyphs that starts at byte index at is
    placed at when it begins at start_cell on lines of cols cells: a
    run that does not fit the rest of its line moves down to the next
-   one whole, as long as one line is room enough for it — a run
-   longer than a line breaks at the line's edge instead, and one that
-   starts a line is already as far left as it goes */
-int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols);
+   one whole, as long as one line has room for it past the indent its
+   continuation keeps — a run longer than that breaks at the line's
+   edge instead, and one that already starts at its line's first cell
+   after the indent is as far left as it goes */
+int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols,
+                    int indent);
 
 /* where byte index cx sits when the row flows over lines of cols
    cells: the screen line it is on (one past the row's own lines when

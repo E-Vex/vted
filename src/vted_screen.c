@@ -909,7 +909,8 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
            other part of the editor measures; the cells between the
            placement and where the walk ended up tell its width */
         int placed = RowWrapAdvance(row, vted_editor_config.wrap,
-                                    vted_editor_config.text_cols, &at, &cell, &in_run);
+                                    vted_editor_config.text_cols, 0,
+                                    &at, &cell, &in_run);
         int width = cell - placed;
         unsigned char byte = (unsigned char)row->chars[glyph_at];
 

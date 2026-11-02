@@ -794,29 +794,126 @@ static void TestWrapRunStart(void)
 
     /* "cdef" takes 4 cells: it does not fit the 2 cells line 0 has
        left from cell 2, so it starts line 1 */
-    CHECK_INT(RowWrapRunStart(&row, 3, 2, 4), 4);
+    CHECK_INT(RowWrapRunStart(&row, 3, 2, 4, 0), 4);
 
     /* from the start of a line there is a whole line of room: no
        move, wherever the run would begin */
-    CHECK_INT(RowWrapRunStart(&row, 3, 4, 4), 4);
-    CHECK_INT(RowWrapRunStart(&row, 3, 0, 4), 0);
+    CHECK_INT(RowWrapRunStart(&row, 3, 4, 4, 0), 4);
+    CHECK_INT(RowWrapRunStart(&row, 3, 0, 4, 0), 0);
 
     /* "ab" takes 2 cells and fits the rest of line 0 from cell 2 */
-    CHECK_INT(RowWrapRunStart(&row, 0, 2, 4), 2);
-    CHECK_INT(RowWrapRunStart(&row, 0, 3, 4), 4);
+    CHECK_INT(RowWrapRunStart(&row, 0, 2, 4, 0), 2);
+    CHECK_INT(RowWrapRunStart(&row, 0, 3, 4, 0), 4);
 
     /* a run of only blanks takes no cells and never moves */
     {
         vted_row_t blanks = MakeRow("  ");
 
-        CHECK_INT(RowWrapRunStart(&blanks, 0, 2, 4), 2);
+        CHECK_INT(RowWrapRunStart(&blanks, 0, 2, 4, 0), 2);
     }
 
     /* a run longer than a whole line breaks at the edge instead */
     {
         vted_row_t long_run = MakeRow("abcdef");
 
-        CHECK_INT(RowWrapRunStart(&long_run, 0, 2, 4), 2);
+        CHECK_INT(RowWrapRunStart(&long_run, 0, 2, 4, 0), 2);
+    }
+}
+
+static void TestWrapRunStartKeepsAnIndent(void)
+{
+    /* with an indent on the continuation lines, a run that moves
+       down lands past it, and only a run that fits the cells left
+       under the indent moves at all */
+    vted_row_t row = MakeRow("ab cdef");
+
+    /* "cdef" needs more than the 2 cells a line of 4 has left under
+       an indent of 2: no line fits it whole past the indent, so it
+       stays and breaks at the edge instead */
+    CHECK_INT(RowWrapRunStart(&row, 3, 2, 4, 2), 2);
+
+    /* a run of 2 cells fits a continuation line exactly: from cell
+       3 it does not fit line 0's rest, so it starts line 1 past the
+       indent, at cell 4 + 2 */
+    {
+        vted_row_t two = MakeRow("ab cd");
+
+        CHECK_INT(RowWrapRunStart(&two, 3, 3, 4, 2), 6);
+    }
+
+    /* from the content start of a continuation line there is no
+       moving left: the run breaks at the edge however long it is */
+    CHECK_INT(RowWrapRunStart(&row, 3, 6, 4, 2), 6);
+
+    /* from the first cell of line 0 the run starts as far left as
+       it goes, indent or not */
+    CHECK_INT(RowWrapRunStart(&row, 3, 0, 4, 2), 0);
+
+    /* an indent wider than a line is clamped to leave one content
+       cell: room for nothing whole, so the run stays */
+    CHECK_INT(RowWrapRunStart(&row, 3, 2, 4, 9), 2);
+}
+
+static void TestWrapAdvanceKeepsAnIndent(void)
+{
+    /* the walk a renderer and the cursor math share: with an indent
+       on the continuation lines, every glyph the layout puts past
+       the first line starts at that line's first cell after it */
+    vted_row_t row = MakeRow("aa bb cc");
+    int at = 0;
+    int cell = 0;
+    int in_run = 0;
+
+    /* line 0 holds "aa" in cells 0 and 1, cells 2 and 3 stay blank */
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 0);
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 1);
+
+    /* "bb" does not fit the cells line 0 has left after "aa": it
+       starts line 1 past its indent, at cell 4 + 2 */
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 2);  /* blank */
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 6);  /* b */
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 7);  /* b */
+
+    /* the walk lands in the padding line 2 keeps for its indent and
+       skips it: the blank of " cc" starts at cell 8 + 2 */
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 10); /* blank */
+
+    /* "cc" does not fit the cells line 2 has left after the blank:
+       it starts line 3 past its indent */
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 14); /* c */
+    CHECK_INT(RowWrapAdvance(&row, 1, 4, 2, &at, &cell, &in_run), 15); /* c */
+
+    /* a glyph that would cross the right edge lands on the next
+       line's first cell after the indent */
+    {
+        vted_row_t wide = MakeRow("aa\xE4\xB8\xAD"); /* a wide glyph */
+        int at2 = 0;
+        int cell2 = 0;
+        int run2 = 0;
+        int i;
+
+        for (i = 0; i < 2; i++)
+        {
+            RowWrapAdvance(&wide, 1, 3, 1, &at2, &cell2, &run2);
+        }
+
+        /* the wide glyph does not fit the one cell line 0 has left
+           after "aa": it starts line 1 at cell 3 + 1 */
+        CHECK_INT(RowWrapAdvance(&wide, 1, 3, 1, &at2, &cell2, &run2), 4);
+    }
+
+    /* without an indent the walk lays every line out edge to edge,
+       the way it always did */
+    {
+        vted_row_t plain = MakeRow("aa bb");
+        int at3 = 0;
+        int cell3 = 0;
+        int run3 = 0;
+
+        CHECK_INT(RowWrapAdvance(&plain, 1, 4, 0, &at3, &cell3, &run3), 0);
+        CHECK_INT(RowWrapAdvance(&plain, 1, 4, 0, &at3, &cell3, &run3), 1);
+        CHECK_INT(RowWrapAdvance(&plain, 1, 4, 0, &at3, &cell3, &run3), 2);
+        CHECK_INT(RowWrapAdvance(&plain, 1, 4, 0, &at3, &cell3, &run3), 4); /* b */
     }
 }
 
@@ -982,6 +1079,8 @@ int main(void)
     TestWrapCursorPosition();
     TestWrappedToCx();
     TestWrapRunStart();
+    TestWrapRunStartKeepsAnIndent();
+    TestWrapAdvanceKeepsAnIndent();
     TestFindNext();
     TestFindPrev();
     TestFindInsideAMultibyteCharacter();
