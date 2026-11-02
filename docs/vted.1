@@ -246,9 +246,10 @@ toggle Tab between inserting spaces up to the next tab stop and
 inserting a tab character
 .TP
 .B Ctrl\-W
-set the tab width in cells (1 to 32); the buffer being edited keeps
-the width as its own, and a buffer opened later starts with the width
-the live one uses
+set the tab width in cells (1 to 32); the prompt opens with the width
+in place, so Enter alone keeps it and only the digits change it; the
+buffer being edited keeps the width as its own, and a buffer opened
+later starts with the width the live one uses
 .TP
 .B Ctrl\-Q
 quit; unsaved changes in any of the open buffers require three

@@ -227,7 +227,9 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 | Ctrl-L          | wrap long lines over several screen lines,
   breaking at word boundaries                       |
 | Ctrl-T          | toggle Tab between spaces and a tab character    |
-| Ctrl-W          | set the tab width in cells (per buffer)          |
+| Ctrl-W          | set the tab width in cells (per buffer); the
+  prompt opens with the width in place, so Enter keeps it and only
+  the digits change it                       |
 | Ctrl-Q          | quit (three extra presses when modified)         |
 
 With several buffers open, Ctrl-B lists them with their numbers and
@@ -314,7 +316,8 @@ New in 0.3.0:
 - UTF-8 aware: the cursor and deletion move by whole characters, wide
   (CJK, emoji) and combining characters take the right number of cells
 - Tabs expand to configurable tab stops (8 cells by default; Ctrl-W sets
-  the width, and each buffer keeps its own; Ctrl-T toggles Tab between
+  the width, the prompt opening with the one in place so Enter alone
+  keeps it, and each buffer keeps its own; Ctrl-T toggles Tab between
   spaces up to the next stop and a
   real tab character); Alt-t shows the tabs where they sit, a » and a
   trail of · in the gray of a comment taking the same cells either way;
