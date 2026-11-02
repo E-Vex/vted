@@ -217,6 +217,16 @@ static void TestIndentGuidesToggle(void)
     CHECK_INT(ReadKeyPress(), 'g');
 }
 
+static void TestBracketColorPrompt(void)
+{
+    FeedInput("\x1b" "c");
+    CHECK_INT(ReadKeyPress(), BracketColorPrompt);
+
+    /* plain c is still text */
+    FeedInput("c");
+    CHECK_INT(ReadKeyPress(), 'c');
+}
+
 static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -371,6 +381,7 @@ int main(void)
     TestShowTabsToggle();
     TestWrapIndentToggle();
     TestIndentGuidesToggle();
+    TestBracketColorPrompt();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();

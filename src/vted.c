@@ -279,6 +279,50 @@ static void EditorSetTabWidth(void)
     SetStatusMessage("Tab width %d", vted_editor_config.tab_width);
 }
 
+/* sets the color the matching bracket lights up with while editing:
+   the same setting the rc file holds, taken from an answer here */
+static void EditorSetBracketColor(void)
+{
+    /* the prompt opens with the color in place, so Enter alone keeps
+       it and a name is only typed to change it */
+    char *answer = EditorPrompt(
+        "Bracket color (invert/red/green/yellow/blue/magenta/cyan/gray): ",
+        SettingsBracketColorName(SyntaxBracketColor()));
+
+    if (answer == NULL)
+    {
+        SetStatusMessage("Bracket color unchanged");
+        return;
+    }
+
+    int color = SettingsParseBracketColor(answer);
+
+    if (color < 0)
+    {
+        SetStatusMessage("Not a color: %s", answer);
+        free(answer);
+        return;
+    }
+
+    free(answer);
+
+    /* Enter on the color already in place keeps it: nothing repaints,
+       the way a cancelled prompt does */
+    if (color == SyntaxBracketColor())
+    {
+        SetStatusMessage("Bracket color unchanged");
+        return;
+    }
+
+    /* the color reaches the syntax module the way the rc file's
+       setting does, and the bracket on screen takes it on the next
+       frame */
+    SyntaxSetBracketColor(color);
+    ScreenMarkAllDirty();
+
+    SetStatusMessage("Bracket color: %s", SettingsBracketColorName(color));
+}
+
 static void EditorSave(void)
 {
     int named_here = 0;
@@ -1292,6 +1336,13 @@ int main(int argc, char *argv[])
 
                 SetStatusMessage("Indent guides %s",
                                  vted_editor_config.indent_guides ? "shown" : "hidden");
+            }
+            else if (c_in == BracketColorPrompt)
+            {
+                /* Alt-c sets the color the matching bracket lights up
+                   with: the setting the rc file holds, answered here
+                   the way Ctrl-W answers the tab width */
+                EditorSetBracketColor();
             }
             else if (c_in == MoveLineUp || c_in == MoveLineDown)
             {

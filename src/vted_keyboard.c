@@ -328,6 +328,14 @@ int ParseArrowKey(void)
         return IndentGuidesToggle;
     }
 
+    /* Alt-c sets the color the bracket match lights up with: the
+       same setting the rc file knows, answered while editing the way
+       Ctrl-W answers the tab width */
+    if (introducer == 'c')
+    {
+        return BracketColorPrompt;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')

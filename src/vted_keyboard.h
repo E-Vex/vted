@@ -50,6 +50,7 @@ typedef enum
     ShowTabsToggle,     /* Alt-t: show or hide the tab characters */
     WrapIndentToggle,   /* Alt-i: the wrapped lines keep the row's indent */
     IndentGuidesToggle, /* Alt-g: show or hide the indent guides */
+    BracketColorPrompt, /* Alt-c: the color the bracket match lights up with */
 
 } EditorKey;
 
