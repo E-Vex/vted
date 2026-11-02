@@ -5,6 +5,7 @@
 #include "src/vted_screen.h"
 #include "src/vted_row.h"
 #include "src/vted_edit.h"
+#include "src/vted_syntax.h"
 #include "src/vted_undo.h"
 /*===============================*/
 
@@ -1142,6 +1143,107 @@ static void TestDiscardLeavesTheModuleAlone(void)
     CHECK_STR(vted_buffer.rows[0].chars, "cd");
 }
 
+static void TestCommentRowsUndo(void)
+{
+    /* as if Ctrl-/ had commented the two rows of a C file, the row
+       of the cursor and the one the selection reached */
+    Begin("// one"); /* the rows as the toggle left them */
+    AppendRow("// two", 6, VTED_EOL_LF);
+    SyntaxSelectForFile("main.c");
+
+    UndoEntry entry = {
+        .kind = UndoKindCommentRows,
+        .row = 0,
+        .cx = 1,
+        .bytes = "one\ntwo", /* the texts as they stood */
+        .length = 7,
+        .undo_y = 0,
+        .undo_x = 0,
+        .redo_y = 0,
+        .redo_x = 3,
+    };
+    UndoPush(&entry);
+
+    /* one undo takes the token off every row, whatever each of them
+       carried */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* one redo puts it back the way the toggle first did */
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "// one");
+    CHECK_STR(vted_buffer.rows[1].chars, "// two");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+}
+
+static void TestCommentRowsUndoBringsBackExactTexts(void)
+{
+    /* the old texts return exactly, double spaces, blank rows and
+       other tokens included: the undo is not asked to retrace them.
+       The press was an uncomment — the first row carried the token */
+    Begin(" wide"); /* the rows as the toggle left them */
+    AppendRow("", 0, VTED_EOL_LF); /* a blank row stays blank */
+    AppendRow("#  hash", 7, VTED_EOL_LF); /* no // to take off */
+    SyntaxSelectForFile("main.c");
+
+    UndoEntry entry = {
+        .kind = UndoKindCommentRows,
+        .row = 0,
+        .cx = 2,
+        .bytes = "//  wide\n\n#  hash",
+        .length = 17,
+        .undo_y = 0,
+        .undo_x = 0,
+        .redo_y = 0,
+        .redo_x = 1,
+    };
+    UndoPush(&entry);
+
+    /* the texts stand exactly as they did, the double space behind
+       the token and the blank row included */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "//  wide");
+    CHECK_STR(vted_buffer.rows[1].chars, "");
+    CHECK_STR(vted_buffer.rows[2].chars, "#  hash");
+
+    /* the redo takes the token off again, the way the press did */
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, " wide");
+    CHECK_STR(vted_buffer.rows[1].chars, "");
+    CHECK_STR(vted_buffer.rows[2].chars, "#  hash");
+}
+
+static void TestCommentRowsUndoWithoutOldTexts(void)
+{
+    /* an entry that holds no texts at all, as a defensive path for a
+       span whose rows were all empty: the row empties out on undo,
+       and a redo finds nothing to comment and leaves it be */
+    Begin("// lone");
+    SyntaxSelectForFile("main.c");
+
+    UndoEntry entry = {
+        .kind = UndoKindCommentRows,
+        .row = 0,
+        .cx = 0,
+        .bytes = NULL,
+        .length = 0,
+        .undo_y = 0,
+        .undo_x = 0,
+        .redo_y = 0,
+        .redo_x = 0,
+    };
+    UndoPush(&entry);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+}
+
 int main(void)
 {
     TestEmptyHistories();
@@ -1192,6 +1294,9 @@ int main(void)
     TestAttachReplacesTheCurrentHistory();
     TestANullHistoryIsEmpty();
     TestDiscardLeavesTheModuleAlone();
+    TestCommentRowsUndo();
+    TestCommentRowsUndoBringsBackExactTexts();
+    TestCommentRowsUndoWithoutOldTexts();
 
     return TestSummary("undo");
 }

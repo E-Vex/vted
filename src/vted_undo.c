@@ -5,6 +5,7 @@
 #include "vted_terminal.h"
 #include "vted_screen.h"
 #include "vted_row.h"
+#include "vted_syntax.h"
 #include "vted_undo.h"
 /*===============================*/
 
@@ -418,6 +419,25 @@ static void Apply(const UndoEntry *entry)
             KillApp("BufferDuplicateRows");
         }
         break;
+    case UndoKindCommentRows:
+    {
+        /* the toggle decides its direction from the rows as they
+           stand, which the undo put back the way they were: running
+           it again changes the same rows the same way */
+        const char *token = SyntaxLineComment();
+
+        if (token != NULL)
+        {
+            int changed;
+
+            if (BufferToggleComment(entry->row, entry->cx, token,
+                                    SyntaxLineComment2(), &changed) == -1)
+            {
+                KillApp("BufferToggleComment");
+            }
+        }
+        break;
+    }
     case UndoKindInsertText:
         if (entry->made_row &&
             InsertRow(entry->row, "", 0, entry->eol) == -1)
@@ -540,6 +560,33 @@ static void Revert(const UndoEntry *entry)
         while (copies-- > 0)
         {
             RemoveRow(entry->cx + 1);
+        }
+        break;
+    }
+    case UndoKindCommentRows:
+    {
+        /* the old texts come back one row at a time: the lines were
+           joined by '\n', which a row never holds itself. The blob
+           holds length bytes and no terminator, so it is walked by
+           its length, never by a string call running past it */
+        const char *blob = entry->bytes != NULL ? entry->bytes : "";
+        const char *blob_end = blob + entry->length;
+        const char *text = blob;
+        int row;
+
+        for (row = entry->row; row <= entry->cx; row++)
+        {
+            const char *line_end = memchr(text, '\n',
+                                          (size_t)(blob_end - text));
+            int length = line_end != NULL ? (int)(line_end - text)
+                                          : (int)(blob_end - text);
+
+            if (RowSetText(&vted_buffer.rows[row], text, length) == -1)
+            {
+                KillApp("RowSetText");
+            }
+
+            text = line_end != NULL ? line_end + 1 : blob_end;
         }
         break;
     }

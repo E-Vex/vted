@@ -29,7 +29,11 @@ typedef enum
     UndoKindMoveRow,      /* a whole row moved up or down */
     UndoKindDuplicateRows /* several rows appeared as copies of the rows
                              above them: row through cx are the rows
-                             copied, and their copies sit just past cx */
+                             copied, and their copies sit just past cx */,
+    UndoKindCommentRows   /* the line comment went in front of the rows
+                             row through cx, or came off them again: the
+                             bytes hold their old texts, one row per
+                             text and the texts joined by '\n' */
 } UndoKind;
 
 typedef struct
