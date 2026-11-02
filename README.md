@@ -212,7 +212,8 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 | Ctrl-Up/Down    | move the current line up or down                 |
 | Shift-Arrows    | start or extend a character selection            |
 | Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
-| Ctrl-R          | search and replace every occurrence              |
+| Ctrl-R          | search and replace every occurrence; the
+  prompts open with the last query and answer              |
 | Ctrl-Z          | undo (a typing burst is one change)              |
 | Ctrl-Y          | redo the last undone change                      |
 | typing          | insert at the cursor (replaces the selection)    |
@@ -225,7 +226,9 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 | Ctrl-G          | go to a line number (ESC cancels)                |
 | Ctrl-F          | incremental search: every match lights up while
   you type and the prompt counts them, arrows step between matches,
-  a match that left the viewport lands mid-viewport, ESC restores |
+  a match that left the viewport lands mid-viewport, ESC restores;
+  the search opens with the last query, so Enter alone keeps its
+  match                                                 |
 | Ctrl-N          | show or hide the line numbers                    |
 | Ctrl-L          | wrap long lines over several screen lines,
   breaking at word boundaries                       |
@@ -323,7 +326,8 @@ New in 0.3.0:
 - Select text with Shift-Arrows; copy or cut the selection (or the current
   line) to the system clipboard with Ctrl-C / Ctrl-X via OSC 52
 - Search and replace every occurrence with Ctrl-R; each replacement is one
-  undo step
+  undo step, and the prompts open with the last query and the last
+  answer, so Enter alone repeats a replace as it stands
 - Undo and redo with Ctrl-Z and Ctrl-Y; the cursor follows along, and a
   run of typing or backspace keystrokes in one place undoes as one step
 - Line endings are preserved: LF, CRLF, CR and mixed files save back
@@ -379,7 +383,9 @@ New in 0.3.0:
   cursor inverted — and the prompt counts where that match stands
   among them all ("3 of 17", "no matches"); arrows step through
   them, a match that left the viewport lands it mid-viewport, the
-  wrapped rows around it counted at their real heights
+  wrapped rows around it counted at their real heights; the search
+  opens with the last query, so Enter alone keeps its match and the
+  arrows step through a search made earlier
 - Go to a line with Ctrl-G; a number past the end lands on the last
   line, and the line lands mid-viewport, the tall rows of wrapping
   counted at their real heights

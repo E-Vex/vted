@@ -181,7 +181,8 @@ via an OSC 52 escape sequence
 .TP
 .B Ctrl\-R
 search and replace every occurrence of a string; each replacement is one
-undo step
+undo step; the prompts open with the last query and the last answer, so
+Enter alone repeats a replace as it stands
 .TP
 .B Ctrl\-Z
 undo the last change and put the cursor back where it was; a run of
@@ -232,7 +233,8 @@ being typed, the prompt says where the match under the cursor stands
 among them all, arrows jump between matches, a match that left
 the viewport lands mid-viewport with wrapping's tall rows counted,
 Enter keeps the cursor on the match, ESC restores the previous
-position
+position; the search opens with the last query, searched at once the
+way a typed one is, so Enter alone keeps its match
 .TP
 .B Ctrl\-N
 show or hide the line numbers
