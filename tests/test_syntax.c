@@ -138,6 +138,46 @@ static void TestSelectingTheLanguage(void)
     CHECK(SyntaxLanguageName() == NULL);
 }
 
+static void TestTheLineCommentOfTheLanguage(void)
+{
+    /* the token a language comments lines with, for a caller that
+       writes comments in and takes them off */
+    SyntaxSelectForFile("main.c");
+    CHECK_STR(SyntaxLineComment(), "//");
+    CHECK(SyntaxLineComment2() == NULL);
+
+    SyntaxSelectForFile("app.py");
+    CHECK_STR(SyntaxLineComment(), "#");
+
+    SyntaxSelectForFile("script.lua");
+    CHECK_STR(SyntaxLineComment(), "--");
+
+    /* INI knows a second spelling besides the one it writes */
+    SyntaxSelectForFile("setup.ini");
+    CHECK_STR(SyntaxLineComment(), "#");
+    CHECK_STR(SyntaxLineComment2(), ";");
+
+    /* PHP comments with // and knows the shell's # besides */
+    SyntaxSelectForFile("page.php");
+    CHECK_STR(SyntaxLineComment(), "//");
+    CHECK_STR(SyntaxLineComment2(), "#");
+
+    /* languages that comment only in blocks, or not at all */
+    SyntaxSelectForFile("page.html");
+    CHECK(SyntaxLineComment() == NULL);
+
+    SyntaxSelectForFile("style.css");
+    CHECK(SyntaxLineComment() == NULL);
+
+    SyntaxSelectForFile("data.json");
+    CHECK(SyntaxLineComment() == NULL);
+
+    /* plain text has no token either */
+    SyntaxSelectForFile(NULL);
+    CHECK(SyntaxLineComment() == NULL);
+    CHECK(SyntaxLineComment2() == NULL);
+}
+
 static void TestPlainTextIsLeftAlone(void)
 {
     SyntaxSelectForFile("notes.txt");
@@ -1235,6 +1275,7 @@ static void TestBracketMatchStyle(void)
 int main(void)
 {
     TestSelectingTheLanguage();
+    TestTheLineCommentOfTheLanguage();
     TestPlainTextIsLeftAlone();
     TestKeywordsAndTypes();
     TestFunctionNames();

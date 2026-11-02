@@ -851,6 +851,16 @@ const char *SyntaxLanguageName(void)
     return current_language != NULL ? current_language->name : NULL;
 }
 
+const char *SyntaxLineComment(void)
+{
+    return current_language != NULL ? current_language->line_comment : NULL;
+}
+
+const char *SyntaxLineComment2(void)
+{
+    return current_language != NULL ? current_language->line_comment2 : NULL;
+}
+
 /*----------------------------------------------------------
 | scanning one row
 ----------------------------------------------------------*/

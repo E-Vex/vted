@@ -56,6 +56,14 @@ void SyntaxSelectForFile(const char *filename);
 /* name of the language in use, NULL when the text is plain */
 const char *SyntaxLanguageName(void);
 
+/* the token that opens a line comment in the language in use — "//"
+   in C, "#" in Python — or NULL when the language has none or no
+   language is chosen; a second spelling follows the same rule (INI
+   comments with ';' besides '#'), and a caller that writes comments
+   in takes the first and one that takes them off looks for both */
+const char *SyntaxLineComment(void);
+const char *SyntaxLineComment2(void);
+
 /* the rows from this index on changed: what is known about them is
    thrown away and found out again when they are next drawn */
 void SyntaxInvalidate(int row);
