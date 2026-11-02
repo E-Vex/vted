@@ -16,6 +16,7 @@ vted_settings_t SettingsDefaults(void)
     settings.show_line_numbers = 1;
     settings.show_tabs = 0;
     settings.wrap = 0;
+    settings.wrap_column = 0;
 
     return settings;
 }
@@ -173,6 +174,34 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->show_tabs = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "wrap-column"))
+        {
+            /* the column is a number in the range a terminal is wide
+               enough to show; 0 hides the marker */
+            if (value_len == 0 || value_len > 8)
+            {
+                bad++;
+                continue;
+            }
+
+            char number[9];
+            char *end;
+            long column;
+
+            memcpy(number, value, value_len);
+            number[value_len] = '\0';
+
+            column = strtol(number, &end, 10);
+
+            if (*end != '\0' || column < 0 || column > 512)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->wrap_column = (int)column;
             }
         }
         else if (TextIs(key, key_len, "wrap"))

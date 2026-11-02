@@ -124,6 +124,28 @@ static void TestShowTabs(void)
     CHECK_INT(settings.show_tabs, 0);
 }
 
+static void TestWrapColumn(void)
+{
+    vted_settings_t settings;
+
+    CHECK_INT(LoadLines("set wrap-column 80\n", &settings), 0);
+    CHECK_INT(settings.wrap_column, 80);
+
+    CHECK_INT(LoadLines("set wrap-column 1\n", &settings), 0);
+    CHECK_INT(settings.wrap_column, 1);
+
+    /* 0 hides the marker */
+    CHECK_INT(LoadLines("set wrap-column 0\n", &settings), 0);
+    CHECK_INT(settings.wrap_column, 0);
+
+    /* the bounds: a terminal is never wider than this */
+    CHECK_INT(LoadLines("set wrap-column 513\n", &settings), 1);
+    CHECK_INT(settings.wrap_column, 0);
+
+    CHECK_INT(LoadLines("set wrap-column wide\n", &settings), 1);
+    CHECK_INT(settings.wrap_column, 0);
+}
+
 static void TestCommentsAndBlankLines(void)
 {
     vted_settings_t settings;
@@ -219,6 +241,7 @@ int main(void)
     TestLineNumbers();
     TestWrap();
     TestShowTabs();
+    TestWrapColumn();
     TestCommentsAndBlankLines();
     TestUnknownKeyIsCountedBad();
     TestALaterLineWins();

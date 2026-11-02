@@ -21,6 +21,8 @@ typedef struct
     int show_line_numbers; /* 1: draw the line number gutter */
     int show_tabs;         /* 1: draw tab characters as dotted runs */
     int wrap;              /* 1: long lines flow over several screen lines */
+    int wrap_column;       /* text cells that fit before the column marker,
+                              0 to hide it */
 } vted_settings_t;
 
 /* the settings the editor starts from: the built-in defaults */
