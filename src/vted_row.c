@@ -428,6 +428,36 @@ int RowRxToCx(const vted_row_t *row, int rx)
     return row->size;
 }
 
+/* advances one glyph through the row the way wrapping lays it out:
+   cols cells per screen line, with a glyph that would cross a line's
+   right edge moved onto the next line instead of being cut in half
+   (a tab, being blank space, may run to the edge and on past it).
+   The walk's byte index and cell are kept in *at and *cell and moved
+   past the glyph; the cell it was placed at is returned */
+static int WrapAdvance(const vted_row_t *row, int cols, int *at, int *cell)
+{
+    int width = RowCharWidth(row, *at, *cell);
+    int placed;
+
+    if (cols < 1)
+    {
+        cols = 1;
+    }
+
+    if (row->chars[*at] != '\t' && *cell + width > (*cell / cols + 1) * cols)
+    {
+        /* the glyph would cross the right edge of its line: the
+           next line is where it starts */
+        *cell = (*cell / cols + 1) * cols;
+    }
+
+    placed = *cell;
+    *cell += width;
+    *at = Utf8NextBoundary(row->chars, row->size, *at);
+
+    return placed;
+}
+
 /* walks the row the way the renderer wraps it: cols cells per screen
    line, with a glyph that would cross a line's right edge moved onto
    the next line instead of being cut in half (a tab, being blank
@@ -448,31 +478,20 @@ static void WrapWalk(const vted_row_t *row, int cols, int cx,
 
     while (at < row->size)
     {
-        int width = RowCharWidth(row, at, cell);
-        int line;
-
-        if (row->chars[at] != '\t' && cell + width > (cell / cols + 1) * cols)
-        {
-            /* the glyph would cross the right edge of its line: the
-               next line is where it starts */
-            cell = (cell / cols + 1) * cols;
-        }
-
-        line = cell / cols;
+        int glyph_at = at;
+        int placed = WrapAdvance(row, cols, &at, &cell);
+        int line = placed / cols;
 
         if (line + 1 > lines)
         {
             lines = line + 1;
         }
 
-        if (at == cx)
+        if (glyph_at == cx)
         {
             *out_line = line;
-            *out_col = cell - line * cols;
+            *out_col = placed - line * cols;
         }
-
-        cell += width;
-        at = Utf8NextBoundary(row->chars, row->size, at);
     }
 
     if (cx >= row->size)
