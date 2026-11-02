@@ -53,6 +53,8 @@ typedef enum
     BracketColorPrompt, /* Alt-c: the color the bracket match lights up with */
     CommentToggle,      /* Ctrl-/ (or Ctrl-_): comment the line or the
                             selection, or take the comment off again */
+    BracketJump, /* Alt-%: jump to the partner of the bracket under
+                     the cursor, the way % does in vi */
 
 } EditorKey;
 

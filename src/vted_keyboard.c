@@ -336,6 +336,14 @@ int ParseArrowKey(void)
         return BracketColorPrompt;
     }
 
+    /* Alt-% jumps to the partner of the bracket the cursor sits on,
+       the way % does in vi — the plain % is a character of the text,
+       so the jump goes with Alt */
+    if (introducer == '%')
+    {
+        return BracketJump;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')
