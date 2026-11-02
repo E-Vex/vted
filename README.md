@@ -204,6 +204,9 @@ Alt-t, Ctrl-L, Alt-i, Alt-g and Alt-c set while editing.
 | Alt-c           | set the color the bracket match lights up with;
   the prompt opens with the color in place, so Enter
   keeps it and only a name changes it              |
+| Alt-%           | jump to the partner of the bracket under the
+  cursor (or right behind it), the way % does in vi; a partner off
+  screen lands mid-viewport                         |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -267,6 +270,9 @@ New in 0.3.1:
   red` — or green, yellow, blue, magenta, cyan or gray — lights the
   partner with that color instead of inverted video, and `invert` puts
   the video back
+- Alt-% jumps to the partner of the bracket under the cursor (or the
+  one right behind it), the way % does in vi: the partner the highlight
+  marks, given the middle of the viewport when the jump leaves it
 - The Ctrl-W prompt opens with the tab width in place, so Enter alone
   keeps the width and only the digits change it
 
@@ -376,7 +382,8 @@ New in 0.3.0:
   red` — or green, yellow, blue, magenta, cyan or gray — lights the
   partner with that color instead of inverted video, and `invert`
   puts the video back; Alt-c answers the same names while editing,
-  opening with the color in place so Enter alone keeps it
+  opening with the color in place so Enter alone keeps it. Alt-% jumps
+  to the partner, landing it mid-viewport when it left the screen
 - Syntax highlighting picked from the file name: C, C++, Python, shell
   scripts, Makefiles, JavaScript, TypeScript, Rust, Go, JSON,
   Markdown, HTML, XML, CSS, Lua, Ruby, YAML, TOML, INI, SQL,
