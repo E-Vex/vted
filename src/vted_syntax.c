@@ -1469,6 +1469,20 @@ const char *SyntaxStyle(int hl_class)
             return escape;
         }
         return "\x1b[43m";
+    case HlTab:
+        /* the gray of a comment: a shown tab is a landmark, not a
+           decoration, so it stays out of the way of the text */
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;2;128;128;128m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[38;5;245m");
+            return escape;
+        }
+        return "\x1b[90m";
     default:
         return "";
     }

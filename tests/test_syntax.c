@@ -1199,6 +1199,7 @@ static void TestStyles(void)
     CHECK(strlen(SyntaxStyle(HlContext)) > 0);
     CHECK(strlen(SyntaxStyle(HlFunction)) > 0);
     CHECK(strlen(SyntaxStyle(HlMatch)) > 0);
+    CHECK(strlen(SyntaxStyle(HlTab)) > 0);
 }
 
 int main(void)

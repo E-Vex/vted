@@ -28,10 +28,13 @@ typedef enum
                   of a diff, the lines a hunk carries unmodified */
     HlFunction, /* the name a function is defined by: the word between
                    a return type and the parameter list */
-    HlMatch /* a match of the text being searched for: never given out
-               by the scanner, the renderer hands it to the matches of
-               the search query so they light up with a background of
-               their own */
+    HlMatch, /* a match of the text being searched for: never given out
+                by the scanner, the renderer hands it to the matches of
+                the search query so they light up with a background of
+                their own */
+    HlTab /* a tab character drawn as a dotted run: never given out by
+             the scanner either, the renderer hands it to tabs when
+             they are asked to be shown */
 } HlClass;
 
 /* picks the language for a file name ("main.c" is C); NULL, or a name
