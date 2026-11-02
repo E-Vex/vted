@@ -556,12 +556,24 @@ static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int 
 
     if (byte == '\t')
     {
-        /* a tab is blank space up to the next tab stop */
+        /* a tab is blank space up to the next tab stop; when the tabs
+           are asked to be shown, the space is dotted so the tab is
+           there to see: a marker on its first cell, dots on the rest.
+           The cells it takes do not change, so every measurement of
+           the row stays as it was */
         for (offset = 0; offset < width; offset++)
         {
             if (cell + offset >= left && cell + offset < right)
             {
-                AppendToBuffer(ab, " ", 1);
+                if (vted_editor_config.show_tabs)
+                {
+                    AppendToBuffer(ab, offset == 0 ? "\xC2\xBB" : "\xC2\xB7",
+                                   2); /* » and · */
+                }
+                else
+                {
+                    AppendToBuffer(ab, " ", 1);
+                }
             }
         }
         return;
@@ -910,9 +922,21 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
 
         /* a glyph that stands out in inverted video keeps the color
            of its text under the inversion; a plain one inside a
-           match of the query gets the match background */
-        glyph_class = in_query_match && !want_inverted ? HlMatch
-                                                       : classes[glyph_at];
+           match of the query gets the match background, and a tab
+           whose run is dotted in gets the tab gray */
+        glyph_class = classes[glyph_at];
+
+        if (!want_inverted)
+        {
+            if (in_query_match)
+            {
+                glyph_class = HlMatch;
+            }
+            else if (byte == '\t' && vted_editor_config.show_tabs)
+            {
+                glyph_class = HlTab;
+            }
+        }
 
         if (want_inverted != inverted || glyph_class != style)
         {
@@ -2311,9 +2335,11 @@ void InitVtedEditor(void)
     vted_editor_config.gutter_width = 0;
 
     /* the tab stop and whether Tab inserts spaces instead of a tab,
-       and whether long lines wrap over several screen lines */
+       whether the tabs are drawn as dotted runs, and whether long
+       lines wrap over several screen lines */
     vted_editor_config.tab_width = VTED_TAB_STOP;
     vted_editor_config.insert_spaces = 0;
+    vted_editor_config.show_tabs = 0;
     vted_editor_config.wrap = 0;
     RowSetTabWidth(vted_editor_config.tab_width);
 

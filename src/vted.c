@@ -133,6 +133,7 @@ static void ApplySettings(const vted_settings_t *settings)
 {
     vted_editor_config.insert_spaces = settings->insert_spaces;
     vted_editor_config.show_line_numbers = settings->show_line_numbers;
+    vted_editor_config.show_tabs = settings->show_tabs;
     vted_editor_config.wrap = settings->wrap;
 
     /* the width reaches every buffer open at startup, so they all
@@ -1149,6 +1150,17 @@ int main(int argc, char *argv[])
                 EditClearSelection();
                 ScreenSetSelection(-1, 0, -1, 0);
                 ScreenScroll(c_in == ViewportScrollDown ? 1 : -1);
+            }
+            else if (c_in == ShowTabsToggle)
+            {
+                /* Alt-t shows or hides the tab characters: every row
+                   with a tab in it repaints, the whole viewport is
+                   where they all live */
+                vted_editor_config.show_tabs = !vted_editor_config.show_tabs;
+                ScreenMarkAllDirty();
+
+                SetStatusMessage("Tabs %s",
+                                 vted_editor_config.show_tabs ? "shown" : "hidden");
             }
             else if (c_in == MoveLineUp || c_in == MoveLineDown)
             {

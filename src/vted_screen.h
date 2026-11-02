@@ -25,6 +25,7 @@ typedef struct
 
   int tab_width;     /* cells between tab stops; RowCharWidth() uses it */
   int insert_spaces; /* 1: the Tab key inserts spaces instead of a tab */
+  int show_tabs;     /* 1: tab characters are drawn as dotted runs */
   int wrap;          /* 1: long lines flow over several screen lines instead
                         of scrolling the viewport sideways */
 
