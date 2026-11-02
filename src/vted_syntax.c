@@ -1379,178 +1379,69 @@ int SyntaxBracketColor(void)
     return bracket_color;
 }
 
-const char *SyntaxStyle(int hl_class)
+/* how a class is drawn when no theme has chosen otherwise: one entry
+   per class, spelled for each of the three color modes. A class given
+   a 16-color escape of NULL is not styled by the table at all */
+typedef struct
+{
+    const char *ansi;      /* the escape for a terminal of 16 colors */
+    unsigned char palette; /* the 256-color palette index */
+    unsigned char red;     /* the truecolor RGB */
+    unsigned char green;
+    unsigned char blue;
+    int background;        /* 1: the color paints the cell's background,
+                              0: it colors the text */
+} class_color_t;
+
+static const class_color_t default_colors[] = {
+    [HlComment]  = {"\x1b[90m",  245, 128, 128, 128, 0},
+    [HlString]   = {"\x1b[32m",   28,   0, 170,   0, 0},
+    [HlNumber]   = {"\x1b[35m",  127, 170,   0, 170, 0},
+    [HlKeyword]  = {"\x1b[33m",  220, 170, 130,   0, 0},
+    [HlType]     = {"\x1b[36m",   81,   0, 150, 150, 0},
+    [HlPreproc]  = {"\x1b[94m",   63,   0, 110, 255, 0},
+    [HlRemoved]  = {"\x1b[91m",  160, 204,   0,   0, 0},
+    [HlContext]  = {"\x1b[90m",  240, 105, 105, 105, 0},
+    [HlFunction] = {"\x1b[93m",  208, 255, 140,   0, 0},
+    /* a background, so the text on top stays readable: an amber one,
+       the way an editor marks what a search found */
+    [HlMatch]    = {"\x1b[43m",   94, 135,  95,   0, 1},
+    /* the gray of a comment: a shown tab is a landmark, not a
+       decoration, so it stays out of the way of the text */
+    [HlTab]      = {"\x1b[90m",  245, 128, 128, 128, 0},
+    /* a slate blue a step darker than the tab gray: the guides mark
+       the shape of the code, one quiet dot per stop, and must not
+       compete with the text they stand beside */
+    [HlIndent]   = {"\x1b[90m",   60, 100, 110, 125, 0},
+    /* a quiet background, so the marker reads as a line through the
+       text rather than a box around it */
+    [HlMarker]   = {"\x1b[100m", 236,  60,  60,  60, 1}
+};
+
+/* the escape of a table entry in the color mode in use */
+static const char *ClassEscape(const class_color_t *color)
 {
     static char escape[32];
+    int ground = color->background ? 48 : 38;
 
-    switch (hl_class)
+    switch (ColorMode())
     {
-    case HlComment:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;128;128;128m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;245m");
-            return escape;
-        }
-        return "\x1b[90m";
-    case HlString:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;0;170;0m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;28m");
-            return escape;
-        }
-        return "\x1b[32m";
-    case HlNumber:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;170;0;170m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;127m");
-            return escape;
-        }
-        return "\x1b[35m";
-    case HlKeyword:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;170;130;0m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;220m");
-            return escape;
-        }
-        return "\x1b[33m";
-    case HlType:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;0;150;150m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;81m");
-            return escape;
-        }
-        return "\x1b[36m";
-    case HlPreproc:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;0;110;255m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;63m");
-            return escape;
-        }
-        return "\x1b[94m";
-    case HlRemoved:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;204;0;0m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;160m");
-            return escape;
-        }
-        return "\x1b[91m";
-    case HlContext:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;105;105;105m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;240m");
-            return escape;
-        }
-        return "\x1b[90m";
-    case HlFunction:
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;255;140;0m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;208m");
-            return escape;
-        }
-        return "\x1b[93m";
-    case HlMatch:
-        /* a background, so the text on top stays readable: an amber
-           one, the way an editor marks what a search found */
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[48;2;135;95;0m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[48;5;94m");
-            return escape;
-        }
-        return "\x1b[43m";
-    case HlTab:
-        /* the gray of a comment: a shown tab is a landmark, not a
-           decoration, so it stays out of the way of the text */
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;128;128;128m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;245m");
-            return escape;
-        }
-        return "\x1b[90m";
-    case HlIndent:
-        /* a slate blue a step darker than the tab gray: the guides
-           mark the shape of the code, one quiet dot per stop, and
-           must not compete with the text they stand beside */
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;2;100;110;125m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[38;5;60m");
-            return escape;
-        }
-        return "\x1b[90m";
-    case HlMarker:
-        /* a quiet background, so the marker reads as a line through
-           the text rather than a box around it */
-        if (ColorMode() == 2)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[48;2;60;60;60m");
-            return escape;
-        }
-        if (ColorMode() == 1)
-        {
-            snprintf(escape, sizeof(escape), "\x1b[48;5;236m");
-            return escape;
-        }
-        return "\x1b[100m";
-    case HlBracket:
+    case 2:
+        snprintf(escape, sizeof(escape), "\x1b[%d;2;%d;%d;%dm", ground,
+                 color->red, color->green, color->blue);
+        return escape;
+    case 1:
+        snprintf(escape, sizeof(escape), "\x1b[%d;5;%dm", ground,
+                 color->palette);
+        return escape;
+    default:
+        return color->ansi;
+    }
+}
+
+const char *SyntaxStyle(int hl_class)
+{
+    if (hl_class == HlBracket)
     {
         /* a background of the color the bracket-color setting chose,
            the way a search match carries its amber: the text on top of
@@ -1573,9 +1464,15 @@ const char *SyntaxStyle(int hl_class)
 
         return "";
     }
-    default:
+
+    /* normal text, and a class out of range, carry no style */
+    if (hl_class <= HlNormal ||
+        (size_t)hl_class >= sizeof(default_colors) / sizeof(default_colors[0]))
+    {
         return "";
     }
+
+    return ClassEscape(&default_colors[hl_class]);
 }
 
 void SyntaxFree(void)
