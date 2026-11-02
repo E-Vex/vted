@@ -81,7 +81,17 @@ static char *EditorPrompt(const char *label, const char *initial)
 
         if (c == 0)
         {
-            continue; /* idle read timeout: just repaint the prompt */
+            /* idle read timeout: just repaint the prompt — unless a
+               signal asked the editor to leave, which a prompt must
+               not outwait */
+            if (TerminalWantsExit())
+            {
+                SetStatusMessage("");
+                free(answer);
+                return NULL;
+            }
+
+            continue;
         }
 
         if (c == 27) /* ESC cancels */
@@ -573,6 +583,19 @@ static void EditorPickBuffer(void)
 
         if (c == 0)
         {
+            /* idle read timeout: just repaint the menu — unless a
+               signal asked the editor to leave, which the list must
+               not outwait */
+            if (TerminalWantsExit())
+            {
+                /* the buffer that was live stays live, the way ESC
+                   leaves it */
+                selection = started_at >= 0 && started_at < count
+                                ? started_at
+                                : BuffersCurrent();
+                break;
+            }
+
             continue; /* idle read timeout: just repaint the menu */
         }
 
@@ -954,7 +977,14 @@ static void EditorFind(void)
         if (c == 0)
         {
             /* idle read timeout: repaint the prompt, do not touch
-               the search state or the cursor would drift forward */
+               the search state or the cursor would drift forward —
+               unless a signal asked the editor to leave, which the
+               search must not outwait */
+            if (TerminalWantsExit())
+            {
+                break;
+            }
+
             continue;
         }
 
