@@ -78,6 +78,11 @@ int GetWindowSize(int *rows, int *cols)
    text matters more than the numbers */
 #define GUTTER_MIN_TEXT_COLS 20
 
+/* the most nesting levels one row's indent guides can mark: deeper
+   nesting than this is unheard of, and the outermost levels are the
+   ones left out */
+#define INDENT_LEVELS_MAX 64
+
 /* one byte per buffer row: 1 while what is on the terminal for that
    row is stale and must be repainted; 0 when the screen already shows
    the row exactly as it is in the buffer */
@@ -566,14 +571,48 @@ void ScreenCenterCursor(void)
    valid UTF-8 so they can never reach the terminal as raw codes */
 #define REPLACEMENT_CHARACTER "\xEF\xBF\xBD"
 
+/* does the cell carry one of the indent guides' dots: the last cell
+   of a nesting level, where its indent ends */
+static int CellIsGuideEdge(int cell, const int *edges, int count)
+{
+    int i;
+
+    for (i = 0; i < count; i++)
+    {
+        if (edges[i] >= 1 && cell == edges[i] - 1)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+/* does any cell the glyph takes carry one of the indent guides' dots */
+static int GlyphCarriesGuideDot(int cell, int width, const int *edges, int count)
+{
+    int offset;
+
+    for (offset = 0; offset < width; offset++)
+    {
+        if (CellIsGuideEdge(cell + offset, edges, count))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int next,
-                        int cell, int width, int left, int right, int indent_stop)
+                        int cell, int width, int left, int right,
+                        const int *guide_edges, int guide_count)
 {
     /* draws the character at byte index at, which occupies the cells
-       [cell, cell + width), clipped to the viewport cells [left, right).
-       indent_stop says the glyph is leading whitespace whose first
-       cell sits on a tab stop, so the indent guides mark it with a
-       dot instead of the blank it would otherwise draw */
+       [cell, cell + width), clipped to the viewport cells [left,
+       right). guide_edges names the nesting levels whose last cell
+       the indent guides dot; an empty list (guide_count 0, the
+       pointer may be NULL) says the glyph is not one they mark */
     unsigned char byte = (unsigned char)row->chars[at];
     int code_point;
     int offset;
@@ -594,10 +633,10 @@ static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int 
                     AppendToBuffer(ab, offset == 0 ? "\xC2\xBB" : "\xC2\xB7",
                                    2); /* » and · */
                 }
-                else if (indent_stop && offset == 0)
+                else if (CellIsGuideEdge(cell + offset, guide_edges, guide_count))
                 {
-                    /* the tab starts on the stop the guides mark: a
-                       dot on its first cell, blanks on the rest */
+                    /* the cell ends a nesting level: a dot, wherever
+                       in the tab's run it sits */
                     AppendToBuffer(ab, "\xC2\xB7", 2); /* · */
                 }
                 else
@@ -627,11 +666,11 @@ static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int 
         return;
     }
 
-    if (indent_stop)
+    if (CellIsGuideEdge(cell, guide_edges, guide_count))
     {
-        /* a space that sits on a tab stop the indent crosses is a
-           guide dot; the cell it takes does not change, so every
-           measurement of the row stays as it was */
+        /* a space that ends a nesting level is a guide dot; the cell
+           it takes does not change, so every measurement of the row
+           stays as it was */
         if (cell >= left && cell + width <= right)
         {
             AppendToBuffer(ab, "\xC2\xB7", 2); /* · */
@@ -907,12 +946,17 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
     int indent = vted_editor_config.wrap != 0
                      ? WrapIndentOf(row, vted_editor_config.text_cols)
                      : 0;
-    /* the bytes of leading whitespace the indent guides dot the
-       stops of: nothing to mark when they are off, and a row
-       without an indent keeps none */
+    /* the bytes of leading whitespace the indent guides mark, and
+       the nesting levels whose last cell they dot: nothing to mark
+       when they are off, and a row without an indent keeps none */
     int indent_bytes = vted_editor_config.indent_guides
                            ? RowIndentLength(row, row->size)
                            : 0;
+    int guide_edges[INDENT_LEVELS_MAX];
+    int guide_count = vted_editor_config.indent_guides
+                          ? BufferIndentEdges(buffer_row, guide_edges,
+                                              INDENT_LEVELS_MAX)
+                          : 0;
     int emitted = left; /* the next cell the stream of output reaches */
     int cell = 0;
     int at = 0;
@@ -1040,11 +1084,11 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
                 glyph_class = HlTab;
             }
             else if (glyph_at < indent_bytes &&
-                     placed % vted_editor_config.tab_width == 0)
+                     GlyphCarriesGuideDot(placed, width, guide_edges, guide_count))
             {
-                /* leading whitespace whose first cell sits on a tab
-                   stop the indent crosses: the guides dot it, the way
-                   a shown tab dots the cells of its run */
+                /* leading whitespace that covers the last cell of a
+                   nesting level: the guides dot it, the way a shown
+                   tab dots the cells of its run */
                 glyph_class = HlIndent;
             }
         }
@@ -1059,7 +1103,8 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
         }
 
         AppendGlyph(ab, row, glyph_at, next, placed, width, left, right,
-                    glyph_class == HlIndent);
+                    glyph_class == HlIndent ? guide_edges : NULL,
+                    glyph_class == HlIndent ? guide_count : 0);
 
         if (placed <= emitted && placed + width > emitted)
         {
