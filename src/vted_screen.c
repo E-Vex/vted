@@ -1296,8 +1296,8 @@ static void MoveDisplayLine(int direction)
         if (cursor_line + 1 < RowLines(vted_editor_config.cursor_y))
         {
             /* the next line of this row */
-            vted_editor_config.cursor_x = RowRxToCx(row,
-                                                    (cursor_line + 1) * cols + preferred);
+            vted_editor_config.cursor_x = RowWrappedToCx(row,
+                                                        cursor_line + 1, preferred, cols);
             return;
         }
 
@@ -1307,7 +1307,8 @@ static void MoveDisplayLine(int direction)
         if (vted_editor_config.cursor_y < vted_buffer.num_rows)
         {
             vted_editor_config.cursor_x =
-                RowRxToCx(&vted_buffer.rows[vted_editor_config.cursor_y], preferred);
+                RowWrappedToCx(&vted_buffer.rows[vted_editor_config.cursor_y],
+                               0, preferred, cols);
         }
         else
         {
@@ -1328,8 +1329,8 @@ static void MoveDisplayLine(int direction)
             if (cursor_line > 0)
             {
                 /* the line above within this row */
-                vted_editor_config.cursor_x = RowRxToCx(row,
-                                                        (cursor_line - 1) * cols + preferred);
+                vted_editor_config.cursor_x = RowWrappedToCx(row,
+                                                            cursor_line - 1, preferred, cols);
                 return;
             }
         }
@@ -1339,8 +1340,9 @@ static void MoveDisplayLine(int direction)
         {
             vted_editor_config.cursor_y--;
             vted_editor_config.cursor_x =
-                RowRxToCx(&vted_buffer.rows[vted_editor_config.cursor_y],
-                          (RowLines(vted_editor_config.cursor_y) - 1) * cols + preferred);
+                RowWrappedToCx(&vted_buffer.rows[vted_editor_config.cursor_y],
+                               RowLines(vted_editor_config.cursor_y) - 1,
+                               preferred, cols);
         }
     }
 }
@@ -1383,7 +1385,7 @@ static void MoveDisplayLines(int count)
             if (remaining <= below)
             {
                 vted_editor_config.cursor_x =
-                    RowRxToCx(row, (line + remaining) * cols + preferred);
+                    RowWrappedToCx(row, line + remaining, preferred, cols);
                 return;
             }
 
@@ -1402,7 +1404,7 @@ static void MoveDisplayLines(int count)
             if (remaining < lines)
             {
                 vted_editor_config.cursor_x =
-                    RowRxToCx(row, remaining * cols + preferred);
+                    RowWrappedToCx(row, remaining, preferred, cols);
                 return;
             }
 
@@ -1443,7 +1445,7 @@ static void MoveDisplayLines(int count)
             if (remaining <= line)
             {
                 vted_editor_config.cursor_x =
-                    RowRxToCx(row, (line - remaining) * cols + preferred);
+                    RowWrappedToCx(row, line - remaining, preferred, cols);
                 return;
             }
 
@@ -1461,7 +1463,7 @@ static void MoveDisplayLines(int count)
             if (remaining < lines)
             {
                 vted_editor_config.cursor_x =
-                    RowRxToCx(row, (lines - 1 - remaining) * cols + preferred);
+                    RowWrappedToCx(row, lines - 1 - remaining, preferred, cols);
                 return;
             }
 
@@ -1472,7 +1474,7 @@ static void MoveDisplayLines(int count)
         /* past the first row: its first line, the column kept */
         vted_editor_config.cursor_y = 0;
         vted_editor_config.cursor_x =
-            RowRxToCx(&vted_buffer.rows[0], preferred);
+            RowWrappedToCx(&vted_buffer.rows[0], 0, preferred, cols);
     }
 }
 
@@ -1624,11 +1626,27 @@ void MoveCursor(int key)
     /* the first vertical move of a run remembers the column it started
        from; the main loop clears it again on any other key. Short rows
        in between squeeze the cursor left, but it springs back to the
-       remembered column on the next longer row */
+       remembered column on the next longer row. With wrapping on the
+       column remembered is the one within the cursor's own screen
+       line: the padding a moved run leaves would otherwise make the
+       cell stream and the layout disagree about where that is */
     if ((key == ArrowUp || key == ArrowDown || key == PageUp || key == PageDown) &&
         vted_editor_config.preferred_rx < 0)
     {
-        vted_editor_config.preferred_rx = row != NULL ? RowCxToRx(row, vted_editor_config.cursor_x) : 0;
+        if (vted_editor_config.wrap != 0 && row != NULL)
+        {
+            int line;
+            int col;
+
+            RowCxToWrapped(row, vted_editor_config.cursor_x,
+                           vted_editor_config.text_cols, &line, &col);
+
+            vted_editor_config.preferred_rx = col;
+        }
+        else
+        {
+            vted_editor_config.preferred_rx = row != NULL ? RowCxToRx(row, vted_editor_config.cursor_x) : 0;
+        }
     }
 
     switch (key)

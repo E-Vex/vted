@@ -206,6 +206,60 @@ static void TestHomeAndEndOnWordWrappedLines(void)
     CHECK_INT(vted_editor_config.cursor_x, 7);
 }
 
+static void TestVerticalMovesOverWordWrappedLines(void)
+{
+    /* "aaaa b cc" over lines of 4 cells: line 1 holds " b " and a
+       cell of padding, line 2 "cc". Vertical moves aim by the wrapped
+       column, and an aim that lands in the padding a moved run left
+       stays on that line's last glyph instead of dropping onto the
+       next line */
+    BeginWrapped("aaaa b cc", 4);
+
+    /* straight down from the last a: the aim lands in the padding, so
+       the cursor takes the blank that ends the line */
+    CursorAt(0, 3);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_x, 6);
+
+    /* a column the line has room for lands on its glyph */
+    vted_editor_config.preferred_rx = -1;
+    CursorAt(0, 1);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+
+    /* from the padding, the run still aims for its original column:
+       the last line has none of it, so the cursor takes the end of
+       the row */
+    vted_editor_config.preferred_rx = -1;
+    CursorAt(0, 3);
+    MoveCursor(ArrowDown);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_x, 9);
+
+    /* up onto the blank that starts the middle line */
+    vted_editor_config.preferred_rx = -1;
+    CursorAt(0, 7);
+    MoveCursor(ArrowUp);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    /* across a row boundary: the short row below squeezes the cursor
+       to its end */
+    AppendRow("zz", 2, VTED_EOL_LF);
+
+    CursorAt(0, 9); /* the end of the first row, on its last line */
+    vted_editor_config.preferred_rx = -1;
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+
+    /* and back up: the last line of the row above */
+    vted_editor_config.preferred_rx = -1;
+    CursorAt(1, 0);
+    MoveCursor(ArrowUp);
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 7);
+}
+
 static void TestViewportJumpsOnWordWrappedLines(void)
 {
     /* "ab cd ab cd ab cd" over lines of 4 cells: one word per screen
@@ -834,6 +888,7 @@ int main(void)
     TestShiftHomeAndEndMoveTheSameWay();
     TestHomeAndEndOnAnEmptyRow();
     TestHomeAndEndOnWordWrappedLines();
+    TestVerticalMovesOverWordWrappedLines();
     TestDeepCursorScrollsIntoATallRow();
     TestCursorOnTheTopLinesOfATallRow();
     TestPastTheEndScrollsToTheLastLine();

@@ -1341,9 +1341,12 @@ int main(int argc, char *argv[])
                 vted_editor_config.wrap = !vted_editor_config.wrap;
 
                 /* the whole viewport lays out differently now, and a
-                   wrapped one never scrolls sideways */
+                   wrapped one never scrolls sideways. A vertical run
+                   in progress forgets its column: the wrapped and the
+                   plain layout count it differently */
                 vted_editor_config.col_offset = 0;
                 vted_editor_config.line_offset = 0;
+                vted_editor_config.preferred_rx = -1;
                 ScreenMarkAllDirty();
 
                 SetStatusMessage("Wrap %s",
