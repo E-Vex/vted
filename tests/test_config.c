@@ -37,6 +37,7 @@ static void TestDefaults(void)
     CHECK_INT(settings.tab_width, VTED_TAB_STOP);
     CHECK_INT(settings.insert_spaces, 0);
     CHECK_INT(settings.show_line_numbers, 1);
+    CHECK_INT(settings.show_tabs, 0);
     CHECK_INT(settings.wrap, 0);
 }
 
@@ -108,6 +109,21 @@ static void TestWrap(void)
     CHECK_INT(settings.wrap, 0);
 }
 
+static void TestShowTabs(void)
+{
+    vted_settings_t settings;
+
+    CHECK_INT(LoadLines("set show-tabs on\n", &settings), 0);
+    CHECK_INT(settings.show_tabs, 1);
+
+    CHECK_INT(LoadLines("set show-tabs off\n", &settings), 0);
+    CHECK_INT(settings.show_tabs, 0);
+
+    /* anything else is not a setting */
+    CHECK_INT(LoadLines("set show-tabs maybe\n", &settings), 1);
+    CHECK_INT(settings.show_tabs, 0);
+}
+
 static void TestCommentsAndBlankLines(void)
 {
     vted_settings_t settings;
@@ -153,6 +169,7 @@ static void TestEmptyFile(void)
     CHECK_INT(settings.tab_width, VTED_TAB_STOP);
     CHECK_INT(settings.insert_spaces, 0);
     CHECK_INT(settings.show_line_numbers, 1);
+    CHECK_INT(settings.show_tabs, 0);
     CHECK_INT(settings.wrap, 0);
 }
 
@@ -201,6 +218,7 @@ int main(void)
     TestInsertSpaces();
     TestLineNumbers();
     TestWrap();
+    TestShowTabs();
     TestCommentsAndBlankLines();
     TestUnknownKeyIsCountedBad();
     TestALaterLineWins();

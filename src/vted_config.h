@@ -19,6 +19,7 @@ typedef struct
     int tab_width;         /* cells between tab stops, 1 to 32 */
     int insert_spaces;     /* 1: the Tab key inserts spaces to the next stop */
     int show_line_numbers; /* 1: draw the line number gutter */
+    int show_tabs;         /* 1: draw tab characters as dotted runs */
     int wrap;              /* 1: long lines flow over several screen lines */
 } vted_settings_t;
 
