@@ -221,7 +221,13 @@ static void EditorLoadSettings(void)
 
 static void EditorSetTabWidth(void)
 {
-    char *answer = EditorPrompt("Tab width (1-32): ", NULL);
+    /* the width the buffer lays out with opens as the answer, so Enter
+       alone keeps it and the digits are only typed to change it */
+    char current[12];
+
+    snprintf(current, sizeof(current), "%d", vted_editor_config.tab_width);
+
+    char *answer = EditorPrompt("Tab width (1-32): ", current);
 
     if (answer == NULL)
     {
@@ -241,6 +247,14 @@ static void EditorSetTabWidth(void)
     }
 
     free(answer);
+
+    /* Enter on the width already in place keeps it: nothing relayouts,
+       the way a cancelled prompt does */
+    if ((int)width == vted_editor_config.tab_width)
+    {
+        SetStatusMessage("Tab width unchanged");
+        return;
+    }
 
     vted_editor_config.tab_width = (int)width;
     RowSetTabWidth(vted_editor_config.tab_width);
