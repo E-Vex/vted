@@ -820,6 +820,72 @@ static void TestWrapRunStart(void)
     }
 }
 
+static void TestFindNext(void)
+{
+    vted_row_t row = MakeRow("abcabdab");
+
+    /* every match, one at a time: 0, 3 and 6 */
+    CHECK_INT(RowFindNext(&row, 0, row.size, "ab", 2), 0);
+    CHECK_INT(RowFindNext(&row, 1, row.size, "ab", 2), 3);
+    CHECK_INT(RowFindNext(&row, 4, row.size, "ab", 2), 6);
+    CHECK_INT(RowFindNext(&row, 7, row.size, "ab", 2), -1);
+
+    /* the bound ends the search before the match at 3 */
+    CHECK_INT(RowFindNext(&row, 1, 4, "ab", 2), 3);
+    CHECK_INT(RowFindNext(&row, 1, 3, "ab", 2), -1);
+
+    /* a match that would run past the bound does not count */
+    CHECK_INT(RowFindNext(&row, 2, 4, "abc", 3), -1);
+    CHECK_INT(RowFindNext(&row, 0, row.size, "abc", 3), 0);
+    CHECK_INT(RowFindNext(&row, 1, row.size, "abc", 3), -1);
+
+    /* an empty query never matches, and neither does one longer
+       than the row */
+    CHECK_INT(RowFindNext(&row, 0, row.size, "", 0), -1);
+    CHECK_INT(RowFindNext(&row, 0, row.size, "abcdefgh", 8), -1);
+
+    /* out-of-range bounds are clamped into the row */
+    CHECK_INT(RowFindNext(&row, -5, row.size, "ab", 2), 0);
+    CHECK_INT(RowFindNext(&row, 0, 100, "ab", 2), 0);
+}
+
+static void TestFindPrev(void)
+{
+    vted_row_t row = MakeRow("abcabdab");
+
+    /* the last match before a bound, then the ones before it */
+    CHECK_INT(RowFindPrev(&row, 0, row.size, "ab", 2), 6);
+    CHECK_INT(RowFindPrev(&row, 0, 7, "ab", 2), 6);
+    CHECK_INT(RowFindPrev(&row, 0, 6, "ab", 2), 3);
+    CHECK_INT(RowFindPrev(&row, 0, 3, "ab", 2), 0);
+    CHECK_INT(RowFindPrev(&row, 0, 1, "ab", 2), 0);
+    CHECK_INT(RowFindPrev(&row, 0, 0, "ab", 2), -1);
+
+    /* the bound holds the start of the match, not its end */
+    CHECK_INT(RowFindPrev(&row, 0, row.size, "dab", 3), 5);
+    CHECK_INT(RowFindPrev(&row, 0, 6, "dab", 3), 5);
+    CHECK_INT(RowFindPrev(&row, 0, 5, "dab", 3), -1);
+
+    /* an empty query never matches, and neither does one longer
+       than the row */
+    CHECK_INT(RowFindPrev(&row, 0, row.size, "", 0), -1);
+    CHECK_INT(RowFindPrev(&row, 0, row.size, "abcabdabx", 9), -1);
+
+    /* out-of-range bounds are clamped into the row */
+    CHECK_INT(RowFindPrev(&row, -5, 100, "ab", 2), 6);
+}
+
+static void TestFindInsideAMultibyteCharacter(void)
+{
+    /* a match may start inside a multi-byte character: the search
+       works on bytes, the way a plain byte search does */
+    vted_row_t row = MakeRow("\xE4\xB8\xAD\xE6\x96\x87"); /* two ideographs */
+
+    CHECK_INT(RowFindNext(&row, 0, row.size, "\xB8\xAD", 2), 1);
+    CHECK_INT(RowFindPrev(&row, 0, row.size, "\xB8\xAD", 2), 1);
+    CHECK_INT(RowFindNext(&row, 2, row.size, "\xB8\xAD", 2), -1);
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -858,6 +924,9 @@ int main(void)
     TestWrapCursorPosition();
     TestWrappedToCx();
     TestWrapRunStart();
+    TestFindNext();
+    TestFindPrev();
+    TestFindInsideAMultibyteCharacter();
 
     return TestSummary("row");
 }

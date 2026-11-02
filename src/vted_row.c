@@ -733,6 +733,88 @@ int RowWordLeft(const vted_row_t *row, int cx)
     return at;
 }
 
+int RowFindNext(const vted_row_t *row, int from, int to,
+                const char *query, int query_len)
+{
+    /* the last byte a match may start on: it has to end inside the
+       row, and inside the bound the caller gave */
+    int last;
+
+    if (query_len <= 0)
+    {
+        return -1;
+    }
+
+    if (from < 0)
+    {
+        from = 0;
+    }
+
+    if (to > row->size)
+    {
+        to = row->size;
+    }
+
+    last = to < row->size - query_len + 1 ? to : row->size - query_len + 1;
+    last--; /* now inclusive */
+
+    /* memchr finds the query's first byte fast; only positions a
+       whole match could start from are looked at */
+    while (from <= last)
+    {
+        const char *hit = memchr(row->chars + from, query[0],
+                                 (size_t)(last - from + 1));
+
+        if (hit == NULL)
+        {
+            return -1;
+        }
+
+        if (memcmp(hit, query, (size_t)query_len) == 0)
+        {
+            return (int)(hit - row->chars);
+        }
+
+        from = (int)(hit - row->chars) + 1;
+    }
+
+    return -1;
+}
+
+int RowFindPrev(const vted_row_t *row, int from, int to,
+                const char *query, int query_len)
+{
+    int at;
+    int last;
+
+    if (query_len <= 0)
+    {
+        return -1;
+    }
+
+    if (from < 0)
+    {
+        from = 0;
+    }
+
+    if (to > row->size)
+    {
+        to = row->size;
+    }
+
+    last = to < row->size - query_len + 1 ? to : row->size - query_len + 1;
+
+    for (at = last - 1; at >= from; at--)
+    {
+        if (memcmp(row->chars + at, query, (size_t)query_len) == 0)
+        {
+            return at;
+        }
+    }
+
+    return -1;
+}
+
 void RowSetTabWidth(int width)
 {
     if (width < 1)

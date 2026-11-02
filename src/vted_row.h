@@ -160,6 +160,16 @@ int RowIndentLength(const vted_row_t *row, int limit);
 int RowWordRight(const vted_row_t *row, int cx);
 int RowWordLeft(const vted_row_t *row, int cx);
 
+/* where the bytes of query sit in the row: the first match that
+   starts inside [from, to), or the last one, or -1 when there is
+   none. A match may start anywhere, even inside a multi-byte
+   character, the way a plain byte search finds it; the bounds are
+   clamped to the row, and an empty query never matches */
+int RowFindNext(const vted_row_t *row, int from, int to,
+                const char *query, int query_len);
+int RowFindPrev(const vted_row_t *row, int from, int to,
+                const char *query, int query_len);
+
 /* looks for the bracket under the cursor, or the one right before
    it, and scans the buffer for the bracket that closes it: the scan
    counts brackets of the same pair so nesting comes out right, and
