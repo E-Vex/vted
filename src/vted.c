@@ -1146,6 +1146,16 @@ int main(int argc, char *argv[])
                 ScreenSetSelection(-1, 0, -1, 0);
                 MoveCursor(c_in);
             }
+            else if (c_in == ViewportScrollDown || c_in == ViewportScrollUp)
+            {
+                /* Alt-e and Alt-y scroll the viewport one screen line
+                   at a time: the viewport moves and the cursor keeps
+                   its place in the text, coming along only when the
+                   scroll would leave it off screen */
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+                ScreenScroll(c_in == ViewportScrollDown ? 1 : -1);
+            }
             else if (c_in == MoveLineUp || c_in == MoveLineDown)
             {
                 EditClearSelection();

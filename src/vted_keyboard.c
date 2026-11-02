@@ -294,6 +294,19 @@ int ParseArrowKey(void)
         return ViewportBottom;
     }
 
+    /* Alt-e and Alt-y scroll the viewport one screen line at a time,
+       the way Ctrl-E and Ctrl-Y do in vi — the Ctrl spellings are
+       taken by closing the buffer and redoing */
+    if (introducer == 'e')
+    {
+        return ViewportScrollDown;
+    }
+
+    if (introducer == 'y')
+    {
+        return ViewportScrollUp;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')

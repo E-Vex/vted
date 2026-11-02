@@ -45,6 +45,8 @@ typedef enum
     ViewportTop,    /* Alt-h: the top screen line of the viewport */
     ViewportMiddle, /* Alt-m: the middle screen line of the viewport */
     ViewportBottom, /* Alt-l: the bottom screen line of the viewport */
+    ViewportScrollDown, /* Alt-e: the viewport one screen line down */
+    ViewportScrollUp,   /* Alt-y: the viewport one screen line up */
 
 } EditorKey;
 

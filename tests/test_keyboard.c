@@ -173,6 +173,20 @@ static void TestViewportJumps(void)
     CHECK_INT(ReadKeyPress(), 'l');
 }
 
+static void TestViewportScrolls(void)
+{
+    /* Alt-e and Alt-y, one key code per direction */
+    FeedInput("\x1b" "e");
+    CHECK_INT(ReadKeyPress(), ViewportScrollDown);
+    FeedInput("\x1b" "y");
+    CHECK_INT(ReadKeyPress(), ViewportScrollUp);
+
+    /* plain e and y are still text */
+    FeedInput("ey");
+    CHECK_INT(ReadKeyPress(), 'e');
+    CHECK_INT(ReadKeyPress(), 'y');
+}
+
 static void TestShiftArrowsStartSelections(void)
 {
     FeedInput("\x1b[1;2C"); /* Shift-Right */
@@ -323,6 +337,7 @@ int main(void)
     TestAltCommaAndPeriodSwitchBuffers();
     TestAltDigitsSelectBuffers();
     TestViewportJumps();
+    TestViewportScrolls();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
     TestSequencesDoNotLeakText();
