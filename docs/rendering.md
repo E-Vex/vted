@@ -212,6 +212,36 @@ end of the line), so shorter content leaves no residue behind, followed
 by `\r\n` — raw mode disables output post-processing, so the carriage
 return is written explicitly (see `docs/terminal-modes.md`).
 
+Wrapped rows
+~~~~~~~~~~~~
+
+With wrapping on (`Ctrl-L`), a row flows over as many screen lines of
+`text_cols` cells as it takes, and the viewport never scrolls sideways.
+`RowWrapAdvance()` in `src/vted_row.c` is the one step every walk over
+that layout takes: it places one glyph, moves the walk past it, and
+returns the cell the glyph was placed at. The renderer, the cursor
+math and the byte↔spot conversions all drive their walks through it,
+so they can never disagree about where a glyph sits.
+
+The step wraps at word boundaries. A run of non-blank glyphs — the
+stretch between two blanks, so `foo->bar` moves as one unit — that
+does not fit the rest of its line starts the next screen line whole,
+leaving the blank before it at the end of the line it left. Only two
+things break mid-line: a run longer than a whole screen line, which
+wraps by character past the line's edge the moment it no longer fits,
+and a wide glyph that would cross the edge, which starts the next line
+instead of being cut in half. A tab, being blank space, may run to the
+edge and on past it.
+
+A moved run leaves padding at the end of the line it left, and screen
+line `k` of a row is drawn as the cells `[k * text_cols, (k+1) *
+text_cols)` of the walk, so `DrawRowText()` re-walks the row from its
+start for every screen line it paints. `RowCxToWrapped()` maps a byte
+index to its screen line and column within that layout;
+`RowWrappedToCx()` maps the other way, landing a spot in the padding
+on the line's last glyph rather than the next line's first, so a
+cursor aimed past a line's end stays on that line.
+
 Text styling
 ------------
 

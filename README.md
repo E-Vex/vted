@@ -205,7 +205,8 @@ Ctrl-L set while editing.
 | Ctrl-F          | incremental search: arrows step between matches,
   a match that left the viewport lands mid-viewport, ESC restores |
 | Ctrl-N          | show or hide the line numbers                    |
-| Ctrl-L          | wrap long lines over several screen lines        |
+| Ctrl-L          | wrap long lines over several screen lines,
+  breaking at word boundaries                       |
 | Ctrl-T          | toggle Tab between spaces and a tab character    |
 | Ctrl-W          | set the tab width in cells (per buffer)          |
 | Ctrl-Q          | quit (three extra presses when modified)         |
@@ -241,11 +242,12 @@ does, and closing the last buffer starts a fresh empty one.
 - Word movement with Ctrl or Alt and the arrows, or Alt-b and Alt-f; a word
   is a run of letters, digits and underscores, or a run of punctuation
 - Vertical and horizontal scrolling for files of any size; long lines
-  wrap over several screen lines instead with Ctrl-L, the up and down
-  arrows then stepping over the wrapped lines and PageUp/PageDown paging
-  a viewport of them, and a line taller than the viewport scrolling
-  inside itself; Home and End start and end the screen line the cursor
-  sits on
+  wrap over several screen lines instead with Ctrl-L, breaking at word
+  boundaries so a word never straddles two lines — one longer than a
+  line breaks by character — the up and down arrows then stepping over
+  the wrapped lines and PageUp/PageDown paging a viewport of them, and
+  a line taller than the viewport scrolling inside itself; Home and End
+  start and end the screen line the cursor sits on
 - Viewport-relative jumps with Alt-h, Alt-m and Alt-l: the cursor lands
   on the start of the top, the middle or the bottom screen line of the
   viewport, the way H, M and L work in vi; a wrapped layout is walked

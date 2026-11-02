@@ -191,7 +191,9 @@ show or hide the line numbers
 .TP
 .B Ctrl\-L
 wrap long lines over several screen lines instead of scrolling the
-viewport sideways; the up and down arrows then step over the wrapped
+viewport sideways, breaking at word boundaries so a word never
+straddles two lines (a word longer than a line breaks by character);
+the up and down arrows then step over the wrapped
 lines one at a time, PageUp and PageDown move a viewport of them, and
 a line taller than the viewport scrolls inside itself
 .TP
