@@ -1533,6 +1533,34 @@ void ExitAlternateScreenBuffer(void)
     write(STDOUT_FILENO, "\x1b[?1049l", 8);
 }
 
+/* where a vertical aim lands when it would fall inside the row's
+   leading indent: past it, on the first non-blank glyph, so the
+   cursor never rests between the blanks. Only a remembered column
+   does this — the one a run of vertical moves keeps aiming for —
+   because a cursor a scroll drags along or a jump places keeps the
+   spot it was given */
+static int AimPastIndent(const vted_row_t *row, int cx)
+{
+    int indent;
+
+    if (vted_editor_config.preferred_rx < 0)
+    {
+        return cx; /* no aim in flight: nothing to move past */
+    }
+
+    indent = RowIndentLength(row, row->size);
+
+    return cx < indent ? indent : cx;
+}
+
+/* the byte a vertical aim lands on in the wrapped layout of a row,
+   moved past the row's leading indent the same way */
+static int WrappedAim(const vted_row_t *row, int line, int col, int cols,
+                      int indent)
+{
+    return AimPastIndent(row, RowWrappedToCx(row, line, col, cols, indent));
+}
+
 static void ClampCursorToRow(void)
 {
     /* after a vertical move the cursor lands on the character that
@@ -1551,7 +1579,7 @@ static void ClampCursorToRow(void)
     vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
     int target = vted_editor_config.preferred_rx > 0 ? vted_editor_config.preferred_rx : 0;
 
-    vted_editor_config.cursor_x = RowRxToCx(row, target);
+    vted_editor_config.cursor_x = AimPastIndent(row, RowRxToCx(row, target));
 }
 
 /* moves the cursor one screen line through the wrapped layout: the
@@ -1583,9 +1611,9 @@ static void MoveDisplayLine(int direction)
         if (cursor_line + 1 < RowLines(vted_editor_config.cursor_y))
         {
             /* the next line of this row */
-            vted_editor_config.cursor_x = RowWrappedToCx(row,
-                                                        cursor_line + 1, preferred, cols,
-                                                        WrapIndentOf(row, cols));
+            vted_editor_config.cursor_x =
+                WrappedAim(row, cursor_line + 1, preferred, cols,
+                           WrapIndentOf(row, cols));
             return;
         }
 
@@ -1595,10 +1623,10 @@ static void MoveDisplayLine(int direction)
         if (vted_editor_config.cursor_y < vted_buffer.num_rows)
         {
             vted_editor_config.cursor_x =
-                RowWrappedToCx(&vted_buffer.rows[vted_editor_config.cursor_y],
-                               0, preferred, cols,
-                               WrapIndentOf(&vted_buffer.rows[vted_editor_config.cursor_y],
-                                            cols));
+                WrappedAim(&vted_buffer.rows[vted_editor_config.cursor_y],
+                           0, preferred, cols,
+                           WrapIndentOf(&vted_buffer.rows[vted_editor_config.cursor_y],
+                                        cols));
         }
         else
         {
@@ -1620,9 +1648,9 @@ static void MoveDisplayLine(int direction)
             if (cursor_line > 0)
             {
                 /* the line above within this row */
-                vted_editor_config.cursor_x = RowWrappedToCx(row,
-                                                            cursor_line - 1, preferred, cols,
-                                                            WrapIndentOf(row, cols));
+                vted_editor_config.cursor_x =
+                    WrappedAim(row, cursor_line - 1, preferred, cols,
+                               WrapIndentOf(row, cols));
                 return;
             }
         }
@@ -1632,9 +1660,9 @@ static void MoveDisplayLine(int direction)
         {
             vted_editor_config.cursor_y--;
             vted_editor_config.cursor_x =
-                RowWrappedToCx(&vted_buffer.rows[vted_editor_config.cursor_y],
-                               RowLines(vted_editor_config.cursor_y) - 1,
-                               preferred, cols, 0);
+                WrappedAim(&vted_buffer.rows[vted_editor_config.cursor_y],
+                           RowLines(vted_editor_config.cursor_y) - 1,
+                           preferred, cols, 0);
         }
     }
 }
@@ -1678,8 +1706,8 @@ static void MoveDisplayLines(int count)
             if (remaining <= below)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, line + remaining, preferred, cols,
-                                   WrapIndentOf(row, cols));
+                    WrappedAim(row, line + remaining, preferred, cols,
+                               WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1698,8 +1726,8 @@ static void MoveDisplayLines(int count)
             if (remaining < lines)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, remaining, preferred, cols,
-                                   WrapIndentOf(row, cols));
+                    WrappedAim(row, remaining, preferred, cols,
+                               WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1741,8 +1769,8 @@ static void MoveDisplayLines(int count)
             if (remaining <= line)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, line - remaining, preferred, cols,
-                                   WrapIndentOf(row, cols));
+                    WrappedAim(row, line - remaining, preferred, cols,
+                               WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1760,8 +1788,8 @@ static void MoveDisplayLines(int count)
             if (remaining < lines)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, lines - 1 - remaining, preferred, cols,
-                                   WrapIndentOf(row, cols));
+                    WrappedAim(row, lines - 1 - remaining, preferred, cols,
+                               WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1772,8 +1800,8 @@ static void MoveDisplayLines(int count)
         /* past the first row: its first line, the column kept */
         vted_editor_config.cursor_y = 0;
         vted_editor_config.cursor_x =
-            RowWrappedToCx(&vted_buffer.rows[0], 0, preferred, cols,
-                           WrapIndentOf(&vted_buffer.rows[0], cols));
+            WrappedAim(&vted_buffer.rows[0], 0, preferred, cols,
+                       WrapIndentOf(&vted_buffer.rows[0], cols));
     }
 }
 

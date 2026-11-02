@@ -260,6 +260,97 @@ static void TestVerticalMovesOverWordWrappedLines(void)
     CHECK_INT(vted_editor_config.cursor_x, 7);
 }
 
+static void TestVerticalAimsLandPastTheIndent(void)
+{
+    /* a move onto a deeper row never rests inside its indent: the
+       aim lands past it, on the first non-blank, where the code is */
+    BeginWrapped(NULL, 40);
+    AppendRow("code();", 7, VTED_EOL_LF);
+    AppendRow("    deeper();", 12, VTED_EOL_LF);
+    AppendRow("        deepest();", 16, VTED_EOL_LF);
+
+    vted_editor_config.wrap = 0;
+
+    /* an aim from column 0 falls inside the four-space indent */
+    CursorAt(0, 0);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    /* an aim from column 2 falls inside the eight-space indent of
+       the row below */
+    vted_editor_config.preferred_rx = -1;
+    CursorAt(1, 2);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_y, 2);
+    CHECK_INT(vted_editor_config.cursor_x, 8);
+
+    /* an aim that reaches the row's text keeps it: the column sits
+       on the code, not inside the indent */
+    vted_editor_config.preferred_rx = -1;
+    CursorAt(0, 5);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+
+    /* and back up onto the shallower row: an aim inside its indent
+       moves past it the same way */
+    vted_editor_config.preferred_rx = -1;
+    CursorAt(2, 2);
+    MoveCursor(ArrowUp);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    /* a scroll that drags the cursor along has no aim in flight, so
+       it keeps the spot it lands on */
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.screen_rows = 2;
+    CursorAt(0, 0);
+    ScreenScroll(1);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestVerticalAimsLandPastABlankRow(void)
+{
+    /* a row of nothing but blanks has its end past its indent: an
+       aim inside the whitespace lands there */
+    BeginWrapped(NULL, 40);
+    AppendRow("code();", 7, VTED_EOL_LF);
+    AppendRow("    ", 4, VTED_EOL_LF);
+
+    vted_editor_config.wrap = 0;
+
+    CursorAt(0, 2);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+}
+
+static void TestWrappedAimsLandPastTheIndent(void)
+{
+    /* the wrapped layout aims the same way: a column that falls
+       inside the first line's indent lands on the first non-blank */
+    BeginWrapped(NULL, 40);
+    AppendRow("code();", 7, VTED_EOL_LF);
+    AppendRow("    deeper();", 12, VTED_EOL_LF);
+
+    CursorAt(0, 1);
+    MoveCursor(ArrowDown);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    /* a page of them lands the same way: a viewport one line tall,
+       so the page stops on the row below */
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.screen_rows = 1;
+    CursorAt(0, 1);
+    MoveCursor(PageDown);
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+}
+
 /* one row of "ab cd ab cd ..." pairs over lines of 4 cells: one word
    per screen line, word k starting at byte 3k */
 static void BeginWordWrappedRow(int words)
@@ -1159,6 +1250,9 @@ int main(void)
     TestHomeAndEndOnAnEmptyRow();
     TestHomeAndEndOnWordWrappedLines();
     TestVerticalMovesOverWordWrappedLines();
+    TestVerticalAimsLandPastTheIndent();
+    TestVerticalAimsLandPastABlankRow();
+    TestWrappedAimsLandPastTheIndent();
     TestUpdateScrollOverWordWrappedRows();
     TestWordWrappedRowFallsAwayForARowBelow();
     TestPagingOverWordWrappedRows();
