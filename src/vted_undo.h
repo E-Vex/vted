@@ -26,7 +26,10 @@ typedef enum
     UndoKindInsertText,  /* a text of several lines was placed (a paste) */
     UndoKindRemoveText,  /* a text of several lines was removed (a deletion) */
     UndoKindReplaceBytes, /* old bytes were replaced with new bytes at one spot */
-    UndoKindMoveRow      /* a whole row moved up or down */
+    UndoKindMoveRow,      /* a whole row moved up or down */
+    UndoKindDuplicateRows /* several rows appeared as copies of the rows
+                             above them: row through cx are the rows
+                             copied, and their copies sit just past cx */
 } UndoKind;
 
 typedef struct

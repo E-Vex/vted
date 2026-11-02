@@ -410,6 +410,14 @@ static void Apply(const UndoEntry *entry)
     case UndoKindMoveRow:
         MoveRowWithinBuffer(entry->row, entry->row + entry->move_delta);
         break;
+    case UndoKindDuplicateRows:
+        /* the rows they were made from are still there: copying them
+           again places the same copies back */
+        if (BufferDuplicateRows(entry->row, entry->cx) == -1)
+        {
+            KillApp("BufferDuplicateRows");
+        }
+        break;
     case UndoKindInsertText:
         if (entry->made_row &&
             InsertRow(entry->row, "", 0, entry->eol) == -1)
@@ -523,6 +531,18 @@ static void Revert(const UndoEntry *entry)
     case UndoKindMoveRow:
         MoveRowWithinBuffer(entry->row + entry->move_delta, entry->row);
         break;
+    case UndoKindDuplicateRows:
+    {
+        /* the copies sit just past the last row they were made from:
+           one by one they go, and the rows they came from stay */
+        int copies = entry->cx - entry->row + 1;
+
+        while (copies-- > 0)
+        {
+            RemoveRow(entry->cx + 1);
+        }
+        break;
+    }
     case UndoKindInsertText:
         if (RemoveText(entry->row, entry->cx,
                        entry->bytes != NULL ? entry->bytes : "",
