@@ -563,6 +563,53 @@ void RowCxToWrapped(const vted_row_t *row, int cx, int cols, int *line, int *col
     WrapWalk(row, cols, cx, &lines, line, col);
 }
 
+int RowWrappedToCx(const vted_row_t *row, int line, int col, int cols)
+{
+    /* the spot given as a screen line of the wrapped layout and a
+       cell column within it, turned into the byte index of the glyph
+       that sits there: the glyph that covers the spot, the one
+       before it when the spot is the padding a moved run left at its
+       line's end (the padding is where that line ends, so the spot
+       stays on it), or the end of the row when the spot lies past its
+       text */
+    int target = line * cols + col;
+    int cell = 0;
+    int at = 0;
+    int in_run = 0;
+    int prev = 0;
+
+    if (cols < 1)
+    {
+        cols = 1;
+    }
+
+    while (at < row->size)
+    {
+        int glyph_at = at;
+        int placed = RowWrapAdvance(row, 1, cols, &at, &cell, &in_run);
+        int width = cell - placed;
+
+        if (placed == target)
+        {
+            return glyph_at; /* the glyph starts right there */
+        }
+
+        if (placed < target && placed + width > target)
+        {
+            return glyph_at; /* a wide glyph, or a tab, covers it */
+        }
+
+        if (placed > target)
+        {
+            return prev; /* the padding at the line's end */
+        }
+
+        prev = glyph_at;
+    }
+
+    return row->size; /* past the row's last glyph */
+}
+
 int RowIndentLength(const vted_row_t *row, int limit)
 {
     int length = 0;

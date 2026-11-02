@@ -140,6 +140,13 @@ int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols);
    that line */
 void RowCxToWrapped(const vted_row_t *row, int cx, int cols, int *line, int *col);
 
+/* the inverse: the byte index of the glyph at screen line line, cell
+   column col of the wrapped layout. The glyph that covers the spot
+   is the answer; the padding a moved run leaves at a line's end
+   gives the line's last glyph, and a spot past the row's text its
+   end, so a cursor aimed there stays on the line it was aimed at */
+int RowWrappedToCx(const vted_row_t *row, int line, int col, int cols);
+
 /* number of leading blanks (spaces and tabs) of the row, looking at
    no more than the first limit bytes; the indent a new line copies */
 int RowIndentLength(const vted_row_t *row, int limit);

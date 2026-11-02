@@ -744,6 +744,47 @@ static void TestWrapCursorPosition(void)
     CHECK_INT(col, 0);
 }
 
+static void TestWrappedToCx(void)
+{
+    /* "aaaa b cc" over lines of 4 cells: line 1 holds " b " and one
+       cell of padding, line 2 "cc" */
+    vted_row_t row = MakeRow("aaaa b cc");
+
+    CHECK_INT(RowWrappedToCx(&row, 0, 0, 4), 0); /* a */
+    CHECK_INT(RowWrappedToCx(&row, 0, 3, 4), 3); /* the last a */
+    CHECK_INT(RowWrappedToCx(&row, 1, 0, 4), 4); /* the blank */
+    CHECK_INT(RowWrappedToCx(&row, 1, 1, 4), 5); /* b */
+    CHECK_INT(RowWrappedToCx(&row, 1, 2, 4), 6); /* the blank after b */
+
+    /* the padding a moved run leaves: the spot lands on the line's
+       last glyph instead of dropping onto the next line */
+    CHECK_INT(RowWrappedToCx(&row, 1, 3, 4), 6);
+
+    CHECK_INT(RowWrappedToCx(&row, 2, 0, 4), 7); /* c */
+    CHECK_INT(RowWrappedToCx(&row, 2, 1, 4), 8); /* the second c */
+
+    /* a spot past the line's text is the end of the row */
+    CHECK_INT(RowWrappedToCx(&row, 2, 2, 4), 9);
+
+    /* a tab that runs past the edge covers the cells it blanks */
+    {
+        vted_row_t tabs = MakeRow("ab\tc");
+
+        RowSetTabWidth(8);
+        CHECK_INT(RowWrappedToCx(&tabs, 1, 0, 4), 2); /* the tab */
+        RowSetTabWidth(VTED_TAB_STOP);
+    }
+
+    /* without a run ever moving, the mapping agrees with the plain
+       cell stream */
+    {
+        vted_row_t plain = MakeRow("abcdefghijkl");
+
+        CHECK_INT(RowWrappedToCx(&plain, 1, 2, 4), 6); /* g */
+        CHECK_INT(RowWrappedToCx(&plain, 2, 0, 4), 8); /* i */
+    }
+}
+
 static void TestWrapRunStart(void)
 {
     /* a run of non-blank glyphs that does not fit the rest of its
@@ -815,6 +856,7 @@ int main(void)
     TestWrapMovesWideGlyphsDown();
     TestWrapLetsTabsCrossTheEdge();
     TestWrapCursorPosition();
+    TestWrappedToCx();
     TestWrapRunStart();
 
     return TestSummary("row");
