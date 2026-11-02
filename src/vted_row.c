@@ -962,3 +962,38 @@ int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx)
 
     return 0;
 }
+
+void BufferCountMatches(const char *query, int query_len,
+                        int row, int col, int *total, int *before)
+{
+    int total_count = 0;
+    int before_count = 0;
+    int i;
+
+    for (i = 0; i < vted_buffer.num_rows; i++)
+    {
+        const vted_row_t *scan_row = &vted_buffer.rows[i];
+        int at = 0;
+
+        for (;;)
+        {
+            at = RowFindNext(scan_row, at, scan_row->size, query, query_len);
+
+            if (at < 0)
+            {
+                break;
+            }
+
+            if (i < row || (i == row && at < col))
+            {
+                before_count++;
+            }
+
+            total_count++;
+            at++; /* matches that share bytes count each */
+        }
+    }
+
+    *total = total_count;
+    *before = before_count;
+}

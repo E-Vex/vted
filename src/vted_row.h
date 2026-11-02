@@ -179,6 +179,13 @@ int RowFindPrev(const vted_row_t *row, int from, int to,
    the cursor is not on a bracket or no match is there to be found */
 int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
 
+/* counts the matches of query in the whole buffer, and how many of
+   them start before (row, col): the place among them all of the
+   match the cursor sits on. Matches are counted the way the search
+   steps through them, so ones that share bytes count each */
+void BufferCountMatches(const char *query, int query_len,
+                        int row, int col, int *total, int *before);
+
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);
 

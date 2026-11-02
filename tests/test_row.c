@@ -886,6 +886,64 @@ static void TestFindInsideAMultibyteCharacter(void)
     CHECK_INT(RowFindNext(&row, 2, row.size, "\xB8\xAD", 2), -1);
 }
 
+static void TestCountMatches(void)
+{
+    const char *const texts[] = {"abcabdab", "", "ab", NULL};
+    int total;
+    int before;
+
+    MakeBuffer(texts);
+
+    /* four matches across the buffer */
+    BufferCountMatches("ab", 2, 0, 0, &total, &before);
+    CHECK_INT(total, 4);
+    CHECK_INT(before, 0);
+
+    /* the second match of the first row */
+    BufferCountMatches("ab", 2, 0, 3, &total, &before);
+    CHECK_INT(total, 4);
+    CHECK_INT(before, 1);
+
+    /* the one on the last row */
+    BufferCountMatches("ab", 2, 2, 0, &total, &before);
+    CHECK_INT(total, 4);
+    CHECK_INT(before, 3);
+
+    /* a place past every match still counts them all */
+    BufferCountMatches("ab", 2, 2, 2, &total, &before);
+    CHECK_INT(total, 4);
+    CHECK_INT(before, 4);
+
+    /* nothing matches */
+    BufferCountMatches("zz", 2, 0, 0, &total, &before);
+    CHECK_INT(total, 0);
+    CHECK_INT(before, 0);
+
+    /* neither does an empty query */
+    BufferCountMatches("", 0, 0, 0, &total, &before);
+    CHECK_INT(total, 0);
+    CHECK_INT(before, 0);
+}
+
+static void TestCountMatchesThatShareBytes(void)
+{
+    /* "aa" matches twice inside "aaa", the way the search steps
+       through them */
+    const char *const texts[] = {"aaa", NULL};
+    int total;
+    int before;
+
+    MakeBuffer(texts);
+
+    BufferCountMatches("aa", 2, 0, 0, &total, &before);
+    CHECK_INT(total, 2);
+    CHECK_INT(before, 0);
+
+    BufferCountMatches("aa", 2, 0, 1, &total, &before);
+    CHECK_INT(total, 2);
+    CHECK_INT(before, 1);
+}
+
 int main(void)
 {
     TestCharWidth();
@@ -927,6 +985,8 @@ int main(void)
     TestFindNext();
     TestFindPrev();
     TestFindInsideAMultibyteCharacter();
+    TestCountMatches();
+    TestCountMatchesThatShareBytes();
 
     return TestSummary("row");
 }
