@@ -689,6 +689,40 @@ int RowIndentLength(const vted_row_t *row, int limit)
     return length;
 }
 
+int RowWrapIndentCells(const vted_row_t *row, int cols)
+{
+    int leading;
+    int cells;
+
+    if (cols < 1)
+    {
+        cols = 1;
+    }
+
+    if (row == NULL || row->size == 0)
+    {
+        return 0;
+    }
+
+    leading = RowIndentLength(row, row->size);
+
+    if (leading >= row->size)
+    {
+        /* nothing but blanks: there is no glyph to line up under */
+        return 0;
+    }
+
+    cells = RowCxToRx(row, leading);
+
+    if (cells > cols - 1)
+    {
+        /* every line keeps at least one content cell */
+        cells = cols - 1;
+    }
+
+    return cells;
+}
+
 int RowWrapRunStart(const vted_row_t *row, int at, int start_cell, int cols,
                     int indent)
 {

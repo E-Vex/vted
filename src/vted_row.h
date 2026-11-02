@@ -166,6 +166,14 @@ int RowWrappedToCx(const vted_row_t *row, int line, int col, int cols,
    no more than the first limit bytes; the indent a new line copies */
 int RowIndentLength(const vted_row_t *row, int limit);
 
+/* the cells a row's wrapped lines keep for their indent when it
+   flows over lines of cols cells: the cell column where the row's
+   first non-blank glyph starts, its leading whitespace laid out, so
+   the wrapped lines line up under it the way the first line does. A
+   row of nothing but blanks keeps none, and the indent never takes
+   a line's last cell */
+int RowWrapIndentCells(const vted_row_t *row, int cols);
+
 /* word movement: a word is a run of characters of one class (see
    Utf8CharClass), so "foo_bar" is one word and "->" is another.
    RowWordRight gives the byte index of the start of the next word,

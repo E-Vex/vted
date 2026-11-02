@@ -848,6 +848,42 @@ static void TestWrapWalkersKeepAnIndent(void)
 }
 
 
+static void TestWrapIndentCells(void)
+{
+    /* the indent a row's continuation keeps: its own leading
+       whitespace laid out in cells, so the wrapped lines line up
+       under the first one's text */
+    vted_row_t row;
+
+    row = MakeRow("  hi");
+    CHECK_INT(RowWrapIndentCells(&row, 4), 2);
+
+    row = MakeRow("hi");
+    CHECK_INT(RowWrapIndentCells(&row, 4), 0);
+
+    row = MakeRow("");
+    CHECK_INT(RowWrapIndentCells(&row, 4), 0);
+
+    /* a row of nothing but blanks keeps none either */
+    row = MakeRow("    ");
+    CHECK_INT(RowWrapIndentCells(&row, 4), 0);
+
+    /* a tab is laid out to the stop it reaches */
+    RowSetTabWidth(8);
+    row = MakeRow("\tcode");
+    CHECK_INT(RowWrapIndentCells(&row, 12), 8);
+    CHECK_INT(RowWrapIndentCells(&row, 6), 5);
+    RowSetTabWidth(VTED_TAB_STOP);
+
+    /* the indent never takes a line's last cell */
+    row = MakeRow("      hi");
+    CHECK_INT(RowWrapIndentCells(&row, 4), 3);
+
+    /* a width of nothing is treated as one cell */
+    row = MakeRow("hi");
+    CHECK_INT(RowWrapIndentCells(&row, 0), 0);
+}
+
 static void TestWrapRunStart(void)
 {
     /* a run of non-blank glyphs that does not fit the rest of its
@@ -1142,6 +1178,7 @@ int main(void)
     TestWrapCursorPosition();
     TestWrappedToCx();
     TestWrapWalkersKeepAnIndent();
+    TestWrapIndentCells();
     TestWrapRunStart();
     TestWrapRunStartKeepsAnIndent();
     TestWrapAdvanceKeepsAnIndent();
