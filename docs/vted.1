@@ -103,6 +103,14 @@ the way H, M and L work in vi; the cursor lands on the start of that
 line, a wrapped layout is walked line by line, and a jump past the end
 of the text lands on its last line
 .TP
+.B Alt\-e / Alt\-y
+scroll the viewport one screen line down / up, the way Ctrl\-E and
+Ctrl\-Y do in vi (the Ctrl spellings close the buffer and redo here);
+the cursor keeps its place in the text and only comes along when the
+scroll would leave it off screen, and the scroll stops at the first
+line of the text and where the last line, with the phantom row past
+the end, reaches the bottom of the viewport
+.TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
 the current one

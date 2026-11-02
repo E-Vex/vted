@@ -182,6 +182,9 @@ Ctrl-L set while editing.
   lines when wrapping is on                       |
 | Alt-h / Alt-m / Alt-l | jump to the top, middle or bottom screen
   line of the viewport (H, M and L in vi)         |
+| Alt-e / Alt-y   | scroll the viewport one screen line down / up,
+  the way Ctrl-E and Ctrl-Y do in vi (those close
+  the buffer and redo here)                       |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -254,6 +257,13 @@ does, and closing the last buffer starts a fresh empty one.
   line by line, so a viewport that starts inside a tall row counts from
   the line it starts on, and a jump past the end of the text lands on
   its last line
+- Viewport scrolling with Alt-e and Alt-y, the letters vi spells
+  Ctrl-E and Ctrl-Y (which close a buffer and redo here): the viewport
+  moves one screen line at a time over the wrapped layout while the
+  cursor keeps its place in the text, coming along only when the scroll
+  would leave it off screen, and stopping at the first line of the text
+  and where the last line, with the phantom row past the end, reaches
+  the bottom of the viewport
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
   or down with Ctrl-Up/Down
