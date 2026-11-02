@@ -237,6 +237,14 @@ int RefreshWindowSize(void)
     return 1;
 }
 
+/* the cells every wrapped line after the first of a row keeps blank
+   at its start: the row's own leading whitespace laid out, the one
+   the renderer draws and the cursor math aims for */
+static int WrapIndentOf(const vted_row_t *row, int cols)
+{
+    return RowWrapIndentCells(row, cols);
+}
+
 /* how many screen lines the buffer row takes: one, or as many as it
    wraps into at the text width */
 static int RowLines(int buffer_row)
@@ -246,7 +254,9 @@ static int RowLines(int buffer_row)
         return 1;
     }
 
-    return RowWrapCount(&vted_buffer.rows[buffer_row], vted_editor_config.text_cols, 0);
+    return RowWrapCount(&vted_buffer.rows[buffer_row], vted_editor_config.text_cols,
+                        WrapIndentOf(&vted_buffer.rows[buffer_row],
+                                     vted_editor_config.text_cols));
 }
 
 void UpdateScroll(void)
@@ -285,7 +295,9 @@ void UpdateScroll(void)
 
             RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
                            vted_editor_config.cursor_x,
-                           vted_editor_config.text_cols, 0,
+                           vted_editor_config.text_cols,
+                           WrapIndentOf(&vted_buffer.rows[vted_editor_config.cursor_y],
+                                        vted_editor_config.text_cols),
                            &cursor_line, &cursor_col);
 
             if (cursor_line >= lines)
@@ -412,7 +424,10 @@ static int CursorLineInRow(void)
 
         RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
                        vted_editor_config.cursor_x,
-                       vted_editor_config.text_cols, 0, &line, &col);
+                       vted_editor_config.text_cols,
+                       WrapIndentOf(&vted_buffer.rows[vted_editor_config.cursor_y],
+                                    vted_editor_config.text_cols),
+                       &line, &col);
 
         if (line >= lines)
         {
