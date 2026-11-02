@@ -172,6 +172,71 @@ static void TestHomeAndEndOnAnEmptyRow(void)
     CHECK_INT(vted_editor_config.cursor_x, 0);
 }
 
+static void TestHomeAndEndOnWordWrappedLines(void)
+{
+    /* "aaaa b cc" over lines of 4 cells: line 1 holds " b " and a
+       cell of padding, line 2 "cc". The lines end where the words
+       moved from, so their ends sit on the wrapped layout and not in
+       the middle of the row's cell stream */
+    BeginWrapped("aaaa b cc", 4);
+
+    /* Home on the second line: its first byte is the blank */
+    CursorAt(0, 5); /* b, on the second line */
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    /* End of the first line: the first byte of the second one */
+    CursorAt(0, 0);
+    MoveCursor(EndKey);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    /* End of the second line: the first byte of the third */
+    CursorAt(0, 5);
+    MoveCursor(EndKey);
+    CHECK_INT(vted_editor_config.cursor_x, 7);
+
+    /* End of the last line: the end of the row */
+    CursorAt(0, 7);
+    MoveCursor(EndKey);
+    CHECK_INT(vted_editor_config.cursor_x, 9);
+
+    /* Home from the third line: its first byte */
+    CursorAt(0, 8); /* the second c */
+    MoveCursor(HomeKey);
+    CHECK_INT(vted_editor_config.cursor_x, 7);
+}
+
+static void TestViewportJumpsOnWordWrappedLines(void)
+{
+    /* "ab cd ab cd ab cd" over lines of 4 cells: one word per screen
+       line, word k starting at byte 3k. The viewport enters the row
+       on its second line */
+    FreeBuffer();
+    InitBuffer();
+    AppendRow("ab cd ab cd ab cd", 17, VTED_EOL_LF);
+
+    vted_editor_config.screen_rows = 4;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.wrap = 1;
+    vted_editor_config.preferred_rx = -1;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 1;
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
+
+    /* the top: the row's second line, the first "cd" */
+    MoveCursor(ViewportTop);
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    /* the middle of 4 is 2: the viewport's third line, the second "cd" */
+    MoveCursor(ViewportMiddle);
+    CHECK_INT(vted_editor_config.cursor_x, 9);
+
+    /* the bottom: the viewport's fourth line, the third "ab" */
+    MoveCursor(ViewportBottom);
+    CHECK_INT(vted_editor_config.cursor_x, 12);
+}
+
 /* one row of the given cells, wrapping over lines of 4: cells/4
    screen lines */
 static void BeginTallRow(int cells)
@@ -768,6 +833,7 @@ int main(void)
     TestEndBeforeATabThatCrossesTheEdge();
     TestShiftHomeAndEndMoveTheSameWay();
     TestHomeAndEndOnAnEmptyRow();
+    TestHomeAndEndOnWordWrappedLines();
     TestDeepCursorScrollsIntoATallRow();
     TestCursorOnTheTopLinesOfATallRow();
     TestPastTheEndScrollsToTheLastLine();
@@ -788,6 +854,7 @@ int main(void)
     TestViewportJumpsMoveByRows();
     TestViewportJumpsOnAnEmptyBuffer();
     TestViewportJumpsPastAStaleOffset();
+    TestViewportJumpsOnWordWrappedLines();
 
     return TestSummary("screen");
 }

@@ -1558,8 +1558,9 @@ static void JumpToViewportLine(int key)
                    it, the byte at its first cell */
                 vted_editor_config.cursor_y = row;
                 vted_editor_config.cursor_x =
-                    RowRxToCx(&vted_buffer.rows[row],
-                              (line + remaining) * vted_editor_config.text_cols);
+                    RowWrappedToCx(&vted_buffer.rows[row],
+                                   line + remaining, 0,
+                                   vted_editor_config.text_cols);
                 return;
             }
 
@@ -1572,8 +1573,9 @@ static void JumpToViewportLine(int key)
                    of the last row */
                 vted_editor_config.cursor_y = row - 1;
                 vted_editor_config.cursor_x =
-                    RowRxToCx(&vted_buffer.rows[row - 1],
-                              (RowLines(row - 1) - 1) * vted_editor_config.text_cols);
+                    RowWrappedToCx(&vted_buffer.rows[row - 1],
+                                   RowLines(row - 1) - 1, 0,
+                                   vted_editor_config.text_cols);
                 return;
             }
 
@@ -1774,7 +1776,7 @@ void MoveCursor(int key)
             }
 
             vted_editor_config.cursor_x =
-                RowRxToCx(row, line * vted_editor_config.text_cols);
+                RowWrappedToCx(row, line, 0, vted_editor_config.text_cols);
         }
         else
         {
@@ -1810,7 +1812,8 @@ void MoveCursor(int key)
                 if (line + 1 < lines)
                 {
                     vted_editor_config.cursor_x =
-                        RowRxToCx(row, (line + 1) * vted_editor_config.text_cols);
+                        RowWrappedToCx(row, line + 1, 0,
+                                       vted_editor_config.text_cols);
                 }
                 else
                 {
