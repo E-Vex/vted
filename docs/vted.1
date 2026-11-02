@@ -163,7 +163,11 @@ delete the whole line under the cursor; deleting the only line
 empties it
 .TP
 .B Ctrl\-D
-duplicate the line under the cursor and move onto the copy
+duplicate the line under the cursor and move onto the copy; a bracket
+under the cursor, or the one right behind it, widens the copy to the
+whole block that bracket and its partner enclose — the partner the
+highlight marks — with the cursor landing on the copy of its own row,
+each line keeping its ending and the whole block one undo step
 .TP
 .B Ctrl\-Up / Ctrl\-Down
 move the current line up or down; the cursor rides the line

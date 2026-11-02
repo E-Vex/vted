@@ -206,7 +206,9 @@ Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 | Backspace       | delete the character on the left, merge lines    |
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
-| Ctrl-D          | duplicate the line under the cursor              |
+| Ctrl-D          | duplicate the line under the cursor, or the whole
+  block it encloses when the cursor sits on a bracket (or right
+  behind one) whose partner the highlight marks |
 | Ctrl-Up/Down    | move the current line up or down                 |
 | Shift-Arrows    | start or extend a character selection            |
 | Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
@@ -303,7 +305,9 @@ New in 0.3.0:
   the bottom of the viewport
 - Insert and delete text, split lines with Enter, merge with Backspace
 - Delete the whole line with Ctrl-K, duplicate it with Ctrl-D, move it up
-  or down with Ctrl-Up/Down
+  or down with Ctrl-Up/Down; a bracket under the cursor duplicates the
+  whole block its partner closes, each line keeping its own ending, as
+  one undo step
 - Select text with Shift-Arrows; copy or cut the selection (or the current
   line) to the system clipboard with Ctrl-C / Ctrl-X via OSC 52
 - Search and replace every occurrence with Ctrl-R; each replacement is one
