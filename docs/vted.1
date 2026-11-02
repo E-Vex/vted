@@ -111,6 +111,11 @@ scroll would leave it off screen, and the scroll stops at the first
 line of the text and where the last line, with the phantom row past
 the end, reaches the bottom of the viewport
 .TP
+.B Alt\-t
+show or hide the tab characters: a shown tab carries a » on its
+first cell and a · on the rest, in the gray of a comment, and takes
+the same cells either way, so nothing else about the layout changes
+.TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
 the current one
@@ -272,14 +277,18 @@ and
 or
 .BR off ,
 and
+.B "set show-tabs on"
+or
+.BR off ,
+and
 .B "set wrap on"
 or
 .BR off .
 Blank lines and lines starting with # are skipped, and a later line
 wins over an earlier one. A line that cannot be used is reported in
 the message bar while the setting it would have set stays at its
-default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N and Ctrl\-L set
-while editing.
+default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N, Alt\-t and
+Ctrl\-L set while editing.
 .PP
 Line endings are kept as found: LF, CRLF, CR and mixed files save
 back unchanged, byte for byte, and a file without a trailing newline

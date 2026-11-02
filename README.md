@@ -162,13 +162,14 @@ Settings live in `$XDG_CONFIG_HOME/vted/vtedrc`
 set tab-width 4
 set insert-spaces on
 set line-numbers off
+set show-tabs on
 set wrap on
 ```
 
 Blank lines and `#` comments are skipped, a later line wins over an
 earlier one, and a line that cannot be used is reported in the
-message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N and
-Ctrl-L set while editing.
+message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N,
+Alt-t and Ctrl-L set while editing.
 
 ## Keys
 
@@ -185,6 +186,8 @@ Ctrl-L set while editing.
 | Alt-e / Alt-y   | scroll the viewport one screen line down / up,
   the way Ctrl-E and Ctrl-Y do in vi (those close
   the buffer and redo here)                       |
+| Alt-t           | show or hide the tab characters: a shown tab
+  carries a » and a trail of ·, in the gray of a comment |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -283,7 +286,9 @@ does, and closing the last buffer starts a fresh empty one.
 - Tabs expand to configurable tab stops (8 cells by default; Ctrl-W sets
   the width, and each buffer keeps its own; Ctrl-T toggles Tab between
   spaces up to the next stop and a
-  real tab character); control characters show as `^X` and invalid bytes
+  real tab character); Alt-t shows the tabs where they sit, a » and a
+  trail of · in the gray of a comment taking the same cells either way;
+  control characters show as `^X` and invalid bytes
   as `�`, so nothing odd ever reaches your terminal
 - The cursor keeps its display column across short lines when moving
   up and down

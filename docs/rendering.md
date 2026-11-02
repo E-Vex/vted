@@ -189,7 +189,11 @@ cells are tracked separately:
 
 - A tab is blank space up to the next multiple of `tab_width`
   (`VTED_TAB_STOP`, 8 by default). Its width depends on the cell where
-  it starts: `tab_width - (cell % tab_width)`.
+  it starts: `tab_width - (cell % tab_width)`. When the tabs are asked
+  to be shown (`show_tabs`, Alt-t, `set show-tabs on`), the blank cells
+  carry a `»` on the tab's first cell and a `·` on the rest, drawn with
+  the `HlTab` class — the gray of a comment. The cells a tab takes do
+  not change either way, so no measurement of the row does either.
 - A control character (byte `< 0x20` except tab, or byte `0x7F`) takes
   two cells and is drawn as `^X` in inverted video; DEL is `^?`. It can
   therefore never reach the terminal as a raw control code.
