@@ -23,8 +23,14 @@ typedef struct
 
 /* reads the len bytes at text as a color: "#rrggbb" or "#rgb" in
    hexadecimal, either case, or a name: black, red, green, yellow,
-   blue, magenta, cyan, white, gray (or grey) and orange. Returns 0 and fills color, or -1 when the
+   blue, magenta, cyan, white, gray (or grey) and orange, or a number
+   from 0 to 255 naming a color of the xterm 256-color palette. Returns 0 and fills color, or -1 when the
    text is not a color, leaving color alone */
 int ColorParse(const char *text, size_t len, vted_rgb_t *color);
+
+/* the RGB of a color of the xterm 256-color palette: 0 to 15 are the
+   terminal's own colors in their usual shades, 16 to 231 a 6x6x6 cube
+   and 232 to 255 a ramp of grays. An index out of range is clamped */
+vted_rgb_t ColorFromPalette(int index);
 
 #endif

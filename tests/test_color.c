@@ -111,10 +111,62 @@ static void TestNames(void)
     CHECK_INT(color.red, 204);
 }
 
+static int Same(vted_rgb_t color, int red, int green, int blue)
+{
+    return color.red == red && color.green == green && color.blue == blue;
+}
+
+static void TestPalette(void)
+{
+    vted_rgb_t color = {1, 2, 3};
+
+    /* the palette as xterm lays it out: its own sixteen, a cube, grays */
+    CHECK(Same(ColorFromPalette(0), 0, 0, 0));
+    CHECK(Same(ColorFromPalette(1), 205, 0, 0));
+    CHECK(Same(ColorFromPalette(15), 255, 255, 255));
+
+    CHECK(Same(ColorFromPalette(16), 0, 0, 0));
+    CHECK(Same(ColorFromPalette(17), 0, 0, 95));
+    CHECK(Same(ColorFromPalette(21), 0, 0, 255));
+    CHECK(Same(ColorFromPalette(46), 0, 255, 0));
+    CHECK(Same(ColorFromPalette(196), 255, 0, 0));
+    CHECK(Same(ColorFromPalette(208), 255, 135, 0));
+    CHECK(Same(ColorFromPalette(231), 255, 255, 255));
+
+    CHECK(Same(ColorFromPalette(232), 8, 8, 8));
+    CHECK(Same(ColorFromPalette(245), 138, 138, 138));
+    CHECK(Same(ColorFromPalette(255), 238, 238, 238));
+
+    /* an index out of range is the nearest end of the palette */
+    CHECK(Same(ColorFromPalette(-5), 0, 0, 0));
+    CHECK(Same(ColorFromPalette(999), 238, 238, 238));
+
+    /* a number in a file names a palette color */
+    CHECK_INT(Parse("208", &color), 0);
+    CHECK(Same(color, 255, 135, 0));
+    CHECK_INT(Parse("0", &color), 0);
+    CHECK(Same(color, 0, 0, 0));
+    CHECK_INT(Parse("255", &color), 0);
+    CHECK(Same(color, 238, 238, 238));
+    CHECK_INT(Parse("007", &color), 0);
+    CHECK(Same(color, 229, 229, 229));
+
+    /* past the palette, signed, or not only digits: no color, and the
+       answer is left alone */
+    CHECK_INT(Parse("256", &color), -1);
+    CHECK_INT(Parse("1000", &color), -1);
+    CHECK_INT(Parse("-1", &color), -1);
+    CHECK_INT(Parse("+5", &color), -1);
+    CHECK_INT(Parse("12x", &color), -1);
+    CHECK_INT(Parse("1 2", &color), -1);
+    CHECK(Same(color, 229, 229, 229));
+}
+
 int main(void)
 {
     TestHex();
     TestNames();
+    TestPalette();
 
     return TestSummary("color");
 }

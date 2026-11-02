@@ -64,6 +64,89 @@ static int ParseHex(const char *text, size_t len, vted_rgb_t *color)
     return 0;
 }
 
+/* the 16 colors every terminal has, in the shades xterm gives them;
+   a terminal may draw them otherwise, which is why a color a person
+   chose is only ever matched to the 256-color cube and its grays when
+   the terminal has them */
+static const vted_rgb_t standard_colors[16] = {
+    {0, 0, 0},       {205, 0, 0},     {0, 205, 0},     {205, 205, 0},
+    {0, 0, 238},     {205, 0, 205},   {0, 205, 205},   {229, 229, 229},
+    {127, 127, 127}, {255, 0, 0},     {0, 255, 0},     {255, 255, 0},
+    {92, 92, 255},   {255, 0, 255},   {0, 255, 255},   {255, 255, 255}
+};
+
+/* the level of one axis of the 6x6x6 cube: 0, then 95 up in steps of 40 */
+static unsigned char CubeLevel(int step)
+{
+    return (unsigned char)(step == 0 ? 0 : 55 + 40 * step);
+}
+
+vted_rgb_t ColorFromPalette(int index)
+{
+    vted_rgb_t color;
+
+    if (index < 0)
+    {
+        index = 0;
+    }
+
+    if (index > 255)
+    {
+        index = 255;
+    }
+
+    if (index < 16)
+    {
+        return standard_colors[index];
+    }
+
+    if (index < 232)
+    {
+        int cell = index - 16;
+
+        color.red = CubeLevel(cell / 36);
+        color.green = CubeLevel((cell / 6) % 6);
+        color.blue = CubeLevel(cell % 6);
+        return color;
+    }
+
+    /* the grays start at 8 and climb by 10, never reaching black or white */
+    color.red = (unsigned char)(8 + 10 * (index - 232));
+    color.green = color.red;
+    color.blue = color.red;
+    return color;
+}
+
+/* reads a decimal number of up to three digits as a palette index */
+static int ParsePalette(const char *text, size_t len, vted_rgb_t *color)
+{
+    int index = 0;
+    size_t i;
+
+    if (len == 0 || len > 3)
+    {
+        return -1;
+    }
+
+    for (i = 0; i < len; i++)
+    {
+        if (text[i] < '0' || text[i] > '9')
+        {
+            return -1;
+        }
+
+        index = index * 10 + (text[i] - '0');
+    }
+
+    if (index > 255)
+    {
+        return -1;
+    }
+
+    *color = ColorFromPalette(index);
+    return 0;
+}
+
 /* the names a color goes by: the words the bracket-color setting
    knows, and the black, white and orange a scheme cannot do without.
    Each is the RGB the syntax module already draws that name with */
@@ -107,6 +190,11 @@ int ColorParse(const char *text, size_t len, vted_rgb_t *color)
     if (len > 0 && text[0] == '#')
     {
         return ParseHex(text, len, color);
+    }
+
+    if (len > 0 && text[0] >= '0' && text[0] <= '9')
+    {
+        return ParsePalette(text, len, color);
     }
 
     return ParseName(text, len, color);
