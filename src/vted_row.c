@@ -1068,7 +1068,14 @@ static int BracketIndex(char c)
     return -1;
 }
 
-int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx)
+/* the bracket under the cursor (or the one right behind it) and its
+   partner, when both are there: the scan counts brackets of the same
+   pair, so nesting comes out right, and it reaches a megabyte before
+   a match counts as missing. Returns 0 without touching the outputs
+   when there is no bracket, or no partner for it */
+static int FindBracketPair(int cy, int cx,
+                           int *bracket_cy, int *bracket_cx,
+                           int *match_cy, int *match_cx)
 {
     if (cy < 0 || cy >= vted_buffer.num_rows)
     {
@@ -1103,6 +1110,9 @@ int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx)
     {
         return 0;
     }
+
+    *bracket_cy = cy;
+    *bracket_cx = at;
 
     char open = bracket_openers[pair];
     char close = bracket_closers[pair];
@@ -1149,6 +1159,44 @@ int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx)
     }
 
     return 0;
+}
+
+int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx)
+{
+    int bracket_cy;
+    int bracket_cx;
+
+    return FindBracketPair(cy, cx, &bracket_cy, &bracket_cx,
+                           match_cy, match_cx);
+}
+
+int BufferFindBracketBlock(int cy, int cx, int *first_row, int *last_row)
+{
+    /* whole rows, from the earlier of the bracket and its partner to
+       the later one, everything in between included */
+    int bracket_cy;
+    int bracket_cx;
+    int match_cy;
+    int match_cx;
+
+    if (!FindBracketPair(cy, cx, &bracket_cy, &bracket_cx,
+                         &match_cy, &match_cx))
+    {
+        return 0;
+    }
+
+    if (bracket_cy <= match_cy)
+    {
+        *first_row = bracket_cy;
+        *last_row = match_cy;
+    }
+    else
+    {
+        *first_row = match_cy;
+        *last_row = bracket_cy;
+    }
+
+    return 1;
 }
 
 void BufferCountMatches(const char *query, int query_len,

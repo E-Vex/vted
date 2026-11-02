@@ -507,6 +507,64 @@ static void TestBracketOutOfTheBuffer(void)
     CHECK_INT(MatchAt(0, 9, &y, &x), 0);
 }
 
+/* runs one block query and checks where its rows land */
+static int BlockAt(int cy, int cx, int *first, int *last)
+{
+    *first = -2;
+    *last = -2;
+    return BufferFindBracketBlock(cy, cx, first, last);
+}
+
+static void TestBracketBlockSpansItsRows(void)
+{
+    const char *const texts[] = {
+        "int main(void)",
+        "{",
+        "    body();",
+        "}",
+        "tail",
+        NULL
+    };
+    int first, last;
+
+    MakeBuffer(texts);
+    /* the cursor on the opener: the block is the opener's row through
+       the closer's, everything between them included */
+    CHECK_INT(BlockAt(1, 0, &first, &last), 1);
+    CHECK_INT(first, 1);
+    CHECK_INT(last, 3);
+
+    /* right past the closer: the bracket behind the cursor counts,
+       and the block is the same rows either way */
+    CHECK_INT(BlockAt(3, 1, &first, &last), 1);
+    CHECK_INT(first, 1);
+    CHECK_INT(last, 3);
+}
+
+static void TestBracketBlockOnOneRowIsThatRow(void)
+{
+    const char *const texts[] = {"f(a, b)", NULL};
+    int first, last;
+
+    MakeBuffer(texts);
+    CHECK_INT(BlockAt(0, 1, &first, &last), 1);
+    CHECK_INT(first, 0);
+    CHECK_INT(last, 0);
+}
+
+static void TestBracketBlockWithoutAMatch(void)
+{
+    const char *const texts[] = {"{", "body", NULL};
+    int first, last;
+
+    MakeBuffer(texts);
+    /* an opener with no closer encloses nothing */
+    CHECK_INT(BlockAt(0, 0, &first, &last), 0);
+
+    /* and neither does a cursor without a bracket */
+    CHECK_INT(BlockAt(1, 0, &first, &last), 0);
+}
+
 static void TestBracketScanStopsAtTheLimit(void)
 {
     /* a row far past the scan limit: the match at its end counts as
@@ -1286,6 +1344,9 @@ int main(void)
     TestBracketUnmatched();
     TestBracketWithoutABracket();
     TestBracketOutOfTheBuffer();
+    TestBracketBlockSpansItsRows();
+    TestBracketBlockOnOneRowIsThatRow();
+    TestBracketBlockWithoutAMatch();
     TestBracketScanStopsAtTheLimit();
     TestWrapCount();
     TestWrapBreaksAtWordBoundaries();

@@ -210,6 +210,13 @@ int RowFindPrev(const vted_row_t *row, int from, int to,
    the cursor is not on a bracket or no match is there to be found */
 int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
 
+/* the rows the bracket at row cy column cx (or the one right before
+   it) and its partner enclose: whole rows, from the earlier of the
+   two to the later one, everything in between included. Returns 1
+   with the span in *first_row and *last_row, 0 when the cursor is
+   not on a bracket or no match is there to be found */
+int BufferFindBracketBlock(int cy, int cx, int *first_row, int *last_row);
+
 /* counts the matches of query in the whole buffer, and how many of
    them start before (row, col): the place among them all of the
    match the cursor sits on. Matches are counted the way the search
