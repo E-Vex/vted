@@ -131,6 +131,14 @@ keep the indent on the wrapped lines, or take it back off: a row
 that flows over several screen lines starts each one after it at
 the cell column where its own first line's text starts
 .TP
+.B Alt\-g
+show or hide the indent guides: every tab stop a row's leading
+whitespace crosses carries a · in a quiet slate blue, so the
+levels of the nesting line up as dotted rails down the screen; the
+stops follow the tab width, the cells they sit in take the same
+either way, and a tab shown by Alt\-t keeps its own marker on the
+stop it starts
+.TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
 the current one
@@ -306,6 +314,12 @@ or
 (a row that wraps over several screen lines starts each one after
 the first at the cell column where the row's own text starts),
 and
+.B "set indent-guides on"
+or
+.BR off
+(a tab stop a row's leading whitespace crosses carries a ·, so
+the levels of the nesting line up as dotted rails down the screen),
+and
 .BI "set wrap-column " N
 (the text cells that fit before the column marker, 0 to 512, 0
 hides it).
@@ -313,7 +327,7 @@ Blank lines and lines starting with # are skipped, and a later line
 wins over an earlier one. A line that cannot be used is reported in
 the message bar while the setting it would have set stays at its
 default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N, Alt\-t,
-Ctrl\-L and Alt\-i set while editing.
+Ctrl\-L, Alt\-i and Alt\-g set while editing.
 .PP
 Line endings are kept as found: LF, CRLF, CR and mixed files save
 back unchanged, byte for byte, and a file without a trailing newline

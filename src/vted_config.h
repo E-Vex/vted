@@ -8,9 +8,9 @@
 | lines and '#' comments in between. The file lives         |
 | where the desktop conventions put it, and every           |
 | setting it names is also a key the editor takes at        |
-| runtime (Ctrl-W, Ctrl-T, Ctrl-N, Ctrl-L, Alt-t, Alt-i),   |
-| so the rc file is just the remembered answer to those     |
-| prompts.                                                  |
+| runtime (Ctrl-W, Ctrl-T, Ctrl-N, Ctrl-L, Alt-t, Alt-i,    |
+| Alt-g), so the rc file is just the remembered answer to   |
+| those prompts.                                            |
 ==========================================================*/
 
 #include <stdio.h>

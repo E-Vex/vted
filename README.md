@@ -166,12 +166,13 @@ set show-tabs on
 set wrap on
 set wrap-indent off
 set wrap-column 80
+set indent-guides on
 ```
 
 Blank lines and `#` comments are skipped, a later line wins over an
 earlier one, and a line that cannot be used is reported in the
 message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N,
-Alt-t, Ctrl-L and Alt-i set while editing.
+Alt-t, Ctrl-L, Alt-i and Alt-g set while editing.
 
 ## Keys
 
@@ -193,6 +194,9 @@ Alt-t, Ctrl-L and Alt-i set while editing.
 | Alt-i           | keep the indent on the wrapped lines: a row
   that flows over several screen lines continues under
   its own first line's text                     |
+| Alt-g           | dot the tab stops the indents cross: every
+  blank of a row's leading whitespace that sits on a
+  stop carries a ·, in a quiet slate blue         |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -295,6 +299,12 @@ does, and closing the last buffer starts a fresh empty one.
   trail of · in the gray of a comment taking the same cells either way;
   control characters show as `^X` and invalid bytes
   as `�`, so nothing odd ever reaches your terminal
+- Indent guides with Alt-g (`set indent-guides on`): every tab stop a
+  row's leading whitespace crosses carries a quiet ·, so the levels of
+  the nesting line up as dotted rails down the screen; the stops follow
+  the tab width (Ctrl-W), the cells they sit in take the same room
+  either way, and a tab shown by Alt-t keeps its own » on the stop it
+  starts
 - The cursor keeps its display column across short lines when moving
   up and down
 - Line numbers in a gutter, the current one in bold; Ctrl-N hides them and

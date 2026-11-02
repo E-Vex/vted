@@ -194,6 +194,16 @@ cells are tracked separately:
   carry a `»` on the tab's first cell and a `·` on the rest, drawn with
   the `HlTab` class — the gray of a comment. The cells a tab takes do
   not change either way, so no measurement of the row does either.
+- When the indent guides are on (`indent_guides`, Alt-g,
+  `set indent-guides on`), a blank of the row's leading whitespace
+  whose first cell sits on a tab stop is drawn as a `·` with the
+  `HlIndent` class — a slate blue a step darker than the tab gray —
+  so the stops an indent crosses line up as dotted rails down the
+  screen. A tab whose first cell is a stop keeps its `»` when the
+  tabs are shown and takes a dot on its first cell when they are
+  not; whitespace past the row's indent is left alone. The cells the
+  guides draw in do not change, so no measurement of the row does
+  either.
 - A control character (byte `< 0x20` except tab, or byte `0x7F`) takes
   two cells and is drawn as `^X` in inverted video; DEL is `^?`. It can
   therefore never reach the terminal as a raw control code.
