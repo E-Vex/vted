@@ -137,6 +137,7 @@ static void ApplySettings(const vted_settings_t *settings)
     vted_editor_config.wrap = settings->wrap;
     vted_editor_config.wrap_column = settings->wrap_column;
     vted_editor_config.wrap_indent = settings->wrap_indent;
+    vted_editor_config.indent_guides = settings->indent_guides;
 
     /* the width reaches every buffer open at startup, so they all
        begin with it; Ctrl-W later sets the live one's alone */
@@ -1174,6 +1175,17 @@ int main(int argc, char *argv[])
 
                 SetStatusMessage("Wrap indent %s",
                                  vted_editor_config.wrap_indent ? "on" : "off");
+            }
+            else if (c_in == IndentGuidesToggle)
+            {
+                /* Alt-g shows or hides the indent guides: every row
+                   with an indent repaints, the whole viewport is
+                   where they all live */
+                vted_editor_config.indent_guides = !vted_editor_config.indent_guides;
+                ScreenMarkAllDirty();
+
+                SetStatusMessage("Indent guides %s",
+                                 vted_editor_config.indent_guides ? "shown" : "hidden");
             }
             else if (c_in == MoveLineUp || c_in == MoveLineDown)
             {

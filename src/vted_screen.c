@@ -567,10 +567,13 @@ void ScreenCenterCursor(void)
 #define REPLACEMENT_CHARACTER "\xEF\xBF\xBD"
 
 static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int next,
-                        int cell, int width, int left, int right)
+                        int cell, int width, int left, int right, int indent_stop)
 {
     /* draws the character at byte index at, which occupies the cells
-       [cell, cell + width), clipped to the viewport cells [left, right) */
+       [cell, cell + width), clipped to the viewport cells [left, right).
+       indent_stop says the glyph is leading whitespace whose first
+       cell sits on a tab stop, so the indent guides mark it with a
+       dot instead of the blank it would otherwise draw */
     unsigned char byte = (unsigned char)row->chars[at];
     int code_point;
     int offset;
@@ -590,6 +593,12 @@ static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int 
                 {
                     AppendToBuffer(ab, offset == 0 ? "\xC2\xBB" : "\xC2\xB7",
                                    2); /* » and · */
+                }
+                else if (indent_stop && offset == 0)
+                {
+                    /* the tab starts on the stop the guides mark: a
+                       dot on its first cell, blanks on the rest */
+                    AppendToBuffer(ab, "\xC2\xB7", 2); /* · */
                 }
                 else
                 {
@@ -614,6 +623,18 @@ static void AppendGlyph(append_buffer_t *ab, const vted_row_t *row, int at, int 
             {
                 AppendToBuffer(ab, &caret[offset], 1);
             }
+        }
+        return;
+    }
+
+    if (indent_stop)
+    {
+        /* a space that sits on a tab stop the indent crosses is a
+           guide dot; the cell it takes does not change, so every
+           measurement of the row stays as it was */
+        if (cell >= left && cell + width <= right)
+        {
+            AppendToBuffer(ab, "\xC2\xB7", 2); /* · */
         }
         return;
     }
@@ -886,6 +907,12 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
     int indent = vted_editor_config.wrap != 0
                      ? WrapIndentOf(row, vted_editor_config.text_cols)
                      : 0;
+    /* the bytes of leading whitespace the indent guides dot the
+       stops of: nothing to mark when they are off, and a row
+       without an indent keeps none */
+    int indent_bytes = vted_editor_config.indent_guides
+                           ? RowIndentLength(row, row->size)
+                           : 0;
     int emitted = left; /* the next cell the stream of output reaches */
     int cell = 0;
     int at = 0;
@@ -997,8 +1024,9 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
 
         /* a glyph that stands out in inverted video keeps the color
            of its text under the inversion; a plain one inside a
-           match of the query gets the match background, and a tab
-           whose run is dotted in gets the tab gray */
+           match of the query gets the match background, a tab
+           whose run is dotted in gets the tab gray, and a blank
+           the indent guides mark gets their blue */
         glyph_class = classes[glyph_at];
 
         if (!want_inverted)
@@ -1011,6 +1039,14 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
             {
                 glyph_class = HlTab;
             }
+            else if (glyph_at < indent_bytes &&
+                     placed % vted_editor_config.tab_width == 0)
+            {
+                /* leading whitespace whose first cell sits on a tab
+                   stop the indent crosses: the guides dot it, the way
+                   a shown tab dots the cells of its run */
+                glyph_class = HlIndent;
+            }
         }
 
         if (want_inverted != inverted || glyph_class != style ||
@@ -1022,7 +1058,8 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
             AppendStyle(ab, style, inverted, is_marked);
         }
 
-        AppendGlyph(ab, row, glyph_at, next, placed, width, left, right);
+        AppendGlyph(ab, row, glyph_at, next, placed, width, left, right,
+                    glyph_class == HlIndent);
 
         if (placed <= emitted && placed + width > emitted)
         {
@@ -2481,7 +2518,8 @@ void InitVtedEditor(void)
     vted_editor_config.gutter_width = 0;
 
     /* the tab stop and whether Tab inserts spaces instead of a tab,
-       whether the tabs are drawn as dotted runs, whether long lines
+       whether the tabs are drawn as dotted runs, whether the indent
+       guides dot the stops the indents cross, whether long lines
        wrap over several screen lines, and the column the marker sits
        on, 0 for none */
     vted_editor_config.tab_width = VTED_TAB_STOP;
@@ -2490,6 +2528,7 @@ void InitVtedEditor(void)
     vted_editor_config.wrap = 0;
     vted_editor_config.wrap_column = 0;
     vted_editor_config.wrap_indent = 1;
+    vted_editor_config.indent_guides = 0;
     RowSetTabWidth(vted_editor_config.tab_width);
 
     /* no search match highlighted yet */
