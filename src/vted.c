@@ -24,6 +24,16 @@
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
 #define PROMPT_MAX 1024
 
+/* the answer the search prompts keep, so the next one opens with
+   it: Enter alone repeats the search as it stands */
+static char last_query[PROMPT_MAX + 1];
+
+/* keeps a copy of the answer for the next prompt to open with */
+static void RememberAnswer(char *slot, const char *answer)
+{
+    snprintf(slot, PROMPT_MAX + 1, "%s", answer);
+}
+
 static char *EditorPrompt(const char *label, const char *initial)
 {
     /* asks for one line of text in the message bar, opening with the
@@ -808,6 +818,37 @@ static void EditorFind(void)
 
     query[0] = '\0';
 
+    /* the search opens with the last query, so Enter alone keeps its
+       match and the arrows step through its matches without a single
+       keystroke; backspace takes it apart the way a typed one */
+    if (last_query[0] != '\0')
+    {
+        int seed_len = (int)strlen(last_query);
+
+        /* the query buffer holds 63 bytes the way typing fills it,
+           and never a cut inside a character */
+        if (seed_len > 63)
+        {
+            seed_len = 63;
+        }
+
+        while (seed_len > 0 &&
+               ((unsigned char)last_query[seed_len - 1] & 0xC0) == 0x80)
+        {
+            seed_len--;
+        }
+
+        memcpy(query, last_query, (size_t)seed_len);
+        query[seed_len] = '\0';
+        query_len = seed_len;
+
+        /* a remembered query searches at once, so its matches light
+           up the way they do while it is being typed */
+        ScreenSetSearchQuery(query, query_len);
+        last_match_row = SearchStep(query, query_len, direction,
+                                    last_match_row, saved_y, saved_x);
+    }
+
     while (1)
     {
         /* the prompt says where the match the cursor sits on stands
@@ -902,6 +943,13 @@ static void EditorFind(void)
            search started, so it refines the match in place */
         last_match_row = SearchStep(query, query_len, direction,
                                     last_match_row, saved_y, saved_x);
+    }
+
+    /* the query stays for the next prompt, whichever way this one
+       ended: a cancelled search is as worth repeating as a kept one */
+    if (query_len > 0)
+    {
+        RememberAnswer(last_query, query);
     }
 
     /* leaving the search clears the highlight */
