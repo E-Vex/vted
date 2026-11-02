@@ -243,6 +243,23 @@ does, and closing the last buffer starts a fresh empty one.
 
 ## Features
 
+New in 0.3.0:
+
+- Word wrapping: long lines break at word boundaries, the cursor and
+  Home/End/PageUp/PageDown walk the wrapped screen lines, and a vertical
+  move keeps its wrapped column; Alt-i wraps the continuation lines
+  under the row's own indent, and Alt-t marks the wrap column
+- Indent guides: Alt-g dots every stop the row's indent crosses,
+  following the nesting levels the row sits in rather than the tab stops
+- Smart Home: a press lands on the first non-blank character, a second
+  on the true start of the line
+- Search lights up every match while it searches and the prompt counts
+  them; Alt-e / Alt-y scroll the viewport, Alt-h / Alt-m / Alt-l jump
+  the cursor across it
+- Syntax for PHP, Java, C#, XML, SQL, YAML, TOML, INI, diffs,
+  Dockerfiles and dotenv files, and the names functions are defined by
+  color at their call sites
+
 - Several files in one session: every file named on the command line
   opens in a buffer of its own, Ctrl-O opens another from within the
   editor, and Alt-, / Alt-. or Alt-1 to Alt-9 move between them; Ctrl-B
