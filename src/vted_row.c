@@ -428,27 +428,32 @@ int RowRxToCx(const vted_row_t *row, int rx)
     return row->size;
 }
 
-/* advances one glyph through the row the way wrapping lays it out:
-   cols cells per screen line, with a glyph that would cross a line's
-   right edge moved onto the next line instead of being cut in half
-   (a tab, being blank space, may run to the edge and on past it).
-   The walk's byte index and cell are kept in *at and *cell and moved
-   past the glyph; the cell it was placed at is returned */
-static int WrapAdvance(const vted_row_t *row, int cols, int *at, int *cell)
+/* advances one glyph through the row as the wrapped layout places
+   it: cols cells per screen line, with a glyph that would cross a
+   line's right edge moved onto the next line instead of being cut in
+   half (a tab, being blank space, may run to the edge and on past
+   it). With wrap 0 the row lays out on one endless line instead,
+   which is what a viewport that scrolls sideways shows. The walk's
+   byte index and cell are kept in *at and *cell and moved past the
+   glyph; the cell the glyph was placed at is returned */
+int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell)
 {
     int width = RowCharWidth(row, *at, *cell);
     int placed;
 
-    if (cols < 1)
+    if (wrap)
     {
-        cols = 1;
-    }
+        if (cols < 1)
+        {
+            cols = 1;
+        }
 
-    if (row->chars[*at] != '\t' && *cell + width > (*cell / cols + 1) * cols)
-    {
-        /* the glyph would cross the right edge of its line: the
-           next line is where it starts */
-        *cell = (*cell / cols + 1) * cols;
+        if (row->chars[*at] != '\t' && *cell + width > (*cell / cols + 1) * cols)
+        {
+            /* the glyph would cross the right edge of its line: the
+               next line is where it starts */
+            *cell = (*cell / cols + 1) * cols;
+        }
     }
 
     placed = *cell;
@@ -479,7 +484,7 @@ static void WrapWalk(const vted_row_t *row, int cols, int cx,
     while (at < row->size)
     {
         int glyph_at = at;
-        int placed = WrapAdvance(row, cols, &at, &cell);
+        int placed = RowWrapAdvance(row, 1, cols, &at, &cell);
         int line = placed / cols;
 
         if (line + 1 > lines)

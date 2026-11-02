@@ -788,40 +788,31 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
 
     while (at < row->size && cell < right)
     {
-        unsigned char byte = (unsigned char)row->chars[at];
         int next = Utf8NextBoundary(row->chars, row->size, at);
-        int width = RowCharWidth(row, at, cell);
-        int line_end;
-
-        /* a wrapped line is never cut in half: a glyph that would
-           cross its line's right edge starts the next one instead,
-           the same move WrapWalk makes, so every line of the row lays
-           the glyphs out the same way. A tab may cross the edge,
-           being blank space */
-        line_end = (cell / vted_editor_config.text_cols + 1) * vted_editor_config.text_cols;
-
-        if (vted_editor_config.wrap != 0 && byte != '\t' && cell + width > line_end)
-        {
-            cell = line_end;
-        }
+        int glyph_at = at;
+        /* the shared wrap walk places the glyph and moves past it in
+           one step, so the cells it lays out are the same ones every
+           other part of the editor measures; the cells between the
+           placement and where the walk ended up tell its width */
+        int placed = RowWrapAdvance(row, vted_editor_config.wrap,
+                                    vted_editor_config.text_cols, &at, &cell);
+        int width = cell - placed;
+        unsigned char byte = (unsigned char)row->chars[glyph_at];
 
         int is_control = (byte < 0x20 && byte != '\t') || byte == 0x7F;
-        int in_match = has_match && at >= vted_editor_config.match_col && at < match_end;
-        int in_bracket = buffer_row == bracket_row && at == bracket_col;
+        int in_match = has_match && glyph_at >= vted_editor_config.match_col && glyph_at < match_end;
+        int in_bracket = buffer_row == bracket_row && glyph_at == bracket_col;
         int want_inverted = is_control || in_match || in_bracket ||
-                            (sel_start >= 0 && at >= sel_start && at < sel_end);
+                            (sel_start >= 0 && glyph_at >= sel_start && glyph_at < sel_end);
 
-        if (want_inverted != inverted || classes[at] != style)
+        if (want_inverted != inverted || classes[glyph_at] != style)
         {
-            style = classes[at];
+            style = classes[glyph_at];
             inverted = want_inverted;
             AppendStyle(ab, style, inverted);
         }
 
-        AppendGlyph(ab, row, at, next, cell, width, left, right);
-
-        cell += width;
-        at = next;
+        AppendGlyph(ab, row, glyph_at, next, placed, width, left, right);
     }
 
     if (inverted || style != HlNormal)

@@ -108,6 +108,18 @@ int RowRxToCx(const vted_row_t *row, int rx);
    run to the edge and on past it, because it is blank space */
 int RowWrapCount(const vted_row_t *row, int cols);
 
+/* advances one glyph through the row as the wrapped layout places
+   it: cols cells per screen line, with a glyph that would cross a
+   line's right edge moved onto the next line instead of being cut in
+   half (a tab, being blank space, may run to the edge and on past
+   it). With wrap 0 the row lays out on one endless line instead,
+   which is what a viewport that scrolls sideways shows. The walk's
+   byte index and cell are kept in *at and *cell and moved past the
+   glyph; the cell the glyph was placed at is returned, so renderer
+   and cursor math can walk a row one glyph at a time and always
+   agree on the layout */
+int RowWrapAdvance(const vted_row_t *row, int wrap, int cols, int *at, int *cell);
+
 /* the cell a run of non-blank glyphs that starts at byte index at is
    placed at when it begins at start_cell on lines of cols cells: a
    run that does not fit the rest of its line moves down to the next
