@@ -17,6 +17,7 @@ vted_settings_t SettingsDefaults(void)
     settings.show_tabs = 0;
     settings.wrap = 0;
     settings.wrap_column = 0;
+    settings.wrap_indent = 1;
 
     return settings;
 }
@@ -215,6 +216,19 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->wrap = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "wrap-indent"))
+        {
+            int on_off = ParseOnOff(value, value_len);
+
+            if (on_off == -1)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->wrap_indent = on_off;
             }
         }
         else

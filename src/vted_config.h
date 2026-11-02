@@ -8,8 +8,9 @@
 | lines and '#' comments in between. The file lives         |
 | where the desktop conventions put it, and every           |
 | setting it names is also a key the editor takes at        |
-| runtime (Ctrl-W, Ctrl-T, Ctrl-N), so the rc file is       |
-| just the remembered answer to those prompts.              |
+| runtime (Ctrl-W, Ctrl-T, Ctrl-N, Ctrl-L, Alt-t, Alt-i),   |
+| so the rc file is just the remembered answer to those     |
+| prompts.                                                  |
 ==========================================================*/
 
 #include <stdio.h>
@@ -23,6 +24,8 @@ typedef struct
     int wrap;              /* 1: long lines flow over several screen lines */
     int wrap_column;       /* text cells that fit before the column marker,
                               0 to hide it */
+    int wrap_indent;       /* 1: the lines a row wraps onto keep the row's
+                              own indent at their start */
 } vted_settings_t;
 
 /* the settings the editor starts from: the built-in defaults */

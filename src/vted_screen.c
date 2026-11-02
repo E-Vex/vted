@@ -239,9 +239,15 @@ int RefreshWindowSize(void)
 
 /* the cells every wrapped line after the first of a row keeps blank
    at its start: the row's own leading whitespace laid out, the one
-   the renderer draws and the cursor math aims for */
+   the renderer draws and the cursor math aims for, while the
+   wrap-indent setting asks for them */
 static int WrapIndentOf(const vted_row_t *row, int cols)
 {
+    if (vted_editor_config.wrap_indent == 0)
+    {
+        return 0;
+    }
+
     return RowWrapIndentCells(row, cols);
 }
 
@@ -878,7 +884,7 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
        walk places every glyph past the padding, and the padding
        itself stays blank */
     int indent = vted_editor_config.wrap != 0
-                     ? RowWrapIndentCells(row, vted_editor_config.text_cols)
+                     ? WrapIndentOf(row, vted_editor_config.text_cols)
                      : 0;
     int emitted = left; /* the next cell the stream of output reaches */
     int cell = 0;
@@ -2483,6 +2489,7 @@ void InitVtedEditor(void)
     vted_editor_config.show_tabs = 0;
     vted_editor_config.wrap = 0;
     vted_editor_config.wrap_column = 0;
+    vted_editor_config.wrap_indent = 1;
     RowSetTabWidth(vted_editor_config.tab_width);
 
     /* no search match highlighted yet */

@@ -39,6 +39,7 @@ static void TestDefaults(void)
     CHECK_INT(settings.show_line_numbers, 1);
     CHECK_INT(settings.show_tabs, 0);
     CHECK_INT(settings.wrap, 0);
+    CHECK_INT(settings.wrap_indent, 1);
 }
 
 static void TestTabWidth(void)
@@ -146,6 +147,23 @@ static void TestWrapColumn(void)
     CHECK_INT(settings.wrap_column, 0);
 }
 
+static void TestWrapIndent(void)
+{
+    vted_settings_t settings;
+
+    /* the continuation lines keep the row's indent unless asked not
+       to */
+    CHECK_INT(LoadLines("set wrap-indent off\n", &settings), 0);
+    CHECK_INT(settings.wrap_indent, 0);
+
+    CHECK_INT(LoadLines("set wrap-indent on\n", &settings), 0);
+    CHECK_INT(settings.wrap_indent, 1);
+
+    /* anything else is not a setting */
+    CHECK_INT(LoadLines("set wrap-indent maybe\n", &settings), 1);
+    CHECK_INT(settings.wrap_indent, 1);
+}
+
 static void TestCommentsAndBlankLines(void)
 {
     vted_settings_t settings;
@@ -242,6 +260,7 @@ int main(void)
     TestWrap();
     TestShowTabs();
     TestWrapColumn();
+    TestWrapIndent();
     TestCommentsAndBlankLines();
     TestUnknownKeyIsCountedBad();
     TestALaterLineWins();
