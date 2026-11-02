@@ -5,7 +5,7 @@
 # module gives us exactly the terminal we need.
 #
 #   python3 packaging/smoke-test.py ./vted
-#   python3 packaging/smoke-test.py dist/vted_0.3.0_amd64.deb-extracted
+#   python3 packaging/smoke-test.py dist/vted_0.3.1_amd64.deb-extracted
 import os
 import pty
 import select
