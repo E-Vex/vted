@@ -857,6 +857,14 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
        when it is hidden; it is drawn on top of whatever glyph covers
        it, and over the blank tail of the line when none does */
     int marker = vted_editor_config.wrap_column;
+    /* the cells every wrapped line after the first keeps blank at
+       its start: the row's own leading whitespace laid out, so the
+       continuation lines line up under the first one's text. The
+       walk places every glyph past the padding, and the padding
+       itself stays blank */
+    int indent = vted_editor_config.wrap != 0
+                     ? RowWrapIndentCells(row, vted_editor_config.text_cols)
+                     : 0;
     int emitted = left; /* the next cell the stream of output reaches */
     int cell = 0;
     int at = 0;
@@ -909,7 +917,7 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
            other part of the editor measures; the cells between the
            placement and where the walk ended up tell its width */
         int placed = RowWrapAdvance(row, vted_editor_config.wrap,
-                                    vted_editor_config.text_cols, 0,
+                                    vted_editor_config.text_cols, indent,
                                     &at, &cell, &in_run);
         int width = cell - placed;
         unsigned char byte = (unsigned char)row->chars[glyph_at];
