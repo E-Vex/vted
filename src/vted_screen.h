@@ -81,6 +81,13 @@ void ScreenSetSelection(int top, int left, int bottom, int right);
    clears it */
 void ScreenSetBracketMatch(int row, int col);
 
+/* hands the text the editor core is searching for over: every match
+   of it on screen is drawn with a background of its own, the one the
+   cursor sits on inverted as before. The text is borrowed, not
+   copied, and has to stay valid until the next call; NULL, or an
+   empty one, turns the highlighting off */
+void ScreenSetSearchQuery(const char *query, int len);
+
 /* shows a menu of lines over the bottom of the viewport: the line at
    the selected index is drawn inverted, and lines beyond what fits
    are the last ones. The lines are borrowed, not copied, and have to

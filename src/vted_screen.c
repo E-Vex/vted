@@ -649,6 +649,78 @@ static const unsigned char *ClassesOfRow(int buffer_row, int size)
     return highlight_classes;
 }
 
+/* the text being searched for, borrowed from the editor core while
+   the search runs: every match of it is drawn with the HlMatch
+   background, the one the cursor sits on inverted as before */
+static const char *search_query;
+static int search_query_len;
+
+/* the byte the matches of the query start at in the row being drawn,
+   in order, kept between frames so that drawing does not allocate */
+static int *query_match_starts;
+static int query_match_capacity;
+
+void ScreenSetSearchQuery(const char *query, int len)
+{
+    /* rows that carried matches of the old query repaint without
+       them and rows with matches of the new one with them; marking
+       everything is simpler than tracking which rows match, and the
+       viewport is what gets painted anyway */
+    if (search_query != NULL || query != NULL)
+    {
+        ScreenMarkAllDirty();
+    }
+
+    if (len <= 0)
+    {
+        query = NULL; /* an empty query matches nothing */
+    }
+
+    search_query = query;
+    search_query_len = query != NULL ? len : 0;
+}
+
+/* collects where the search query matches in the row, in order:
+   matches may overlap the way the search steps through them, and
+   there can be no more of them than the row has bytes. Returns NULL
+   when there are none */
+static const int *QueryMatchesOfRow(const vted_row_t *row, int *count)
+{
+    int found = 0;
+    int at = 0;
+
+    if (row->size > query_match_capacity)
+    {
+        int *grown = realloc(query_match_starts,
+                             (size_t)row->size * sizeof(int));
+
+        if (grown == NULL)
+        {
+            KillApp("realloc");
+        }
+
+        query_match_starts = grown;
+        query_match_capacity = row->size;
+    }
+
+    while (found < row->size)
+    {
+        at = RowFindNext(row, at, row->size, search_query,
+                         search_query_len);
+
+        if (at < 0)
+        {
+            break;
+        }
+
+        query_match_starts[found++] = at;
+        at++; /* the next match may share bytes with this one */
+    }
+
+    *count = found;
+    return found > 0 ? query_match_starts : NULL;
+}
+
 static void AppendStyle(append_buffer_t *ab, int hl_class, int inverted)
 {
     /* every change starts from plain text, so no attribute of the
@@ -750,10 +822,15 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
 {
     /* one pass over the row: every character is laid out in terminal
        cells, then clipped to the cells [left, right). Syntax colors
-       come from the highlight classes; control characters and the
-       active search match are drawn in inverted video */
+       come from the highlight classes; control characters, the
+       selection, the bracket match and the active search match are
+       drawn in inverted video, the other matches of the search query
+       with a background of their own */
     const unsigned char *classes = ClassesOfRow(buffer_row, row->size);
     int match_end = vted_editor_config.match_col + vted_editor_config.match_len;
+    const int *query_matches = NULL;
+    int query_match_count = 0;
+    int next_query_match = 0;
     int cell = 0;
     int at = 0;
     int in_run = 0;
@@ -761,6 +838,14 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
     int style = HlNormal;
     int sel_start = -1;
     int sel_end = -1;
+
+    /* the matches of the search query in this row, when a search is
+       on: they are walked along with the glyphs, which are in order
+       too, so each match is only looked at once */
+    if (search_query != NULL)
+    {
+        query_matches = QueryMatchesOfRow(row, &query_match_count);
+    }
 
     /* which bytes of this row fall inside the selection */
     if (sel_active && buffer_row >= sel_y0 && buffer_row <= sel_y1)
@@ -803,12 +888,35 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
         int is_control = (byte < 0x20 && byte != '\t') || byte == 0x7F;
         int in_match = has_match && glyph_at >= vted_editor_config.match_col && glyph_at < match_end;
         int in_bracket = buffer_row == bracket_row && glyph_at == bracket_col;
+        int in_query_match = 0;
         int want_inverted = is_control || in_match || in_bracket ||
                             (sel_start >= 0 && glyph_at >= sel_start && glyph_at < sel_end);
+        int glyph_class;
 
-        if (want_inverted != inverted || classes[glyph_at] != style)
+        if (query_match_count > 0)
         {
-            style = classes[glyph_at];
+            /* skip the matches that end before this glyph; the first
+               one left, when it starts at or before the glyph, holds
+               it */
+            while (next_query_match < query_match_count &&
+                   query_matches[next_query_match] + search_query_len <= glyph_at)
+            {
+                next_query_match++;
+            }
+
+            in_query_match = next_query_match < query_match_count &&
+                             query_matches[next_query_match] <= glyph_at;
+        }
+
+        /* a glyph that stands out in inverted video keeps the color
+           of its text under the inversion; a plain one inside a
+           match of the query gets the match background */
+        glyph_class = in_query_match && !want_inverted ? HlMatch
+                                                       : classes[glyph_at];
+
+        if (want_inverted != inverted || glyph_class != style)
+        {
+            style = glyph_class;
             inverted = want_inverted;
             AppendStyle(ab, style, inverted);
         }
@@ -1993,6 +2101,10 @@ void ScreenFree(void)
     highlight_classes = NULL;
     highlight_capacity = 0;
 
+    free(query_match_starts);
+    query_match_starts = NULL;
+    query_match_capacity = 0;
+
     free(dirty_rows);
     dirty_rows = NULL;
     dirty_rows_capacity = 0;
@@ -2007,6 +2119,10 @@ void ScreenFree(void)
     menu_lines = NULL;
     menu_count = 0;
     menu_selected = 0;
+
+    /* and so does the search query */
+    search_query = NULL;
+    search_query_len = 0;
 }
 
 void RefreshScreen(void)
@@ -2205,6 +2321,10 @@ void InitVtedEditor(void)
     vted_editor_config.match_row = -1;
     vted_editor_config.match_col = 0;
     vted_editor_config.match_len = 0;
+
+    /* and no query for the search highlight either */
+    search_query = NULL;
+    search_query_len = 0;
 
     /* and no matching bracket until the cursor lands on one */
     bracket_row = -1;

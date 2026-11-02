@@ -686,6 +686,7 @@ static void EditorFind(void)
     int query_len = 0;
     int direction = 1; /* 1 forward, -1 backward */
     int last_match_row = -1;
+    int query_changed = 0;
 
     /* remember where we were, ESC puts everything back */
     int saved_x = vted_editor_config.cursor_x;
@@ -742,6 +743,7 @@ static void EditorFind(void)
             {
                 query[--query_len] = '\0';
                 last_match_row = -1; /* restart from the cursor */
+                query_changed = 1;
             }
         }
         else if (c >= 32 && c <= 126 && query_len < 63)
@@ -749,6 +751,15 @@ static void EditorFind(void)
             query[query_len++] = (char)c;
             query[query_len] = '\0';
             last_match_row = -1; /* restart from the cursor */
+            query_changed = 1;
+        }
+
+        /* the query changed: every match of it lights up from here
+           on, the one the cursor is on inverted as before */
+        if (query_changed)
+        {
+            ScreenSetSearchQuery(query, query_len);
+            query_changed = 0;
         }
 
         /* (re)run the search: a jump with the arrows steps from the
@@ -820,6 +831,9 @@ static void EditorFind(void)
 
     vted_editor_config.match_row = -1;
     vted_editor_config.match_len = 0;
+
+    /* and the highlighting of every match with it */
+    ScreenSetSearchQuery(NULL, 0);
 
     SetStatusMessage("");
 }
