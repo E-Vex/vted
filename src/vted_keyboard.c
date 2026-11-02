@@ -321,6 +321,13 @@ int ParseArrowKey(void)
         return WrapIndentToggle;
     }
 
+    /* Alt-g shows or hides the indent guides: Ctrl-G is taken by
+       going to a line, so the g goes with Alt */
+    if (introducer == 'g')
+    {
+        return IndentGuidesToggle;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')
