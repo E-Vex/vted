@@ -219,6 +219,40 @@ static void TestBracketColor(void)
     CHECK_INT(settings.bracket_color, 0);
 }
 
+static void TestParseBracketColor(void)
+{
+    /* every name answers with its number, the way the rc file reads
+       it — the Alt-c prompt hands the answer to the same parser */
+    CHECK_INT(SettingsParseBracketColor("invert"), 0);
+    CHECK_INT(SettingsParseBracketColor("red"), 1);
+    CHECK_INT(SettingsParseBracketColor("green"), 2);
+    CHECK_INT(SettingsParseBracketColor("yellow"), 3);
+    CHECK_INT(SettingsParseBracketColor("blue"), 4);
+    CHECK_INT(SettingsParseBracketColor("magenta"), 5);
+    CHECK_INT(SettingsParseBracketColor("cyan"), 6);
+    CHECK_INT(SettingsParseBracketColor("gray"), 7);
+
+    /* a word no color answers to, and near misses that stay words */
+    CHECK_INT(SettingsParseBracketColor("purple"), -1);
+    CHECK_INT(SettingsParseBracketColor(""), -1);
+    CHECK_INT(SettingsParseBracketColor("REd"), -1);
+    CHECK_INT(SettingsParseBracketColor("red "), -1);
+    CHECK_INT(SettingsParseBracketColor("redo"), -1);
+}
+
+static void TestBracketColorName(void)
+{
+    /* the number writes back as the word the rc file and the prompt
+       use, so a prompt can open with the color in place */
+    CHECK_STR(SettingsBracketColorName(0), "invert");
+    CHECK_STR(SettingsBracketColorName(3), "yellow");
+    CHECK_STR(SettingsBracketColorName(7), "gray");
+
+    /* a color out of range is no color: the first name stands in */
+    CHECK_STR(SettingsBracketColorName(-1), "invert");
+    CHECK_STR(SettingsBracketColorName(8), "invert");
+}
+
 static void TestCommentsAndBlankLines(void)
 {
     vted_settings_t settings;
@@ -318,6 +352,8 @@ int main(void)
     TestWrapIndent();
     TestIndentGuides();
     TestBracketColor();
+    TestParseBracketColor();
+    TestBracketColorName();
     TestCommentsAndBlankLines();
     TestUnknownKeyIsCountedBad();
     TestALaterLineWins();

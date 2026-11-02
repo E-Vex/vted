@@ -47,4 +47,13 @@ int SettingsLoad(vted_settings_t *settings, FILE *file);
    is static and reused on every call */
 const char *SettingsPath(void);
 
+/* the color a bracket-color answer names: 0 to 7, or -1 when the
+   answer names none. The rc file and the Alt-c prompt share the
+   names: invert, red, green, yellow, blue, magenta, cyan, gray */
+int SettingsParseBracketColor(const char *name);
+
+/* the name of a bracket color, the word the rc file and the Alt-c
+   prompt write for it; a color out of range answers with the first */
+const char *SettingsBracketColorName(int color);
+
 #endif

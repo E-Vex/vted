@@ -32,6 +32,41 @@ static int TextIs(const char *text, size_t len, const char *name)
     return len == name_len && memcmp(text, name, len) == 0;
 }
 
+/* the colors the matching bracket can light up with, by the name the
+   rc file and the Alt-c prompt use for them: 0 inverts video, the
+   default, and 1 to 7 name a color, the numbers the syntax module
+   colors them by */
+static const char *const bracket_color_names[] = {
+    "invert", "red", "green", "yellow",
+    "blue", "magenta", "cyan", "gray"
+};
+
+int SettingsParseBracketColor(const char *name)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(bracket_color_names) / sizeof(bracket_color_names[0]); i++)
+    {
+        if (strcmp(name, bracket_color_names[i]) == 0)
+        {
+            return (int)i;
+        }
+    }
+
+    return -1; /* a word no color answers to */
+}
+
+const char *SettingsBracketColorName(int color)
+{
+    if (color < 0 ||
+        (size_t)color >= sizeof(bracket_color_names) / sizeof(bracket_color_names[0]))
+    {
+        return bracket_color_names[0]; /* a color out of range is no color */
+    }
+
+    return bracket_color_names[color];
+}
+
 /* reads the value of a boolean key; 1 for on, 0 for off, -1 when the
    word is neither */
 static int ParseOnOff(const char *value, size_t len)
@@ -248,19 +283,14 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
         }
         else if (TextIs(key, key_len, "bracket-color"))
         {
-            /* the color the matching bracket lights up with: invert,
-               the default, or one of the named colors; the numbers the
-               syntax module colors them by */
-            static const char *const names[] = {
-                "invert", "red", "green", "yellow",
-                "blue", "magenta", "cyan", "gray"
-            };
+            /* the color the matching bracket lights up with, by the
+               name the syntax module colors it by */
             int found = -1;
             size_t i;
 
-            for (i = 0; i < sizeof(names) / sizeof(names[0]); i++)
+            for (i = 0; i < sizeof(bracket_color_names) / sizeof(bracket_color_names[0]); i++)
             {
-                if (TextIs(value, value_len, names[i]))
+                if (TextIs(value, value_len, bracket_color_names[i]))
                 {
                     found = (int)i;
                     break;
