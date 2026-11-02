@@ -506,6 +506,39 @@ static void TestDuplicateRoundTrips(void)
     CHECK_INT(vted_editor_config.cursor_y, 1);
 }
 
+static void TestDuplicateBlockRoundTrips(void)
+{
+    /* the cursor on an opener: the whole block copies, and one step
+       takes it back and brings it again */
+    Begin(NULL);
+
+    AppendRow("int main(void)", 14, VTED_EOL_LF);
+    AppendRow("{", 1, VTED_EOL_LF);
+    AppendRow("}", 1, VTED_EOL_LF);
+    vted_editor_config.cursor_y = 1;
+    vted_editor_config.cursor_x = 0; /* on the { */
+
+    EditorDuplicateLine();
+    CHECK_INT(vted_buffer.num_rows, 5);
+    CHECK_STR(vted_buffer.rows[3].chars, "{");
+    CHECK_STR(vted_buffer.rows[4].chars, "}");
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+
+    /* one Ctrl-Z takes the whole block of copies away */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 3);
+    CHECK_STR(vted_buffer.rows[2].chars, "}");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    /* one Ctrl-Y brings it back, byte for byte */
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_INT(vted_buffer.num_rows, 5);
+    CHECK_STR(vted_buffer.rows[3].chars, "{");
+    CHECK_STR(vted_buffer.rows[4].chars, "}");
+    CHECK_INT(vted_editor_config.cursor_y, 3);
+}
+
 static void TestMultibyteDeleteRoundTrips(void)
 {
     Begin("a\xC3\xA9" "b"); /* a, a two-byte e-acute, b */
@@ -1132,6 +1165,7 @@ int main(void)
     TestDeleteLineRoundTrips();
     TestDeleteOnlyLineRoundTrips();
     TestDuplicateRoundTrips();
+    TestDuplicateBlockRoundTrips();
     TestMultibyteDeleteRoundTrips();
     TestTypingBurstUndoesAsOne();
     TestBackspaceBurstUndoesAsOne();

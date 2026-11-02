@@ -465,40 +465,41 @@ void EditorDeleteLine(void)
 
 void EditorDuplicateLine(void)
 {
-    /* Ctrl-D copies the line under the cursor below itself and
-       moves the cursor onto the copy */
+    /* Ctrl-D copies the line under the cursor below itself and moves
+       onto the copy; a bracket under the cursor, or right behind one,
+       widens the copy to the whole block it and its partner enclose,
+       the same partner the highlight marks on screen */
 
     int before_y = vted_editor_config.cursor_y;
     int before_x = vted_editor_config.cursor_x;
+    int first = before_y;
+    int last = before_y;
+    int copies;
 
     if (vted_editor_config.cursor_y == vted_buffer.num_rows)
     {
         return; /* on the phantom row past the end: nothing to copy */
     }
 
-    /* InsertRow may move the rows array, so read through it only
-       before the call */
-    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
-    char *chars = row->chars;
-    int size = row->size;
-    int eol = row->eol;
+    /* a bracket without a partner leaves the block at the line under
+       the cursor, and so does no bracket at all */
+    BufferFindBracketBlock(before_y, before_x, &first, &last);
 
-    if (InsertRow(vted_editor_config.cursor_y + 1, chars, size, eol) == -1)
+    if (BufferDuplicateRows(first, last) == -1)
     {
-        KillApp("InsertRow");
+        KillApp("BufferDuplicateRows");
     }
 
-    /* the copy holds the same text, so the column stays where it
-       was; only the line changes */
-    vted_editor_config.cursor_y++;
+    /* the copies hold the same text, so the column stays where it
+       was; the cursor lands on the copy of its row */
+    copies = last - first + 1;
+    vted_editor_config.cursor_y += copies;
     vted_buffer.dirty = 1;
 
     UndoEntry entry = {
-        .kind = UndoKindInsertRow,
-        .row = before_y + 1,
-        .bytes = chars,
-        .length = size,
-        .eol = eol,
+        .kind = UndoKindDuplicateRows,
+        .row = first,
+        .cx = last,
         .undo_y = before_y,
         .undo_x = before_x,
         .redo_y = vted_editor_config.cursor_y,

@@ -209,6 +209,99 @@ static void TestDuplicateLine(void)
     CHECK_INT(vted_editor_config.cursor_x, 1);
 }
 
+/* a small C-shaped block, the cursor on its opener */
+static void BeginBlock(void)
+{
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("int main(void)", 14, VTED_EOL_LF);
+    AppendRow("{", 1, VTED_EOL_LF);
+    AppendRow("    body();", 11, VTED_EOL_LF);
+    AppendRow("}", 1, VTED_EOL_LF);
+    CursorAt(1, 0);
+}
+
+static void TestDuplicateTheBlockABracketEncloses(void)
+{
+    /* the cursor on the opener: the whole block is copied below
+       itself, and the cursor lands on the copy of its own row, the
+       column kept */
+    BeginBlock();
+
+    EditorDuplicateLine();
+
+    CHECK_INT(vted_buffer.num_rows, 7);
+    CHECK_STR(vted_buffer.rows[0].chars, "int main(void)");
+    CHECK_STR(vted_buffer.rows[3].chars, "}");
+    CHECK_STR(vted_buffer.rows[4].chars, "{");
+    CHECK_STR(vted_buffer.rows[5].chars, "    body();");
+    CHECK_STR(vted_buffer.rows[6].chars, "}");
+    CHECK_INT(vted_editor_config.cursor_y, 4);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+    CHECK_INT(vted_buffer.dirty, 1);
+}
+
+static void TestDuplicateTheBlockFromTheCloser(void)
+{
+    /* the cursor right past the closer: the block copies the same
+       way, and the cursor lands on the copy of the closer's row */
+    BeginBlock();
+    CursorAt(3, 1);
+
+    EditorDuplicateLine();
+
+    CHECK_INT(vted_buffer.num_rows, 7);
+    CHECK_STR(vted_buffer.rows[4].chars, "{");
+    CHECK_STR(vted_buffer.rows[6].chars, "}");
+    CHECK_INT(vted_editor_config.cursor_y, 6);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestDuplicateTheBlockKeepsTheEndings(void)
+{
+    /* every copied line keeps the ending its own original has */
+    BeginBlock();
+    vted_buffer.rows[1].eol = VTED_EOL_CRLF;
+    vted_buffer.rows[3].eol = VTED_EOL_CR;
+
+    EditorDuplicateLine();
+
+    CHECK_INT(vted_buffer.rows[4].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_buffer.rows[5].eol, VTED_EOL_LF);
+    CHECK_INT(vted_buffer.rows[6].eol, VTED_EOL_CR);
+}
+
+static void TestDuplicateABlockOnOneRowCopiesTheRow(void)
+{
+    /* the bracket and its partner on the same row: the block is that
+       row, copied once the way a line always is */
+    Begin("f(a, b)");
+    CursorAt(0, 2); /* on the ( */
+
+    EditorDuplicateLine();
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "f(a, b)");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestDuplicateWithoutAMatchCopiesTheLine(void)
+{
+    /* an opener with no closer encloses nothing: the line copies on
+       its own */
+    Begin("{");
+    CursorAt(0, 0);
+
+    EditorDuplicateLine();
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "{");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
 static void TestMoveLineUpRoundTrip(void)
 {
     FreeBuffer();
@@ -611,6 +704,11 @@ int main(void)
     TestDeleteLineClampsColumn();
     TestDeleteOnlyLine();
     TestDuplicateLine();
+    TestDuplicateTheBlockABracketEncloses();
+    TestDuplicateTheBlockFromTheCloser();
+    TestDuplicateTheBlockKeepsTheEndings();
+    TestDuplicateABlockOnOneRowCopiesTheRow();
+    TestDuplicateWithoutAMatchCopiesTheLine();
     TestMoveLineUpRoundTrip();
     TestMoveLineDownRoundTrip();
     TestMoveLineAtTheEdgesDoesNothing();
