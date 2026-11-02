@@ -19,6 +19,7 @@ vted_settings_t SettingsDefaults(void)
     settings.wrap_column = 0;
     settings.wrap_indent = 1;
     settings.indent_guides = 0;
+    settings.bracket_color = 0;
 
     return settings;
 }
@@ -243,6 +244,36 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->indent_guides = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "bracket-color"))
+        {
+            /* the color the matching bracket lights up with: invert,
+               the default, or one of the named colors; the numbers the
+               syntax module colors them by */
+            static const char *const names[] = {
+                "invert", "red", "green", "yellow",
+                "blue", "magenta", "cyan", "gray"
+            };
+            int found = -1;
+            size_t i;
+
+            for (i = 0; i < sizeof(names) / sizeof(names[0]); i++)
+            {
+                if (TextIs(value, value_len, names[i]))
+                {
+                    found = (int)i;
+                    break;
+                }
+            }
+
+            if (found < 0)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->bracket_color = found;
             }
         }
         else

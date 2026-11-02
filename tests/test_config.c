@@ -41,6 +41,7 @@ static void TestDefaults(void)
     CHECK_INT(settings.wrap, 0);
     CHECK_INT(settings.wrap_indent, 1);
     CHECK_INT(settings.indent_guides, 0);
+    CHECK_INT(settings.bracket_color, 0);
 }
 
 static void TestTabWidth(void)
@@ -180,6 +181,44 @@ static void TestIndentGuides(void)
     CHECK_INT(settings.indent_guides, 0);
 }
 
+static void TestBracketColor(void)
+{
+    vted_settings_t settings;
+
+    /* the default leaves the match in inverted video */
+    CHECK_INT(LoadLines("set bracket-color invert\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 0);
+
+    /* the colors a match can light up with, by their numbers */
+    CHECK_INT(LoadLines("set bracket-color red\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 1);
+
+    CHECK_INT(LoadLines("set bracket-color green\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 2);
+
+    CHECK_INT(LoadLines("set bracket-color yellow\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 3);
+
+    CHECK_INT(LoadLines("set bracket-color blue\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 4);
+
+    CHECK_INT(LoadLines("set bracket-color magenta\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 5);
+
+    CHECK_INT(LoadLines("set bracket-color cyan\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 6);
+
+    CHECK_INT(LoadLines("set bracket-color gray\n", &settings), 0);
+    CHECK_INT(settings.bracket_color, 7);
+
+    /* a color the editor does not know */
+    CHECK_INT(LoadLines("set bracket-color purple\n", &settings), 1);
+    CHECK_INT(settings.bracket_color, 0);
+
+    CHECK_INT(LoadLines("set bracket-color\n", &settings), 1);
+    CHECK_INT(settings.bracket_color, 0);
+}
+
 static void TestCommentsAndBlankLines(void)
 {
     vted_settings_t settings;
@@ -278,6 +317,7 @@ int main(void)
     TestWrapColumn();
     TestWrapIndent();
     TestIndentGuides();
+    TestBracketColor();
     TestCommentsAndBlankLines();
     TestUnknownKeyIsCountedBad();
     TestALaterLineWins();

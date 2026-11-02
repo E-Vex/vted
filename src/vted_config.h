@@ -28,6 +28,9 @@ typedef struct
                               own indent at their start */
     int indent_guides;     /* 1: mark the last cell of every nesting
                               level the rows sit in with dots */
+    int bracket_color;     /* the color the matching bracket lights up
+                              with: 0 inverts video, the default, and
+                              1 to 7 name a color */
 } vted_settings_t;
 
 /* the settings the editor starts from: the built-in defaults */
