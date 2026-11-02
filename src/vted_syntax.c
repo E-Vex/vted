@@ -1455,6 +1455,20 @@ const char *SyntaxStyle(int hl_class)
             return escape;
         }
         return "\x1b[93m";
+    case HlMatch:
+        /* a background, so the text on top stays readable: an amber
+           one, the way an editor marks what a search found */
+        if (ColorMode() == 2)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[48;2;135;95;0m");
+            return escape;
+        }
+        if (ColorMode() == 1)
+        {
+            snprintf(escape, sizeof(escape), "\x1b[48;5;94m");
+            return escape;
+        }
+        return "\x1b[43m";
     default:
         return "";
     }
