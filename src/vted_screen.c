@@ -1506,14 +1506,16 @@ static void MoveDisplayLine(int direction)
         int cursor_line;
         int cursor_col;
 
-        RowCxToWrapped(row, vted_editor_config.cursor_x, cols, 0,
+        RowCxToWrapped(row, vted_editor_config.cursor_x, cols,
+                       WrapIndentOf(row, cols),
                        &cursor_line, &cursor_col);
 
         if (cursor_line + 1 < RowLines(vted_editor_config.cursor_y))
         {
             /* the next line of this row */
             vted_editor_config.cursor_x = RowWrappedToCx(row,
-                                                        cursor_line + 1, preferred, cols, 0);
+                                                        cursor_line + 1, preferred, cols,
+                                                        WrapIndentOf(row, cols));
             return;
         }
 
@@ -1524,7 +1526,9 @@ static void MoveDisplayLine(int direction)
         {
             vted_editor_config.cursor_x =
                 RowWrappedToCx(&vted_buffer.rows[vted_editor_config.cursor_y],
-                               0, preferred, cols, 0);
+                               0, preferred, cols,
+                               WrapIndentOf(&vted_buffer.rows[vted_editor_config.cursor_y],
+                                            cols));
         }
         else
         {
@@ -1539,14 +1543,16 @@ static void MoveDisplayLine(int direction)
             int cursor_line;
             int cursor_col;
 
-            RowCxToWrapped(row, vted_editor_config.cursor_x, cols, 0,
+            RowCxToWrapped(row, vted_editor_config.cursor_x, cols,
+                           WrapIndentOf(row, cols),
                            &cursor_line, &cursor_col);
 
             if (cursor_line > 0)
             {
                 /* the line above within this row */
                 vted_editor_config.cursor_x = RowWrappedToCx(row,
-                                                            cursor_line - 1, preferred, cols, 0);
+                                                            cursor_line - 1, preferred, cols,
+                                                            WrapIndentOf(row, cols));
                 return;
             }
         }
@@ -1594,14 +1600,16 @@ static void MoveDisplayLines(int count)
             int lines = RowLines(vted_editor_config.cursor_y);
             int below;
 
-            RowCxToWrapped(row, vted_editor_config.cursor_x, cols, 0, &line, &col);
+            RowCxToWrapped(row, vted_editor_config.cursor_x, cols,
+                           WrapIndentOf(row, cols), &line, &col);
 
             below = line < lines ? lines - 1 - line : 0;
 
             if (remaining <= below)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, line + remaining, preferred, cols, 0);
+                    RowWrappedToCx(row, line + remaining, preferred, cols,
+                                   WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1620,7 +1628,8 @@ static void MoveDisplayLines(int count)
             if (remaining < lines)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, remaining, preferred, cols, 0);
+                    RowWrappedToCx(row, remaining, preferred, cols,
+                                   WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1656,12 +1665,14 @@ static void MoveDisplayLines(int count)
             int line;
             int col;
 
-            RowCxToWrapped(row, vted_editor_config.cursor_x, cols, 0, &line, &col);
+            RowCxToWrapped(row, vted_editor_config.cursor_x, cols,
+                           WrapIndentOf(row, cols), &line, &col);
 
             if (remaining <= line)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, line - remaining, preferred, cols, 0);
+                    RowWrappedToCx(row, line - remaining, preferred, cols,
+                                   WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1679,7 +1690,8 @@ static void MoveDisplayLines(int count)
             if (remaining < lines)
             {
                 vted_editor_config.cursor_x =
-                    RowWrappedToCx(row, lines - 1 - remaining, preferred, cols, 0);
+                    RowWrappedToCx(row, lines - 1 - remaining, preferred, cols,
+                                   WrapIndentOf(row, cols));
                 return;
             }
 
@@ -1690,7 +1702,8 @@ static void MoveDisplayLines(int count)
         /* past the first row: its first line, the column kept */
         vted_editor_config.cursor_y = 0;
         vted_editor_config.cursor_x =
-            RowWrappedToCx(&vted_buffer.rows[0], 0, preferred, cols, 0);
+            RowWrappedToCx(&vted_buffer.rows[0], 0, preferred, cols,
+                           WrapIndentOf(&vted_buffer.rows[0], cols));
     }
 }
 
@@ -1778,7 +1791,9 @@ static void JumpToViewportLine(int key)
                 vted_editor_config.cursor_x =
                     RowWrappedToCx(&vted_buffer.rows[row],
                                    line + remaining, 0,
-                                   vted_editor_config.text_cols, 0);
+                                   vted_editor_config.text_cols,
+                                   WrapIndentOf(&vted_buffer.rows[row],
+                                                vted_editor_config.text_cols));
                 return;
             }
 
@@ -1793,7 +1808,9 @@ static void JumpToViewportLine(int key)
                 vted_editor_config.cursor_x =
                     RowWrappedToCx(&vted_buffer.rows[row - 1],
                                    RowLines(row - 1) - 1, 0,
-                                   vted_editor_config.text_cols, 0);
+                                   vted_editor_config.text_cols,
+                                   WrapIndentOf(&vted_buffer.rows[row - 1],
+                                                vted_editor_config.text_cols));
                 return;
             }
 
@@ -1855,7 +1872,9 @@ void MoveCursor(int key)
             int col;
 
             RowCxToWrapped(row, vted_editor_config.cursor_x,
-                           vted_editor_config.text_cols, 0, &line, &col);
+                           vted_editor_config.text_cols,
+                           WrapIndentOf(row, vted_editor_config.text_cols),
+                           &line, &col);
 
             vted_editor_config.preferred_rx = col;
         }
@@ -1999,10 +2018,13 @@ void MoveCursor(int key)
                glyph rests on the last line */
             int line;
             int col;
-            int lines = RowWrapCount(row, vted_editor_config.text_cols, 0);
+            int lines = RowWrapCount(row, vted_editor_config.text_cols,
+                                     WrapIndentOf(row, vted_editor_config.text_cols));
 
             RowCxToWrapped(row, vted_editor_config.cursor_x,
-                           vted_editor_config.text_cols, 0, &line, &col);
+                           vted_editor_config.text_cols,
+                           WrapIndentOf(row, vted_editor_config.text_cols),
+                           &line, &col);
 
             if (line >= lines)
             {
@@ -2010,7 +2032,8 @@ void MoveCursor(int key)
             }
 
             vted_editor_config.cursor_x =
-                RowWrappedToCx(row, line, 0, vted_editor_config.text_cols, 0);
+                RowWrappedToCx(row, line, 0, vted_editor_config.text_cols,
+                               WrapIndentOf(row, vted_editor_config.text_cols));
         }
         else
         {
@@ -2033,10 +2056,13 @@ void MoveCursor(int key)
                    edge */
                 int line;
                 int col;
-                int lines = RowWrapCount(row, vted_editor_config.text_cols, 0);
+                int lines = RowWrapCount(row, vted_editor_config.text_cols,
+                                         WrapIndentOf(row, vted_editor_config.text_cols));
 
                 RowCxToWrapped(row, vted_editor_config.cursor_x,
-                               vted_editor_config.text_cols, 0, &line, &col);
+                               vted_editor_config.text_cols,
+                               WrapIndentOf(row, vted_editor_config.text_cols),
+                               &line, &col);
 
                 if (line >= lines)
                 {
@@ -2047,7 +2073,8 @@ void MoveCursor(int key)
                 {
                     vted_editor_config.cursor_x =
                         RowWrappedToCx(row, line + 1, 0,
-                                       vted_editor_config.text_cols, 0);
+                                       vted_editor_config.text_cols,
+                                       WrapIndentOf(row, vted_editor_config.text_cols));
                 }
                 else
                 {
@@ -2343,7 +2370,9 @@ void RefreshScreen(void)
             {
                 RowCxToWrapped(&vted_buffer.rows[vted_editor_config.cursor_y],
                                vted_editor_config.cursor_x,
-                               vted_editor_config.text_cols, 0,
+                               vted_editor_config.text_cols,
+                               WrapIndentOf(&vted_buffer.rows[vted_editor_config.cursor_y],
+                                            vted_editor_config.text_cols),
                                &cursor_line, &cursor_col);
 
                 /* the position past the last glyph sits on a line of
