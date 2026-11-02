@@ -82,6 +82,14 @@ const char *SyntaxStyle(int hl_class);
 void SyntaxSetBracketColor(int color);
 int SyntaxBracketColor(void);
 
+/* the colors the escapes of SyntaxStyle carry: 2 for truecolor RGB, 1
+   for the 256-color palette, 0 for the terminal's 16 colors. The
+   environment decides (COLORTERM, TERM) until a caller forces one with
+   SyntaxSetColorMode; a mode out of 0 to 2 hands the choice back to
+   the environment */
+void SyntaxSetColorMode(int mode);
+int SyntaxColorMode(void);
+
 /* gives back the memory the module holds */
 void SyntaxFree(void);
 

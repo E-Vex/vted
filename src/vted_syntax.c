@@ -1322,15 +1322,17 @@ void SyntaxHighlightRow(int at, unsigned char *hl)
     }
 }
 
+/* the color mode in use: -1 until it is first needed, then what the
+   terminal's environment says, unless a caller chose one */
+static int color_mode = -1;
+
 /* truecolor (RGB), 256-color or the terminal's 16 colors, in that
    order of preference: COLORTERM=truecolor|24bit asks for RGB, a
    256color terminal gets 38;5 escapes, anything else gets the 16
    color escapes below */
 static int ColorMode(void)
 {
-    static int mode = -1;
-
-    if (mode == -1)
+    if (color_mode == -1)
     {
         const char *colorterm = getenv("COLORTERM");
         const char *term;
@@ -1339,16 +1341,27 @@ static int ColorMode(void)
             (strcmp(colorterm, "truecolor") == 0 ||
              strcmp(colorterm, "24bit") == 0))
         {
-            mode = 2;
+            color_mode = 2;
         }
         else
         {
             term = getenv("TERM");
-            mode = (term != NULL && strstr(term, "256color") != NULL) ? 1 : 0;
+            color_mode = (term != NULL && strstr(term, "256color") != NULL) ? 1 : 0;
         }
     }
 
-    return mode;
+    return color_mode;
+}
+
+void SyntaxSetColorMode(int mode)
+{
+    /* anything but 0, 1 or 2 hands the choice back to the environment */
+    color_mode = (mode >= 0 && mode <= 2) ? mode : -1;
+}
+
+int SyntaxColorMode(void)
+{
+    return ColorMode();
 }
 
 /* the color the matching bracket lights up with: 0 inverts video, the

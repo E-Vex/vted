@@ -1244,6 +1244,28 @@ static void TestStyles(void)
     CHECK(strlen(SyntaxStyle(HlMarker)) > 0);
 }
 
+static void TestColorMode(void)
+{
+    /* a forced mode is the one the escapes are drawn in: the comment
+       gray spells itself differently in each */
+    SyntaxSetColorMode(2);
+    CHECK_INT(SyntaxColorMode(), 2);
+    CHECK_STR(SyntaxStyle(HlComment), "\x1b[38;2;128;128;128m");
+
+    SyntaxSetColorMode(1);
+    CHECK_INT(SyntaxColorMode(), 1);
+    CHECK_STR(SyntaxStyle(HlComment), "\x1b[38;5;245m");
+
+    SyntaxSetColorMode(0);
+    CHECK_INT(SyntaxColorMode(), 0);
+    CHECK_STR(SyntaxStyle(HlComment), "\x1b[90m");
+
+    /* a mode out of range gives the choice back to the environment,
+       which can only ever answer with one of the three */
+    SyntaxSetColorMode(-1);
+    CHECK(SyntaxColorMode() >= 0 && SyntaxColorMode() <= 2);
+}
+
 static void TestBracketMatchStyle(void)
 {
     const char *red;
@@ -1313,6 +1335,7 @@ int main(void)
     TestPhp();
     TestDotenv();
     TestStyles();
+    TestColorMode();
     TestBracketMatchStyle();
 
     FreeBuffer();
