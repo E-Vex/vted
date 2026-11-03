@@ -22,7 +22,7 @@ SRC = \
 TARGET = vted
 
 # Version & build date
-VERSION = 0.3.1
+VERSION = 0.3.2
 # the version the editor prints for --version, as a macro the
 # compiler can embed; kept out of CFLAGS so a CFLAGS override on
 # the command line does not drop it
