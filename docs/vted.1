@@ -205,12 +205,15 @@ buffers, the way dabbrev\-expand does in Emacs: the menu the Ctrl\-B
 picker uses lists every distinct word that starts with it, the
 nearest first — the words before the cursor and the rows above it,
 then the ones after it, then the other open buffers, the next one
-first around the ring — the arrows and the wheel move through them,
-Enter or a left click takes one and the cursor lands behind it, ESC
-leaves the word as it was typed. A word is what the word moves cross
-(letters, digits, underscore, every script), the match is exact,
-case and all, the word the cursor sits inside is not offered, and
-the whole pick is one undo step
+first around the ring, every word of theirs followed by its buffer's
+name so the menu says where it came from, while the words of the
+buffer being edited stand bare, their source being where you already
+are; the arrows and the wheel move
+through them, Enter or a left click takes one and the cursor lands
+behind it, ESC leaves the word as it was typed. A word is what the
+word moves cross (letters, digits, underscore, every script), the
+match is exact, case and all, the word the cursor sits inside is not
+offered, and the whole pick is one undo step
 .TP
 .B Delete
 delete the character under the cursor
