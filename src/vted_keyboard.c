@@ -351,6 +351,19 @@ int ParseArrowKey(void)
         return BracketJump;
     }
 
+    /* Alt-n and Alt-p step to the match after and before the last
+       search's cursor, the way n and N do in vi, without opening the
+       prompt again */
+    if (introducer == 'n')
+    {
+        return SearchNext;
+    }
+
+    if (introducer == 'p')
+    {
+        return SearchPrev;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')

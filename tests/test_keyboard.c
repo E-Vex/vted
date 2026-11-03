@@ -251,6 +251,22 @@ static void TestBracketJumpKey(void)
     CHECK_INT(ReadKeyPress(), '%');
 }
 
+static void TestSearchRepeatKeys(void)
+{
+    /* Alt-n steps to the next match without the prompt, Alt-p to the
+       previous one, the way n and N do in vi */
+    FeedInput("\x1b" "n");
+    CHECK_INT(ReadKeyPress(), SearchNext);
+    FeedInput("\x1b" "p");
+    CHECK_INT(ReadKeyPress(), SearchPrev);
+
+    /* plain n and p are still text */
+    FeedInput("n");
+    CHECK_INT(ReadKeyPress(), 'n');
+    FeedInput("p");
+    CHECK_INT(ReadKeyPress(), 'p');
+}
+
 static void TestCommentToggleKey(void)
 {
     /* Ctrl-/ arrives as the byte 0x1F, the one Ctrl-_ has always
@@ -420,6 +436,7 @@ int main(void)
     TestBracketColorPrompt();
     TestThemePrompt();
     TestBracketJumpKey();
+    TestSearchRepeatKeys();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();

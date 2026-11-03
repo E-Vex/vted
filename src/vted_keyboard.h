@@ -56,6 +56,9 @@ typedef enum
                             selection, or take the comment off again */
     BracketJump, /* Alt-%: jump to the partner of the bracket under
                      the cursor, the way % does in vi */
+    SearchNext,  /* Alt-n: the match after the last search's cursor,
+                     the way n does in vi */
+    SearchPrev,  /* Alt-p: the match before it, the way N does */
 
 } EditorKey;
 
