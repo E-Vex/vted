@@ -1308,6 +1308,237 @@ static void TestViewportJumpsPastAStaleOffset(void)
     CHECK_INT(vted_editor_config.cursor_x, 0);
 }
 
+/* ==== the hit test: what a click on a screen cell maps to ==== */
+
+static void BeginHitTest(void)
+{
+    /* every hit test starts from a fresh buffer and a viewport at the
+       top-left corner of it, with nothing else of the layout set */
+    FreeBuffer();
+
+    vted_editor_config.screen_rows = 24;
+    vted_editor_config.screen_cols = 40;
+    vted_editor_config.gutter_width = 0;
+    vted_editor_config.text_cols = 40;
+    vted_editor_config.wrap = 0;
+    vted_editor_config.wrap_indent = 0;
+    vted_editor_config.row_offset = 0;
+    vted_editor_config.line_offset = 0;
+    vted_editor_config.col_offset = 0;
+    vted_editor_config.cursor_x = 0;
+    vted_editor_config.cursor_y = 0;
+    vted_editor_config.preferred_rx = -1;
+}
+
+static void TestHitOnPlainRows(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest();
+    AppendRow("one", 3, VTED_EOL_LF);
+    AppendRow("two", 3, VTED_EOL_LF);
+    AppendRow("three", 5, VTED_EOL_LF);
+
+    /* each screen row is its own buffer row, each cell its own byte */
+    CHECK_INT(ScreenHitTest(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 0);
+    CHECK_INT(ScreenHitTest(1, 1, &y, &x), 1);
+    CHECK_INT(y, 1);
+    CHECK_INT(x, 1);
+
+    /* a cell past a row's text is the row's end */
+    CHECK_INT(ScreenHitTest(9, 2, &y, &x), 1);
+    CHECK_INT(y, 2);
+    CHECK_INT(x, 5);
+
+    /* a row below the text is the phantom row past the end */
+    CHECK_INT(ScreenHitTest(0, 3, &y, &x), 1);
+    CHECK_INT(y, 3);
+    CHECK_INT(x, 0);
+
+    /* the bars below the viewport, and anything off screen, answer
+       nothing */
+    CHECK_INT(ScreenHitTest(0, 24, &y, &x), 0);
+    CHECK_INT(ScreenHitTest(0, -1, &y, &x), 0);
+}
+
+static void TestHitThroughTheGutter(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest();
+    AppendRow("one", 3, VTED_EOL_LF);
+    AppendRow("two", 3, VTED_EOL_LF);
+
+    vted_editor_config.gutter_width = 4;
+    vted_editor_config.text_cols = 36;
+
+    /* the gutter counts as the first text cell of its row */
+    CHECK_INT(ScreenHitTest(0, 1, &y, &x), 1);
+    CHECK_INT(y, 1);
+    CHECK_INT(x, 0);
+
+    /* the text cells begin after it */
+    CHECK_INT(ScreenHitTest(5, 1, &y, &x), 1);
+    CHECK_INT(x, 1);
+
+    /* a cell past the right edge is the last one on screen */
+    CHECK_INT(ScreenHitTest(100, 1, &y, &x), 1);
+    CHECK_INT(x, 3);
+}
+
+static void TestHitOnASidewaysScrolledViewport(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest();
+    AppendRow("abcdefgh", 8, VTED_EOL_LF);
+
+    vted_editor_config.col_offset = 4;
+    vted_editor_config.text_cols = 4;
+
+    /* the first cell on screen is the one the viewport scrolled to */
+    CHECK_INT(ScreenHitTest(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 4);
+    CHECK_INT(ScreenHitTest(3, 0, &y, &x), 1);
+    CHECK_INT(x, 7);
+}
+
+static void TestHitOnAWrappedRow(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest();
+    AppendRow("abcdefghijkl", 12, VTED_EOL_LF); /* abcd / efgh / ijkl */
+
+    vted_editor_config.wrap = 1;
+    vted_editor_config.text_cols = 4;
+
+    /* the lines a row wraps into are screen lines of their own */
+    CHECK_INT(ScreenHitTest(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 0); /* a */
+    CHECK_INT(ScreenHitTest(2, 1, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 6); /* g */
+    CHECK_INT(ScreenHitTest(3, 2, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 11); /* l */
+
+    /* below the last line is the phantom row */
+    CHECK_INT(ScreenHitTest(0, 3, &y, &x), 1);
+    CHECK_INT(y, 1);
+    CHECK_INT(x, 0);
+}
+
+static void TestHitOnAWordWrappedRow(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest();
+    AppendRow("aaa bb cccc dd", 14, VTED_EOL_LF); /* aaa bb / cccc dd */
+
+    vted_editor_config.wrap = 1;
+    vted_editor_config.text_cols = 8;
+
+    CHECK_INT(ScreenHitTest(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 0); /* a */
+
+    /* the blank padding a wrapped run leaves still belongs to its
+       line: the click lands inside it, not on the run below */
+    CHECK_INT(ScreenHitTest(4, 0, &y, &x), 1);
+    CHECK_INT(x, 4); /* b */
+
+    /* the second line starts at the run that moved down whole */
+    CHECK_INT(ScreenHitTest(0, 1, &y, &x), 1);
+    CHECK_INT(x, 7); /* c */
+    CHECK_INT(ScreenHitTest(4, 1, &y, &x), 1);
+    CHECK_INT(x, 11); /* the blank before dd */
+}
+
+static void TestHitPastAWrappedRowOntoTheRowsBelow(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest();
+    AppendRow("abcdefgh", 8, VTED_EOL_LF); /* abcd / efgh */
+    AppendRow("z", 1, VTED_EOL_LF);
+
+    vted_editor_config.wrap = 1;
+    vted_editor_config.text_cols = 4;
+
+    CHECK_INT(ScreenHitTest(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 0);
+    CHECK_INT(ScreenHitTest(0, 1, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 4);
+
+    /* the row below starts two screen lines down */
+    CHECK_INT(ScreenHitTest(0, 2, &y, &x), 1);
+    CHECK_INT(y, 1);
+    CHECK_INT(x, 0);
+
+    /* and the phantom row past the end is one below that */
+    CHECK_INT(ScreenHitTest(0, 3, &y, &x), 1);
+    CHECK_INT(y, 2);
+    CHECK_INT(x, 0);
+}
+
+static void TestHitIntoATallRowThroughALineOffset(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest();
+    AppendRow("abcdefghijkl", 12, VTED_EOL_LF); /* abcd / efgh / ijkl */
+
+    vted_editor_config.wrap = 1;
+    vted_editor_config.text_cols = 4;
+    vted_editor_config.screen_rows = 3;
+    vted_editor_config.line_offset = 1; /* entered at the row's second line */
+
+    /* the viewport starts inside the tall row: its screen lines count
+       from the line it was entered at */
+    CHECK_INT(ScreenHitTest(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 4); /* e, on the second line */
+    CHECK_INT(ScreenHitTest(1, 1, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 9); /* j, on the third line */
+
+    /* the third screen row is the phantom row past the end */
+    CHECK_INT(ScreenHitTest(0, 2, &y, &x), 1);
+    CHECK_INT(y, 1);
+    CHECK_INT(x, 0);
+}
+
+static void TestHitOnAnEmptyBuffer(void)
+{
+    int y = -1;
+    int x = -1;
+
+    BeginHitTest(); /* no rows at all */
+
+    /* every screen row is the phantom row of the empty buffer */
+    CHECK_INT(ScreenHitTest(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 0);
+    CHECK_INT(ScreenHitTest(10, 23, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 0);
+    CHECK_INT(ScreenHitTest(0, 24, &y, &x), 0);
+}
+
 int main(void)
 {
     TestHomeStartsTheScreenLine();
@@ -1358,6 +1589,14 @@ int main(void)
     TestViewportJumpsOnAnEmptyBuffer();
     TestViewportJumpsPastAStaleOffset();
     TestViewportJumpsOnWordWrappedLines();
+    TestHitOnPlainRows();
+    TestHitThroughTheGutter();
+    TestHitOnASidewaysScrolledViewport();
+    TestHitOnAWrappedRow();
+    TestHitOnAWordWrappedRow();
+    TestHitPastAWrappedRowOntoTheRowsBelow();
+    TestHitIntoATallRowThroughALineOffset();
+    TestHitOnAnEmptyBuffer();
 
     return TestSummary("screen");
 }

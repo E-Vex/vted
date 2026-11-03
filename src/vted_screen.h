@@ -66,6 +66,14 @@ void ScreenCenterCursor(void);
    viewport's bottom */
 void ScreenScroll(int count);
 
+/* maps a screen cell to the buffer position the renderer draws under
+   it, the way a click asks for it: the gutter counts as the first
+   text cell of its row, a cell past the right edge as the last one
+   on screen, and the tildes below the text answer with the phantom
+   row past the end. Returns 1 with the row and column in *out_y and
+   *out_x, 0 when the cell is over the bars or off the screen */
+int ScreenHitTest(int col, int row, int *out_y, int *out_x);
+
 void SetStatusMessage(const char *format, ...);
 
 void RefreshScreen(void);

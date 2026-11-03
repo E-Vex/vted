@@ -2427,6 +2427,101 @@ void ScreenScroll(int count)
     }
 }
 
+int ScreenHitTest(int col, int row, int *out_y, int *out_x)
+{
+    /*=================================================
+    | Maps a screen cell to the buffer position the  |
+    | renderer draws under it: the walk the frame     |
+    | takes over the rows, walked again here, so the  |
+    | answer always agrees with what is on screen —   |
+    | the gutter skipped at the left edge, the text   |
+    | cells counted from the column the viewport is   |
+    | scrolled to, and a wrapped row's lines counted  |
+    | as lines of their own, entered mid-row by the   |
+    | lines the viewport skipped of it.               |
+    =================================================*/
+
+    if (row < 0 || row >= vted_editor_config.screen_rows)
+    {
+        return 0; /* the bars below the viewport, or off screen */
+    }
+
+    /* a click on the gutter is a click on its row's first text cell,
+       and a click past the right edge on the last one on screen */
+    if (col < vted_editor_config.gutter_width)
+    {
+        col = vted_editor_config.gutter_width;
+    }
+
+    col -= vted_editor_config.gutter_width;
+
+    if (col >= vted_editor_config.text_cols)
+    {
+        col = vted_editor_config.text_cols - 1;
+    }
+
+    if (col < 0)
+    {
+        col = 0;
+    }
+
+    /* an empty buffer has only the phantom row past the end */
+    if (vted_buffer.num_rows == 0)
+    {
+        *out_y = 0;
+        *out_x = 0;
+        return 1;
+    }
+
+    {
+        int buffer_row = vted_editor_config.row_offset;
+        int screen_line = 0; /* lines the rows above this one took */
+
+        while (buffer_row < vted_buffer.num_rows)
+        {
+            int lines = RowLines(buffer_row);
+            /* the viewport is entered mid-row at its top, when that
+               row is taller than the whole of it */
+            int skipped = buffer_row == vted_editor_config.row_offset
+                              ? vted_editor_config.line_offset
+                              : 0;
+
+            if (row < screen_line + lines - skipped)
+            {
+                /* the click landed inside this row, on the line the
+                   row's own walk places at its screen line */
+                vted_row_t *text_row = &vted_buffer.rows[buffer_row];
+                int line = row - screen_line + skipped;
+
+                if (vted_editor_config.wrap != 0)
+                {
+                    *out_x = RowWrappedToCx(text_row, line, col,
+                                            vted_editor_config.text_cols,
+                                            WrapIndentOf(text_row,
+                                                         vted_editor_config.text_cols));
+                }
+                else
+                {
+                    *out_x = RowRxToCx(text_row,
+                                       col + vted_editor_config.col_offset);
+                }
+
+                *out_y = buffer_row;
+                return 1;
+            }
+
+            screen_line += lines - skipped;
+            buffer_row++;
+        }
+
+        /* below the text: the phantom row past the end, the one the
+           cursor takes its place on */
+        *out_y = vted_buffer.num_rows;
+        *out_x = 0;
+        return 1;
+    }
+}
+
 void ScreenFree(void)
 {
     /* the highlight classes are kept between frames so that drawing
