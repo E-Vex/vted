@@ -188,6 +188,21 @@ static const struct
         "color tab      #665c54\n"
         "color indent   #504945\n"
         "color marker   #3c3836\n"
+    },
+    {"nord",
+        "color comment  #616e88\n"
+        "color string   #a3be8c\n"
+        "color number   #b48ead\n"
+        "color keyword  #81a1c1\n"
+        "color type     #8fbcbb\n"
+        "color preproc  #5e81ac\n"
+        "color removed  #bf616a\n"
+        "color context  #4c566a\n"
+        "color function #88c0d0\n"
+        "color match    #6b5b2e\n"
+        "color tab      #4c566a\n"
+        "color indent   #434c5e\n"
+        "color marker   #3b4252\n"
     }
 };
 

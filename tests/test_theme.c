@@ -139,7 +139,8 @@ static void TestBuiltinThemes(void)
         const char *name;
         const char *keyword;
     } builtin_keywords[] = {
-        {"gruvbox", "\x1b[38;2;251;73;52m"}
+        {"gruvbox", "\x1b[38;2;251;73;52m"},
+        {"nord", "\x1b[38;2;129;161;193m"}
     };
     size_t i;
 
