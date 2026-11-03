@@ -18,6 +18,7 @@
 #include "vted_utf8.h"
 #include "vted_cli.h"
 #include "vted_config.h"
+#include "vted_theme.h"
 #include "vted_buffers.h"
 /*===============================*/
 
@@ -258,9 +259,22 @@ static void EditorLoadSettings(void)
 
     ApplySettings(&settings);
 
+    /* the colors of the theme the settings name; a theme that is not
+       there leaves the built-in colors and is worth hearing about, as
+       is a theme file with lines in it that could not be used */
+    if (ThemeSelect(settings.theme) != 0)
+    {
+        SetStatusMessage("Theme not found: %s", settings.theme);
+    }
+    else if (ThemeBadLines() > 0)
+    {
+        SetStatusMessage("%d line%s of theme %s not understood",
+                         ThemeBadLines(), ThemeBadLines() == 1 ? "" : "s",
+                         settings.theme);
+    }
     /* a line that could not be used is worth hearing about: the
        setting it wanted quietly stays at its default */
-    if (bad_lines > 0)
+    else if (bad_lines > 0)
     {
         SetStatusMessage("%d line%s of the settings file not understood",
                          bad_lines, bad_lines == 1 ? "" : "s");
