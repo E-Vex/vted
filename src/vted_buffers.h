@@ -41,6 +41,12 @@ int BuffersCurrent(void); /* index of the buffer being edited, -1 before the fir
    unnamed or the index is out of range */
 const char *BuffersName(int index);
 
+/* the text of the buffer at index, for reading it while another one
+   is being edited — the words of a completion, say. NULL when the
+   index is out of range or names the buffer being edited, whose text
+   sits in the editor's globals */
+const vted_buffer_t *BuffersText(int index);
+
 /* whether the buffer at index has unsaved changes; 0 when the index
    is out of range */
 int BuffersDirty(int index);

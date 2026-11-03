@@ -341,6 +341,18 @@ const char *BuffersName(int index)
     return index == current ? vted_buffer.filename : slots[index].text.filename;
 }
 
+const vted_buffer_t *BuffersText(int index)
+{
+    if (index < 0 || index >= slot_count || index == current)
+    {
+        return NULL;
+    }
+
+    /* the live buffer's text sits in the editor's globals; a
+       suspended one's waits in its slot */
+    return &slots[index].text;
+}
+
 int BuffersDirty(int index)
 {
     if (index < 0 || index >= slot_count)

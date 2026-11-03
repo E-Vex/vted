@@ -317,6 +317,30 @@ static void TestNamesAndDirtyFlags(void)
     CHECK_INT(BuffersDirty(2), 1);
 }
 
+static void TestAWaitingBufferReadsWhileAnotherIsEdited(void)
+{
+    Begin();
+    WriteFile(first_path, "one\ntwo\n");
+    WriteFile(second_path, "three\n");
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+
+    /* out of range, or the buffer being edited: nothing to read */
+    CHECK(BuffersText(-1) == NULL);
+    CHECK(BuffersText(2) == NULL);
+    CHECK(BuffersText(BuffersCurrent()) == NULL);
+
+    /* the waiting one's rows read the same as its file */
+    {
+        const vted_buffer_t *text = BuffersText(0);
+
+        CHECK(text != NULL);
+        CHECK_INT(text->num_rows, 2);
+        CHECK_STR(text->rows[0].chars, "one");
+        CHECK_STR(text->rows[1].chars, "two");
+    }
+}
+
 static void TestEachBufferKeepsItsOwnTabWidth(void)
 {
     Begin();
@@ -504,6 +528,7 @@ int main(void)
     TestSwitchBounds();
     TestDirtyCountsAcrossBuffers();
     TestNamesAndDirtyFlags();
+    TestAWaitingBufferReadsWhileAnotherIsEdited();
     TestEachBufferKeepsItsOwnTabWidth();
     TestTheSettingsWidthReachesEveryBuffer();
     TestCloseBounds();
