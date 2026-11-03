@@ -1539,6 +1539,72 @@ static void TestHitOnAnEmptyBuffer(void)
     CHECK_INT(ScreenHitTest(0, 24, &y, &x), 0);
 }
 
+/* ==== the menu lines: what a click on a screen row picks ==== */
+
+static void BeginMenu(void)
+{
+    /* every menu check starts from a blank screen with no menu up */
+    ScreenShowMenu(NULL, 0, 0);
+
+    vted_editor_config.screen_rows = 24;
+    vted_editor_config.screen_cols = 40;
+}
+
+static void TestMenuCoversTheBottomRows(void)
+{
+    const char *lines[3] = { "one", "two", "three" };
+
+    BeginMenu();
+    ScreenShowMenu(lines, 3, 1);
+
+    /* three lines take the bottom three rows of the viewport, in
+       the order they were handed over */
+    CHECK_INT(ScreenMenuLineAt(21), 0);
+    CHECK_INT(ScreenMenuLineAt(22), 1);
+    CHECK_INT(ScreenMenuLineAt(23), 2);
+
+    /* the rows above the menu are the text's own, and the bars
+       below the viewport answer nothing */
+    CHECK_INT(ScreenMenuLineAt(20), -1);
+    CHECK_INT(ScreenMenuLineAt(0), -1);
+    CHECK_INT(ScreenMenuLineAt(24), -1);
+    CHECK_INT(ScreenMenuLineAt(-1), -1);
+}
+
+static void TestMenuTallerThanTheScreenKeepsItsTail(void)
+{
+    static const char *const lines[30] = {
+        "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
+        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29"
+    };
+
+    BeginMenu();
+    ScreenShowMenu(lines, 30, 0);
+
+    /* only the last lines fit, the way the frame draws them */
+    CHECK_INT(ScreenMenuLineAt(0), 6);
+    CHECK_INT(ScreenMenuLineAt(23), 29);
+
+    /* the bars below the viewport still answer nothing */
+    CHECK_INT(ScreenMenuLineAt(24), -1);
+}
+
+static void TestMenuOffAnswersNothing(void)
+{
+    const char *lines[1] = { "one" };
+
+    BeginMenu();
+    ScreenShowMenu(lines, 1, 0);
+    CHECK_INT(ScreenMenuLineAt(23), 0);
+
+    /* a count of 0 takes the menu off again, and every row answers
+       nothing */
+    ScreenShowMenu(NULL, 0, 0);
+    CHECK_INT(ScreenMenuLineAt(23), -1);
+    CHECK_INT(ScreenMenuLineAt(0), -1);
+}
+
 int main(void)
 {
     TestHomeStartsTheScreenLine();
@@ -1597,6 +1663,9 @@ int main(void)
     TestHitPastAWrappedRowOntoTheRowsBelow();
     TestHitIntoATallRowThroughALineOffset();
     TestHitOnAnEmptyBuffer();
+    TestMenuCoversTheBottomRows();
+    TestMenuTallerThanTheScreenKeepsItsTail();
+    TestMenuOffAnswersNothing();
 
     return TestSummary("screen");
 }

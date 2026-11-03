@@ -874,6 +874,45 @@ void ScreenShowMenu(const char *const *lines, int count, int selected)
     menu_selected = selected;
 }
 
+int ScreenMenuLineAt(int row)
+{
+    /*=================================================
+    | The menu covers the bottom rows of the         |
+    | viewport, drawing the last of its lines when it |
+    | holds more than the screen shows — the same    |
+    | window the frame draws, walked backwards here, |
+    | so a click always lands on the very line it    |
+    | was aimed at                                   |
+    =================================================*/
+
+    int shown = menu_count;
+    int first;
+
+    if (shown <= 0)
+    {
+        return -1; /* no menu is up */
+    }
+
+    if (shown > vted_editor_config.screen_rows)
+    {
+        shown = vted_editor_config.screen_rows;
+    }
+
+    first = menu_count - shown;
+
+    if (row < vted_editor_config.screen_rows - shown)
+    {
+        return -1; /* a row of the text above the menu */
+    }
+
+    if (row >= vted_editor_config.screen_rows)
+    {
+        return -1; /* the bars below the viewport */
+    }
+
+    return first + row - (vted_editor_config.screen_rows - shown);
+}
+
 void ScreenSetBracketMatch(int row, int col)
 {
     /* the row the old highlight was on is repainted without it and

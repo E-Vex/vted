@@ -110,6 +110,13 @@ void ScreenSetSearchQuery(const char *query, int len);
    menu off again */
 void ScreenShowMenu(const char *const *lines, int count, int selected);
 
+/* the line of that menu the screen row is drawing, counted among the
+   lines handed over by ScreenShowMenu(), -1 when the row is not
+   covered by it: the menu holds the bottom rows of the viewport, and
+   lines beyond what fits are the last ones, the way the frame draws
+   them */
+int ScreenMenuLineAt(int row);
+
 /* gives back the memory the module holds between frames */
 void ScreenFree(void);
 
