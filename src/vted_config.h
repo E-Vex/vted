@@ -31,6 +31,9 @@ typedef struct
     int bracket_color;     /* the color the matching bracket lights up
                               with: 0 inverts video, the default, and
                               1 to 7 name a color */
+    char theme[33];        /* the name of the color theme: a theme file
+                              in the themes directory or a built-in
+                              one; "default" is the built-in colors */
 } vted_settings_t;
 
 /* the settings the editor starts from: the built-in defaults */

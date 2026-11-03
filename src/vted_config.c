@@ -5,6 +5,7 @@
 /*===============================*/
 #include "vted_config.h"
 #include "vted_row.h"
+#include "vted_theme.h"
 /*===============================*/
 
 vted_settings_t SettingsDefaults(void)
@@ -20,6 +21,7 @@ vted_settings_t SettingsDefaults(void)
     settings.wrap_indent = 1;
     settings.indent_guides = 0;
     settings.bracket_color = 0;
+    strcpy(settings.theme, "default");
 
     return settings;
 }
@@ -304,6 +306,32 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->bracket_color = found;
+            }
+        }
+        else if (TextIs(key, key_len, "theme"))
+        {
+            /* the name of a theme, which has to be fit to be one so
+               that it can never name a file outside the themes
+               directory; whether such a theme exists is found out
+               when it is selected */
+            char name[33];
+
+            if (value_len == 0 || value_len >= sizeof(name))
+            {
+                bad++;
+                continue;
+            }
+
+            memcpy(name, value, value_len);
+            name[value_len] = '\0';
+
+            if (!ThemeNameValid(name))
+            {
+                bad++;
+            }
+            else
+            {
+                strcpy(settings->theme, name);
             }
         }
         else

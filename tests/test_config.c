@@ -42,6 +42,45 @@ static void TestDefaults(void)
     CHECK_INT(settings.wrap_indent, 1);
     CHECK_INT(settings.indent_guides, 0);
     CHECK_INT(settings.bracket_color, 0);
+    CHECK_STR(settings.theme, "default");
+}
+
+static void TestTheme(void)
+{
+    vted_settings_t settings;
+
+    CHECK_INT(LoadLines("set theme gruvbox\n", &settings), 0);
+    CHECK_STR(settings.theme, "gruvbox");
+
+    CHECK_INT(LoadLines("set theme solarized-dark\n", &settings), 0);
+    CHECK_STR(settings.theme, "solarized-dark");
+
+    /* a later line wins, and default names the built-in colors */
+    CHECK_INT(LoadLines("set theme nord\nset theme default\n", &settings), 0);
+    CHECK_STR(settings.theme, "default");
+
+    /* blanks around the value are not part of it */
+    CHECK_INT(LoadLines("set   theme \t dracula  \r\n", &settings), 0);
+    CHECK_STR(settings.theme, "dracula");
+
+    /* the longest name there is */
+    CHECK_INT(LoadLines("set theme abcdefghijklmnopqrstuvwxyz012345\n", &settings), 0);
+    CHECK_STR(settings.theme, "abcdefghijklmnopqrstuvwxyz012345");
+
+    /* a name that is no name is reported and leaves the theme alone: a
+       path, a dot, spaces, nothing, too long a word */
+    CHECK_INT(LoadLines("set theme ../evil\n", &settings), 1);
+    CHECK_STR(settings.theme, "default");
+    CHECK_INT(LoadLines("set theme /etc/passwd\n", &settings), 1);
+    CHECK_INT(LoadLines("set theme a.theme\n", &settings), 1);
+    CHECK_INT(LoadLines("set theme two words\n", &settings), 1);
+    CHECK_INT(LoadLines("set theme\n", &settings), 1);
+    CHECK_INT(LoadLines("set theme abcdefghijklmnopqrstuvwxyz0123456\n", &settings), 1);
+    CHECK_STR(settings.theme, "default");
+
+    /* a bad line after a good one keeps the good one */
+    CHECK_INT(LoadLines("set theme nord\nset theme ../x\n", &settings), 1);
+    CHECK_STR(settings.theme, "nord");
 }
 
 static void TestTabWidth(void)
@@ -343,6 +382,7 @@ static void TestPathWithoutEitherIsUnknown(void)
 int main(void)
 {
     TestDefaults();
+    TestTheme();
     TestTabWidth();
     TestInsertSpaces();
     TestLineNumbers();
