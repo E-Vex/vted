@@ -244,6 +244,11 @@ could not be used. A theme's name is made of letters, digits, `-` and
 | Alt-%           | jump to the partner of the bracket under the
   cursor (or right behind it), the way % does in vi; a partner off
   screen lands mid-viewport                         |
+| Alt-n / Alt-p   | step to the match after and before the one the
+  cursor sits on, the way n and N do in vi: the last search runs
+  again from the cursor, wrapping around the buffer, without the
+  prompt; every match keeps its light until the next key that is not
+  one of the search's own turns it off              |
 | Alt-s           | pick the color scheme: the prompt opens with the
   theme in use, so Enter alone loads it again (handy
   while writing a theme file) and a name changes it |

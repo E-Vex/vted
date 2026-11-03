@@ -165,6 +165,13 @@ jump to the partner of the bracket under the cursor, or the one
 right behind it, the way % does in vi: the partner the highlight
 marks, given the middle of the viewport when the jump leaves it
 .TP
+.B Alt\-n / Alt\-p
+step to the match after and before the one the cursor sits on, the
+way n and N do in vi: the last search runs again from the cursor,
+wrapping around the buffer, without the prompt; every match keeps
+its light until the next key that is not one of the search's own
+turns it off
+.TP
 .B Enter
 split the line at the cursor; the new line starts with the indent of
 the current one
