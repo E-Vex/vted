@@ -241,6 +241,37 @@ static void EditorJumpToBracket(void)
     ScreenCenterCursor();
 }
 
+/* a mouse button going down over the viewport places the cursor at
+   the buffer position the renderer drew under it: the hit test walks
+   the same layout the frame draws, so the click lands on the very
+   glyph it was aimed at — the gutter, a wrapped line, a viewport
+   scrolled sideways, the phantom row past the end, all of it */
+static void EditorHandleMouse(void)
+{
+    int hit_y;
+    int hit_x;
+
+    if (!ScreenHitTest(MouseLastX(), MouseLastY(), &hit_y, &hit_x))
+    {
+        return; /* over the bars: no buffer position to place */
+    }
+
+    /* the left button places the cursor; the middle and the right
+       one arrive unbound */
+    if (MouseLastButton() != 0)
+    {
+        return;
+    }
+
+    /* a click is a movement: the selection it may have left behind is
+       gone on arrival, the way the arrow keys take it */
+    EditClearSelection();
+    ScreenSetSelection(-1, 0, -1, 0);
+
+    vted_editor_config.cursor_y = hit_y;
+    vted_editor_config.cursor_x = hit_x;
+}
+
 static void EditorLoadSettings(void)
 {
     vted_settings_t settings = SettingsDefaults();
@@ -1640,6 +1671,12 @@ int main(int argc, char *argv[])
                     EditorInsertText(pasted, pasted_length);
                     free(pasted);
                 }
+            }
+            else if (c_in == MousePress)
+            {
+                /* a click on the viewport places the cursor at the
+                   position the renderer drew under it */
+                EditorHandleMouse();
             }
             else if (c_in == '\r' || c_in == '\n')
             {
