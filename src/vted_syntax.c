@@ -1418,6 +1418,32 @@ static const class_color_t default_colors[] = {
     [HlMarker]   = {"\x1b[100m", 236,  60,  60,  60, 1}
 };
 
+/* the colors chosen over the built-in ones, a slot per class */
+static struct
+{
+    int chosen;
+    vted_rgb_t color;
+} chosen_colors[sizeof(default_colors) / sizeof(default_colors[0])];
+
+int SyntaxSetClassColor(int hl_class, vted_rgb_t color)
+{
+    /* normal text and the bracket match are not the table's to color */
+    if (hl_class <= HlNormal ||
+        (size_t)hl_class >= sizeof(default_colors) / sizeof(default_colors[0]))
+    {
+        return -1;
+    }
+
+    chosen_colors[hl_class].chosen = 1;
+    chosen_colors[hl_class].color = color;
+    return 0;
+}
+
+void SyntaxResetClassColors(void)
+{
+    memset(chosen_colors, 0, sizeof(chosen_colors));
+}
+
 /* the escape of a table entry in the color mode in use */
 static const char *ClassEscape(const class_color_t *color)
 {
@@ -1470,6 +1496,15 @@ const char *SyntaxStyle(int hl_class)
         (size_t)hl_class >= sizeof(default_colors) / sizeof(default_colors[0]))
     {
         return "";
+    }
+
+    if (chosen_colors[hl_class].chosen)
+    {
+        static char escape[32];
+
+        ColorEscape(escape, sizeof(escape), chosen_colors[hl_class].color,
+                    default_colors[hl_class].background, ColorMode());
+        return escape;
     }
 
     return ClassEscape(&default_colors[hl_class]);

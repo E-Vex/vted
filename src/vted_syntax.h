@@ -13,6 +13,8 @@
 | reports every change so that memory never goes stale.    |
 ==========================================================*/
 
+#include "vted_color.h"
+
 /* what a byte of text is, one class per byte of a row */
 typedef enum
 {
@@ -74,6 +76,18 @@ void SyntaxHighlightRow(int at, unsigned char *hl);
 
 /* the terminal escape sequence that switches to the color of a class */
 const char *SyntaxStyle(int hl_class);
+
+/* gives a class a color of its own in place of the built-in one: the
+   text of a foreground class, the cell behind it for the classes drawn
+   as a background (a search match, the wrap column marker). The color
+   reaches the terminal in the richest spelling the color mode allows.
+   Returns 0, or -1 when the class is not one a color can be chosen
+   for: normal text, and the bracket match, which has its own setting */
+int SyntaxSetClassColor(int hl_class, vted_rgb_t color);
+
+/* takes every color chosen with SyntaxSetClassColor back, so the
+   built-in ones show again */
+void SyntaxResetClassColors(void);
 
 /* the color the matching bracket lights up with: 0 leaves the match
    in inverted video, and 1 to 7 are the colors the bracket-color

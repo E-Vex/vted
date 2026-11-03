@@ -1310,6 +1310,65 @@ static void TestDefaultEscapes(void)
     SyntaxSetColorMode(-1);
 }
 
+static void TestChosenClassColors(void)
+{
+    vted_rgb_t orange = {255, 135, 0};
+    int mode;
+
+    /* a color chosen for a class replaces the built-in one, spelled in
+       the mode in use */
+    SyntaxSetColorMode(2);
+    CHECK_INT(SyntaxSetClassColor(HlKeyword, orange), 0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;255;135;0m");
+
+    SyntaxSetColorMode(1);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;5;208m");
+
+    /* 16 colors have no orange: the nearest is the terminal's yellow */
+    SyntaxSetColorMode(0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[33m");
+
+    /* the other classes keep theirs */
+    SyntaxSetColorMode(2);
+    CHECK_STR(SyntaxStyle(HlString), "\x1b[38;2;0;170;0m");
+
+    /* a class drawn as a background stays one */
+    CHECK_INT(SyntaxSetClassColor(HlMatch, orange), 0);
+    CHECK_STR(SyntaxStyle(HlMatch), "\x1b[48;2;255;135;0m");
+    CHECK_INT(SyntaxSetClassColor(HlMarker, orange), 0);
+    CHECK_STR(SyntaxStyle(HlMarker), "\x1b[48;2;255;135;0m");
+
+    /* a later choice wins over an earlier one */
+    vted_rgb_t blue = {0, 0, 255};
+
+    CHECK_INT(SyntaxSetClassColor(HlKeyword, blue), 0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;0;0;255m");
+
+    /* normal text and the bracket match are not classes a color can be
+       chosen for, and nothing out of range is either */
+    CHECK_INT(SyntaxSetClassColor(HlNormal, orange), -1);
+    CHECK_INT(SyntaxSetClassColor(HlBracket, orange), -1);
+    CHECK_INT(SyntaxSetClassColor(-1, orange), -1);
+    CHECK_INT(SyntaxSetClassColor(999, orange), -1);
+    CHECK_STR(SyntaxStyle(HlNormal), "");
+
+    /* taking the choices back leaves the built-in colors, in every mode */
+    SyntaxResetClassColors();
+
+    for (mode = 0; mode < 3; mode++)
+    {
+        SyntaxSetColorMode(mode);
+        CHECK(strcmp(SyntaxStyle(HlKeyword), "\x1b[38;2;0;0;255m") != 0);
+    }
+
+    SyntaxSetColorMode(2);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;170;130;0m");
+    CHECK_STR(SyntaxStyle(HlMatch), "\x1b[48;2;135;95;0m");
+    CHECK_STR(SyntaxStyle(HlMarker), "\x1b[48;2;60;60;60m");
+
+    SyntaxSetColorMode(-1);
+}
+
 static void TestColorMode(void)
 {
     /* a forced mode is the one the escapes are drawn in: the comment
@@ -1402,6 +1461,7 @@ int main(void)
     TestDotenv();
     TestStyles();
     TestDefaultEscapes();
+    TestChosenClassColors();
     TestColorMode();
     TestBracketMatchStyle();
 
