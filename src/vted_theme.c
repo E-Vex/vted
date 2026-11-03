@@ -233,6 +233,21 @@ static const struct
         "color tab      #586e75\n"
         "color indent   #12404c\n"
         "color marker   #073642\n"
+    },
+    {"light",
+        "color comment  #6a737d\n"
+        "color string   #22863a\n"
+        "color number   #005cc5\n"
+        "color keyword  #d73a49\n"
+        "color type     #6f42c1\n"
+        "color preproc  #986801\n"
+        "color removed  #cb2431\n"
+        "color context  #959da5\n"
+        "color function #e36209\n"
+        "color match    #ffdf5d\n"
+        "color tab      #959da5\n"
+        "color indent   #d0d7de\n"
+        "color marker   #eaeef2\n"
     }
 };
 
