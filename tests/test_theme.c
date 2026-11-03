@@ -130,8 +130,55 @@ static void TestNameValid(void)
     CHECK_INT(ThemeNameValid("caf\xc3\xa9"), 0);
 }
 
+static void TestSelect(void)
+{
+    SyntaxSetColorMode(2);
+    SyntaxResetClassColors();
+
+    /* default is where it starts, and selecting it is the built-in
+       colors */
+    CHECK_STR(ThemeCurrent(), "default");
+    CHECK_INT(ThemeSelect("default"), 0);
+    CHECK_STR(ThemeCurrent(), "default");
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;170;130;0m");
+
+    /* selecting default takes a color chosen by hand back too */
+    ThemeApply("color keyword #ff0000\n");
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;255;0;0m");
+    CHECK_INT(ThemeSelect("default"), 0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;170;130;0m");
+
+    /* a name that is no theme, or no name at all, fails and changes
+       nothing */
+    ThemeApply("color keyword #ff0000\n");
+    CHECK_INT(ThemeSelect("nonesuch"), -1);
+    CHECK_INT(ThemeSelect("../default"), -1);
+    CHECK_INT(ThemeSelect(""), -1);
+    CHECK_STR(ThemeCurrent(), "default");
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;255;0;0m");
+
+    /* the built-in themes can be listed, and each of them selected */
+    int i;
+
+    CHECK(ThemeBuiltinCount() >= 1);
+    CHECK_STR(ThemeBuiltinName(0), "default");
+    CHECK(ThemeBuiltinName(-1) == NULL);
+    CHECK(ThemeBuiltinName(ThemeBuiltinCount()) == NULL);
+
+    for (i = 0; i < ThemeBuiltinCount(); i++)
+    {
+        CHECK_INT(ThemeSelect(ThemeBuiltinName(i)), 0);
+        CHECK_STR(ThemeCurrent(), ThemeBuiltinName(i));
+    }
+
+    SyntaxResetClassColors();
+    SyntaxSetColorMode(-1);
+    ThemeSelect("default");
+}
+
 int main(void)
 {
+    TestSelect();
     TestNameValid();
     TestClassNames();
     TestApply();

@@ -1,4 +1,5 @@
 /*===============================*/
+#include <stdio.h>
 #include <string.h>
 /*===============================*/
 #include "vted_theme.h"
@@ -163,4 +164,59 @@ int ThemeNameValid(const char *name)
     }
 
     return 1;
+}
+
+/* the themes that come with the editor, each a theme text of its own.
+   The first, default, names no color: it is the built-in colors */
+static const struct
+{
+    const char *name;
+    const char *text;
+} builtin_themes[] = {
+    {"default", ""}
+};
+
+static char current_theme[33] = "default";
+
+int ThemeBuiltinCount(void)
+{
+    return (int)(sizeof(builtin_themes) / sizeof(builtin_themes[0]));
+}
+
+const char *ThemeBuiltinName(int index)
+{
+    if (index < 0 || index >= ThemeBuiltinCount())
+    {
+        return NULL;
+    }
+
+    return builtin_themes[index].name;
+}
+
+const char *ThemeCurrent(void)
+{
+    return current_theme;
+}
+
+int ThemeSelect(const char *name)
+{
+    int i;
+
+    if (!ThemeNameValid(name))
+    {
+        return -1;
+    }
+
+    for (i = 0; i < ThemeBuiltinCount(); i++)
+    {
+        if (strcmp(builtin_themes[i].name, name) == 0)
+        {
+            SyntaxResetClassColors();
+            ThemeApply(builtin_themes[i].text);
+            snprintf(current_theme, sizeof(current_theme), "%s", name);
+            return 0;
+        }
+    }
+
+    return -1;
 }

@@ -40,4 +40,19 @@ int ThemeApply(const char *text);
    themes directory: no '/', no dots, no spaces */
 int ThemeNameValid(const char *name);
 
+/* makes the named theme the one in use: the colors of whichever theme
+   was before are taken back, and the named one's are given. The name is
+   one of the built-in themes. Returns 0, or -1 when the name is none
+   of them (or not fit to be a name), in which case the theme in use is
+   left as it was */
+int ThemeSelect(const char *name);
+
+/* the name of the theme in use: "default" until another is selected */
+const char *ThemeCurrent(void);
+
+/* the built-in themes, by number from 0: their count, and the name of
+   one (NULL when the number is out of range) */
+int ThemeBuiltinCount(void);
+const char *ThemeBuiltinName(int index);
+
 #endif
