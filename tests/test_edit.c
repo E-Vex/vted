@@ -157,6 +157,128 @@ static void TestDelCharAtStartOfFile(void)
     CHECK_INT(vted_buffer.dirty, 0);
 }
 
+static void TestDeleteWordLeft(void)
+{
+    /* the word before the cursor goes, the blanks left of it stay */
+    Begin("foo bar baz");
+    CursorAt(0, 11);
+
+    EditorDeleteWordLeft();
+    CHECK_STR(vted_buffer.rows[0].chars, "foo bar ");
+    CHECK_INT(vted_editor_config.cursor_x, 8);
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    /* one undo step puts the word and the cursor back */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo bar baz");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 11);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo bar ");
+    CHECK_INT(vted_editor_config.cursor_x, 8);
+}
+
+static void TestDeleteWordLeftFromInsideAWord(void)
+{
+    /* mid-word, the deletion goes back to the word's own start */
+    Begin("foo bar");
+    CursorAt(0, 6); /* on the r */
+
+    EditorDeleteWordLeft();
+    CHECK_STR(vted_buffer.rows[0].chars, "foo r");
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+}
+
+static void TestDeleteWordLeftOverBlanks(void)
+{
+    /* the word right before the cursor goes, even when blanks sit
+       further left; those stay */
+    Begin("foo    bar");
+    CursorAt(0, 10);
+
+    EditorDeleteWordLeft();
+    CHECK_STR(vted_buffer.rows[0].chars, "foo    ");
+    CHECK_INT(vted_editor_config.cursor_x, 7);
+
+    /* sitting right after the run of blanks, the run goes with the
+       word before it, the way the shell erases a word */
+    Begin("foo    bar");
+    CursorAt(0, 7);
+
+    EditorDeleteWordLeft();
+    CHECK_STR(vted_buffer.rows[0].chars, "bar");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestDeleteWordLeftAtColumnZero(void)
+{
+    /* the start of a line merges it into the line above, the way
+       Backspace does */
+    Begin("ab");
+    AppendRow("cd", 2, VTED_EOL_LF);
+    CursorAt(1, 0);
+
+    EditorDeleteWordLeft();
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestDeleteWordLeftAtStartOfFile(void)
+{
+    Begin("ab");
+    CursorAt(0, 0);
+
+    EditorDeleteWordLeft();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab"); /* nothing deleted */
+    CHECK_INT(vted_buffer.dirty, 0);
+}
+
+static void TestDeleteWordLeftOfBlanks(void)
+{
+    /* a run of nothing but blanks goes in one step */
+    Begin("   ");
+    CursorAt(0, 3);
+
+    EditorDeleteWordLeft();
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestDeleteWordLeftUtf8(void)
+{
+    /* the deletion moves by whole characters, never into a sequence */
+    Begin("h\xC3\xA9llo w\xC3\xB6rld"); /* héllo wörld */
+    CursorAt(0, 13);
+
+    EditorDeleteWordLeft();
+    CHECK_STR(vted_buffer.rows[0].chars, "h\xC3\xA9llo ");
+    CHECK_INT(vted_editor_config.cursor_x, 7);
+}
+
+static void TestDeleteWordLeftUndoesAsSteps(void)
+{
+    /* two presses are two steps, undone one at a time */
+    Begin("foo bar");
+    CursorAt(0, 7);
+
+    EditorDeleteWordLeft();
+    EditorDeleteWordLeft();
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo ");
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo bar");
+    CHECK_INT(vted_editor_config.cursor_x, 7);
+}
+
 static void TestDeleteLine(void)
 {
     Begin("one");
@@ -850,6 +972,14 @@ int main(void)
     TestDelCharMultibyte();
     TestDelCharMerges();
     TestDelCharAtStartOfFile();
+    TestDeleteWordLeft();
+    TestDeleteWordLeftFromInsideAWord();
+    TestDeleteWordLeftOverBlanks();
+    TestDeleteWordLeftAtColumnZero();
+    TestDeleteWordLeftAtStartOfFile();
+    TestDeleteWordLeftOfBlanks();
+    TestDeleteWordLeftUtf8();
+    TestDeleteWordLeftUndoesAsSteps();
     TestDeleteLine();
     TestDeleteLineClampsColumn();
     TestDeleteOnlyLine();

@@ -373,6 +373,77 @@ void EditorDelChar(void)
     }
 }
 
+void EditorDeleteWordLeft(void)
+{
+    /* Alt-Backspace takes the run of blanks and the word before them
+       on the left of the cursor in one step, the way the shells and
+       readline erase a word: back to the start of the word the cursor
+       sits in, or over the blanks and the word before them when it
+       sits past one */
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+
+    if (before_y == 0 && before_x == 0)
+    {
+        return; /* nothing before the start of the file */
+    }
+
+    if (before_y >= vted_buffer.num_rows)
+    {
+        return; /* the phantom row past the end holds nothing */
+    }
+
+    if (before_x == 0)
+    {
+        /* the start of a line: the word left of the cursor ends on
+           the line above, so the lines merge the way Backspace does */
+        EditorDelChar();
+        return;
+    }
+
+    vted_row_t *row = &vted_buffer.rows[before_y];
+    int start = RowWordLeft(row, before_x);
+    int count = before_x - start;
+    char *removed = malloc((size_t)count);
+
+    if (removed == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    memcpy(removed, &row->chars[start], (size_t)count);
+
+    while (count-- > 0)
+    {
+        if (RowRemoveChar(row, start) == -1)
+        {
+            KillApp("RowRemoveChar");
+        }
+    }
+
+    vted_editor_config.cursor_x = start;
+
+    vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindRemoveBytes,
+        .row = before_y,
+        .cx = start,
+        .bytes = removed,
+        .length = before_x - start,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = before_y,
+        .redo_x = start,
+    };
+    /* a word at a time, not a keystroke of a burst: two presses undo
+       as two steps, the way the shell takes its backspaces back */
+    UndoPush(&entry);
+
+    free(removed);
+}
+
 void EditorDeleteLine(void)
 {
     /* Ctrl-K removes the whole line under the cursor */

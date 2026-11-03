@@ -23,6 +23,14 @@ void EditorInsertNewline(void);
    paste is one undo step, however many lines it has */
 void EditorInsertText(const char *text, int length);
 void EditorDelChar(void);
+
+/* deletes the run of blanks and the word before them on the left of
+   the cursor, the way the shells and readline take Alt-Backspace: one
+   undoable step, the cursor left where the deletion started. At the
+   start of a line the word ends on the line above, so the lines merge
+   the way Backspace does; a selection is the caller's to delete */
+void EditorDeleteWordLeft(void);
+
 void EditorDeleteLine(void);
 void EditorDuplicateLine(void);
 void EditorMoveLineUp(void);
