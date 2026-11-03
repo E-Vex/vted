@@ -4,6 +4,7 @@
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_screen.h"
+#include "vted_keyboard.h"
 #include "vted_row.h"
 #include "vted_utf8.h"
 #include "vted_syntax.h"
@@ -439,6 +440,79 @@ void EditorDeleteWordLeft(void)
     };
     /* a word at a time, not a keystroke of a burst: two presses undo
        as two steps, the way the shell takes its backspaces back */
+    UndoPush(&entry);
+
+    free(removed);
+}
+
+void EditorDeleteWordRight(void)
+{
+    /* Alt-d takes the text the word move right crosses, the way the
+       editor's own Ctrl-Right and Alt-f cross it: the run the cursor
+       sits in, then the blanks behind it, up to the start of the
+       next word */
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+
+    if (before_y >= vted_buffer.num_rows)
+    {
+        return; /* the phantom row past the end holds nothing */
+    }
+
+    vted_row_t *row = &vted_buffer.rows[before_y];
+    int end = RowWordRight(row, before_x);
+
+    if (end == before_x)
+    {
+        /* nothing right of the cursor in the row: the word it wants
+           starts on the line below, so the lines join the way the
+           Delete key joins them */
+        MoveCursor(ArrowRight);
+
+        if (vted_editor_config.cursor_x != before_x ||
+            vted_editor_config.cursor_y != before_y)
+        {
+            EditorDelChar();
+        }
+
+        return;
+    }
+
+    int count = end - before_x;
+    char *removed = malloc((size_t)count);
+
+    if (removed == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    memcpy(removed, &row->chars[before_x], (size_t)count);
+
+    while (count-- > 0)
+    {
+        if (RowRemoveChar(row, before_x) == -1)
+        {
+            KillApp("RowRemoveChar");
+        }
+    }
+
+    /* the cursor keeps its place: what it was looking at is gone */
+
+    vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindRemoveBytes,
+        .row = before_y,
+        .cx = before_x,
+        .bytes = removed,
+        .length = end - before_x,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = before_y,
+        .redo_x = before_x,
+    };
+    /* a word at a time, like the deletion on the left of the cursor */
     UndoPush(&entry);
 
     free(removed);

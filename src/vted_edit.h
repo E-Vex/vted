@@ -31,6 +31,14 @@ void EditorDelChar(void);
    the way Backspace does; a selection is the caller's to delete */
 void EditorDeleteWordLeft(void);
 
+/* deletes the text the word move right crosses (Ctrl-Right, Alt-f):
+   the run the cursor sits in and the blanks behind it, up to the
+   start of the next word — the rest of a word when the cursor sits
+   inside one, the blanks when it sits on them. One undoable step, the
+   cursor left where it stood. At the end of a line the next word
+   starts on the line below, so the lines merge the way Delete does */
+void EditorDeleteWordRight(void);
+
 void EditorDeleteLine(void);
 void EditorDuplicateLine(void);
 void EditorMoveLineUp(void);

@@ -279,6 +279,119 @@ static void TestDeleteWordLeftUndoesAsSteps(void)
     CHECK_INT(vted_editor_config.cursor_x, 7);
 }
 
+static void TestDeleteWordRight(void)
+{
+    /* the word and the blanks behind it go, to the next word's start */
+    Begin("foo bar baz");
+    CursorAt(0, 0);
+
+    EditorDeleteWordRight();
+    CHECK_STR(vted_buffer.rows[0].chars, "bar baz");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    /* undo puts them back, the cursor where it stood */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo bar baz");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "bar baz");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestDeleteWordRightFromInsideAWord(void)
+{
+    /* mid-word, the rest of the word goes, the blanks behind it with
+       it */
+    Begin("foo bar baz");
+    CursorAt(0, 1);
+
+    EditorDeleteWordRight();
+    CHECK_STR(vted_buffer.rows[0].chars, "fbar baz");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestDeleteWordRightOfBlanks(void)
+{
+    /* sitting on a run of blanks, the run goes up to the next word's
+       start, the way the word move right crosses it */
+    Begin("foo    bar");
+    CursorAt(0, 3);
+
+    EditorDeleteWordRight();
+    CHECK_STR(vted_buffer.rows[0].chars, "foobar");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+}
+
+static void TestDeleteWordRightAtRowEnd(void)
+{
+    /* the end of a line joins the line below, the way Delete does */
+    Begin("ab");
+    AppendRow("cd", 2, VTED_EOL_LF);
+    CursorAt(0, 2);
+
+    EditorDeleteWordRight();
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestDeleteWordRightAtEndOfBuffer(void)
+{
+    Begin("ab");
+    CursorAt(0, 2);
+
+    EditorDeleteWordRight();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab"); /* nothing deleted */
+    CHECK_INT(vted_buffer.dirty, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestDeleteWordRightOnPhantomRow(void)
+{
+    Begin("ab");
+    CursorAt(1, 0); /* the row past the end */
+
+    EditorDeleteWordRight();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(vted_buffer.dirty, 0);
+}
+
+static void TestDeleteWordRightUtf8(void)
+{
+    /* the deletion moves by whole characters, never into a sequence */
+    Begin("h\xC3\xA9llo w\xC3\xB6rld"); /* héllo wörld */
+    CursorAt(0, 0);
+
+    EditorDeleteWordRight();
+    CHECK_STR(vted_buffer.rows[0].chars, "w\xC3\xB6rld");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
+static void TestDeleteWordRightUndoesAsSteps(void)
+{
+    /* two presses are two steps, undone one at a time */
+    Begin("foo bar baz");
+    CursorAt(0, 0);
+
+    EditorDeleteWordRight();
+    EditorDeleteWordRight();
+    CHECK_STR(vted_buffer.rows[0].chars, "baz");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "bar baz");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo bar baz");
+    CHECK_INT(vted_editor_config.cursor_x, 0);
+}
+
 static void TestDeleteLine(void)
 {
     Begin("one");
@@ -980,6 +1093,14 @@ int main(void)
     TestDeleteWordLeftOfBlanks();
     TestDeleteWordLeftUtf8();
     TestDeleteWordLeftUndoesAsSteps();
+    TestDeleteWordRight();
+    TestDeleteWordRightFromInsideAWord();
+    TestDeleteWordRightOfBlanks();
+    TestDeleteWordRightAtRowEnd();
+    TestDeleteWordRightAtEndOfBuffer();
+    TestDeleteWordRightOnPhantomRow();
+    TestDeleteWordRightUtf8();
+    TestDeleteWordRightUndoesAsSteps();
     TestDeleteLine();
     TestDeleteLineClampsColumn();
     TestDeleteOnlyLine();
