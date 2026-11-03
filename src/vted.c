@@ -665,10 +665,11 @@ static void EditorCloseBuffer(void)
 #define QUIT_CONFIRMATIONS 3
 #define CLOSE_CONFIRMATIONS 3
 
-/* picks one of the open buffers from a list: the arrows move through
-   them, a left click takes the buffer drawn under it, Enter takes the
-   one under the selection, Ctrl-E closes the one under it without
-   leaving the list, and ESC puts the buffer that was live back */
+/* picks one of the open buffers from a list: the arrows and the wheel
+   move through them, a left click takes the buffer drawn under it,
+   Enter takes the one under the selection, Ctrl-E closes the one
+   under it without leaving the list, and ESC puts the buffer that was
+   live back */
 static void EditorPickBuffer(void)
 {
     char lines[PICKER_LINES][PICKER_WIDTH];
@@ -856,6 +857,25 @@ static void EditorPickBuffer(void)
                     selection = first + line;
                     break;
                 }
+            }
+
+            continue;
+        }
+
+        /* a wheel notch steps the selection one buffer, the way an
+           arrow does without its wrap: the wheel stops at the first
+           and the last line, the way the scroll it makes over the
+           text stops at both ends */
+        if (c == MouseWheelUp || c == MouseWheelDown)
+        {
+            if (c == MouseWheelUp && selection > 0)
+            {
+                selection--;
+            }
+
+            if (c == MouseWheelDown && selection < count - 1)
+            {
+                selection++;
             }
 
             continue;
