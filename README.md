@@ -278,7 +278,9 @@ could not be used. A theme's name is made of letters, digits, `-` and
 under it — the gutter counting as the first text cell of its row, a
 wrapped line as a screen line of its own, the tildes below the text
 as the row past the end; holding the left button down and moving the
-mouse selects from where the click went down, and the wheel scrolls
+mouse selects from where the click went down — a pointer that runs
+onto the bars at the bottom scrolling the viewport a screen line
+along at a report — and the wheel scrolls
 the viewport three screen lines at a notch, the way Alt-e and Alt-y
 scroll one; over the Ctrl-B buffer list a click takes the buffer
 drawn under it, the wheel stepping the selection a buffer at a
@@ -332,13 +334,15 @@ New in 0.3.3:
   viewport scrolled sideways and the tildes past the end all
   included — a drag with the left button held selects from where the
   click went down (Ctrl-C, Ctrl-X, Ctrl-/ and typing take it the way
-  they take the shift selections), and the wheel scrolls the viewport
-  three screen lines at a notch. The Ctrl-B buffer list takes a left
-  click on the buffer drawn under it, the wheel stepping its
-  selection a buffer at a notch. The terminal is asked for the
-  reports at startup and gives them back on every way out, so the
-  shell's own selections keep working; most terminals also let Shift
-  bypass the reporting while the editor runs
+  they take the shift selections), a pointer that runs onto the bars
+  scrolling the viewport a screen line along at a report, and the
+  wheel scrolls the viewport three screen lines at a notch. The
+  Ctrl-B buffer list takes a left click on the buffer drawn under
+  it, the wheel stepping its selection a buffer at a notch. The
+  terminal is asked for the reports at startup and gives them back
+  on every way out, so the shell's own selections keep working; most
+  terminals also let Shift bypass the reporting while the editor
+  runs
 - A selection ending past the last row — the way Shift-Down onto the
   tildes below the text makes — reads as the end of that last row,
   which is what it selected all along; cutting it no longer reaches
