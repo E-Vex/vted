@@ -16,6 +16,39 @@ vted_buffer_t vted_buffer;
    display columns with it, so it is the single place tabs are sized */
 static int row_tab_stop = VTED_TAB_STOP;
 
+/* 1 when the search matches letters without regard to their case;
+   off by default, the way a plain byte search behaves */
+static int find_fold_case = 0;
+
+/* the byte a folded search treats this one as: a letter and the other
+   of its cases count as the same, and the lower case is the one kept */
+static unsigned char FoldByte(unsigned char c)
+{
+    if (c >= 'A' && c <= 'Z')
+    {
+        return (unsigned char)(c + ('a' - 'A'));
+    }
+
+    return c;
+}
+
+/* do the len bytes at text and at query agree, letters taken without
+   regard to their case? Both are read only within their len bytes */
+static int BytesFoldEqual(const char *text, const char *query, int len)
+{
+    int i;
+
+    for (i = 0; i < len; i++)
+    {
+        if (FoldByte((unsigned char)text[i]) != FoldByte((unsigned char)query[i]))
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 void InitBuffer(void)
 {
     vted_buffer.rows = NULL;
@@ -946,6 +979,56 @@ int RowFindNext(const vted_row_t *row, int from, int to,
     last = to < row->size - query_len + 1 ? to : row->size - query_len + 1;
     last--; /* now inclusive */
 
+    if (find_fold_case)
+    {
+        /* a folded first byte may sit in the row as either of its
+           cases, so both are looked for and the nearer one wins */
+        unsigned char first = (unsigned char)query[0];
+        unsigned char low = FoldByte(first);
+        unsigned char high;
+
+        if (low != first)
+        {
+            high = first; /* the query names the upper case itself */
+        }
+        else if (first >= 'a' && first <= 'z')
+        {
+            high = (unsigned char)(first - ('a' - 'A'));
+        }
+        else
+        {
+            high = first; /* a byte without a case has no other */
+        }
+
+        while (from <= last)
+        {
+            const char *hit = memchr(row->chars + from, low,
+                                     (size_t)(last - from + 1));
+            const char *other = high == low ? NULL
+                : memchr(row->chars + from, high,
+                         (size_t)(last - from + 1));
+
+            if (hit == NULL || (other != NULL && other < hit))
+            {
+                hit = other;
+            }
+
+            if (hit == NULL)
+            {
+                return -1;
+            }
+
+            if (BytesFoldEqual(hit, query, query_len))
+            {
+                return (int)(hit - row->chars);
+            }
+
+            from = (int)(hit - row->chars) + 1;
+        }
+
+        return -1;
+    }
+
     /* memchr finds the query's first byte fast; only positions a
        whole match could start from are looked at */
     while (from <= last)
@@ -994,7 +1077,11 @@ int RowFindPrev(const vted_row_t *row, int from, int to,
 
     for (at = last - 1; at >= from; at--)
     {
-        if (memcmp(row->chars + at, query, (size_t)query_len) == 0)
+        int hit = find_fold_case
+            ? BytesFoldEqual(row->chars + at, query, query_len)
+            : memcmp(row->chars + at, query, (size_t)query_len) == 0;
+
+        if (hit)
         {
             return at;
         }
@@ -1011,6 +1098,11 @@ void RowSetTabWidth(int width)
     }
 
     row_tab_stop = width;
+}
+
+void RowSetIgnoreCase(int fold)
+{
+    find_fold_case = fold != 0;
 }
 
 void FreeRow(vted_row_t *row)

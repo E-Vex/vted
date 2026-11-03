@@ -195,7 +195,9 @@ int RowWordLeft(const vted_row_t *row, int cx);
    starts inside [from, to), or the last one, or -1 when there is
    none. A match may start anywhere, even inside a multi-byte
    character, the way a plain byte search finds it; the bounds are
-   clamped to the row, and an empty query never matches */
+   clamped to the row, and an empty query never matches. With the
+   case folded (RowSetIgnoreCase), letters agree with either of
+   their cases and every other byte with itself alone */
 int RowFindNext(const vted_row_t *row, int from, int to,
                 const char *query, int query_len);
 int RowFindPrev(const vted_row_t *row, int from, int to,
@@ -247,5 +249,9 @@ void FreeBuffer(void);
 /* sets the tab stop in cells used by RowCharWidth(); VTED_TAB_STOP by
    default, clamped to at least one */
 void RowSetTabWidth(int width);
+
+/* sets whether the search folds the case: 1 matches letters without
+   regard to their case, 0 (the default) takes bytes as they stand */
+void RowSetIgnoreCase(int fold);
 
 #endif

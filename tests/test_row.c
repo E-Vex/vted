@@ -1357,6 +1357,45 @@ static void TestFindInsideAMultibyteCharacter(void)
     CHECK_INT(RowFindNext(&row, 2, row.size, "\xB8\xAD", 2), -1);
 }
 
+static void TestFindFoldsCase(void)
+{
+    vted_row_t row = MakeRow("aBc AbC abc ABC");
+
+    /* with the fold off, the case of the bytes stands as it is */
+    RowSetIgnoreCase(0);
+    CHECK_INT(RowFindNext(&row, 0, row.size, "abc", 3), 8);
+    CHECK_INT(RowFindNext(&row, 0, row.size, "AbC", 3), 4);
+    CHECK_INT(RowFindPrev(&row, 0, row.size, "ABC", 3), 12);
+
+    /* folded, every spelling of the letters answers: aBc at 0,
+       AbC at 4, abc at 8 and ABC at 12 */
+    RowSetIgnoreCase(1);
+    CHECK_INT(RowFindNext(&row, 0, row.size, "abc", 3), 0);
+    CHECK_INT(RowFindNext(&row, 1, row.size, "abc", 3), 4);
+    CHECK_INT(RowFindNext(&row, 5, row.size, "abc", 3), 8);
+    CHECK_INT(RowFindNext(&row, 10, row.size, "abc", 3), 12);
+    CHECK_INT(RowFindNext(&row, 13, row.size, "abc", 3), -1);
+    CHECK_INT(RowFindPrev(&row, 0, row.size, "aBc", 3), 12);
+    CHECK_INT(RowFindPrev(&row, 0, 12, "aBc", 3), 8);
+
+    /* a folded first byte is looked for as either of its cases */
+    CHECK_INT(RowFindNext(&row, 0, row.size, "ABC", 3), 0);
+    CHECK_INT(RowFindPrev(&row, 0, 4, "ABC", 3), 0);
+
+    /* the bounds hold the folded search the way they hold the plain
+       one: the match has to start inside them */
+    CHECK_INT(RowFindNext(&row, 0, 3, "abc", 3), 0);
+    CHECK_INT(RowFindNext(&row, 1, 4, "abc", 3), -1);
+
+    /* bytes without a case stand as they are */
+    CHECK_INT(RowFindNext(&row, 0, row.size, "bC ", 3), 1);
+    CHECK_INT(RowFindNext(&row, 0, row.size, "c a", 3), 2);
+
+    /* the fold goes back off again */
+    RowSetIgnoreCase(0);
+    CHECK_INT(RowFindNext(&row, 0, row.size, "abc", 3), 8);
+}
+
 static void TestCountMatches(void)
 {
     const char *const texts[] = {"abcabdab", "", "ab", NULL};
@@ -1591,6 +1630,7 @@ int main(void)
     TestFindNext();
     TestFindPrev();
     TestFindInsideAMultibyteCharacter();
+    TestFindFoldsCase();
     TestCountMatches();
     TestCountMatchesThatShareBytes();
     TestIndentEdges();
