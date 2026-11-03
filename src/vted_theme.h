@@ -55,4 +55,8 @@ const char *ThemeCurrent(void);
 int ThemeBuiltinCount(void);
 const char *ThemeBuiltinName(int index);
 
+/* the text of a built-in theme, written the way a theme file is, so it
+   can serve as the start of one; NULL when the number is out of range */
+const char *ThemeBuiltinText(int index);
+
 #endif

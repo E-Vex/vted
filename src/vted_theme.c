@@ -193,6 +193,16 @@ const char *ThemeBuiltinName(int index)
     return builtin_themes[index].name;
 }
 
+const char *ThemeBuiltinText(int index)
+{
+    if (index < 0 || index >= ThemeBuiltinCount())
+    {
+        return NULL;
+    }
+
+    return builtin_themes[index].text;
+}
+
 const char *ThemeCurrent(void)
 {
     return current_theme;

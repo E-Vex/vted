@@ -171,6 +171,23 @@ static void TestSelect(void)
         CHECK_STR(ThemeCurrent(), ThemeBuiltinName(i));
     }
 
+    /* every built-in theme is written correctly: not one of its lines
+       is refused, and its text is not empty unless it is the default */
+    for (i = 0; i < ThemeBuiltinCount(); i++)
+    {
+        SyntaxResetClassColors();
+        CHECK(ThemeBuiltinText(i) != NULL);
+        CHECK_INT(ThemeApply(ThemeBuiltinText(i)), 0);
+
+        if (strcmp(ThemeBuiltinName(i), "default") != 0)
+        {
+            CHECK(strlen(ThemeBuiltinText(i)) > 0);
+        }
+    }
+
+    CHECK(ThemeBuiltinText(-1) == NULL);
+    CHECK(ThemeBuiltinText(ThemeBuiltinCount()) == NULL);
+
     SyntaxResetClassColors();
     SyntaxSetColorMode(-1);
     ThemeSelect("default");
