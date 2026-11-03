@@ -130,6 +130,36 @@ static void TestNameValid(void)
     CHECK_INT(ThemeNameValid("caf\xc3\xa9"), 0);
 }
 
+/* the color each built-in theme gives a keyword, in truecolor: the
+   mark of the theme, which a theme that lost its lines would not carry */
+static void TestBuiltinThemes(void)
+{
+    static const struct
+    {
+        const char *name;
+        const char *keyword;
+    } builtin_keywords[] = {
+        {"gruvbox", "\x1b[38;2;251;73;52m"}
+    };
+    size_t i;
+
+    SyntaxSetColorMode(2);
+
+    for (i = 0; i < sizeof(builtin_keywords) / sizeof(builtin_keywords[0]); i++)
+    {
+        CHECK_INT(ThemeSelect(builtin_keywords[i].name), 0);
+        CHECK_STR(ThemeCurrent(), builtin_keywords[i].name);
+        CHECK_STR(SyntaxStyle(HlKeyword), builtin_keywords[i].keyword);
+
+        /* a theme colors the text it names and leaves the rest of the
+           built-in colors alone, and selecting default takes it back */
+        CHECK_INT(ThemeSelect("default"), 0);
+        CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;170;130;0m");
+    }
+
+    SyntaxSetColorMode(-1);
+}
+
 static void TestSelect(void)
 {
     SyntaxSetColorMode(2);
@@ -196,6 +226,7 @@ static void TestSelect(void)
 int main(void)
 {
     TestSelect();
+    TestBuiltinThemes();
     TestNameValid();
     TestClassNames();
     TestApply();

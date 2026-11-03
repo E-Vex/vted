@@ -173,7 +173,22 @@ static const struct
     const char *name;
     const char *text;
 } builtin_themes[] = {
-    {"default", ""}
+    {"default", ""},
+    {"gruvbox",
+        "color comment  #928374\n"
+        "color string   #b8bb26\n"
+        "color number   #d3869b\n"
+        "color keyword  #fb4934\n"
+        "color type     #fabd2f\n"
+        "color preproc  #8ec07c\n"
+        "color removed  #fb4934\n"
+        "color context  #7c6f64\n"
+        "color function #83a598\n"
+        "color match    #7c5e10\n"
+        "color tab      #665c54\n"
+        "color indent   #504945\n"
+        "color marker   #3c3836\n"
+    }
 };
 
 static char current_theme[33] = "default";
