@@ -314,7 +314,7 @@ does, and closing the last buffer starts a fresh empty one.
 
 ## Features
 
-Unreleased:
+New in 0.3.2:
 
 - Color themes: `set theme NAME`, or Alt-s while editing, picks the
   colors the text is drawn in. `gruvbox`, `nord`, `dracula`,
@@ -322,6 +322,19 @@ Unreleased:
   `~/.config/vted/themes/` makes a theme of your own, with colors
   written as `#rrggbb`, a name or a 256-color palette number and
   fitted to what the terminal can show
+- The search folds its case when asked: `set ignore-case on` takes
+  the letters of the query for either of their cases, in Ctrl-F, its
+  match counting, the highlight on screen and Ctrl-R replace all,
+  which undo puts back the bytes each match really had
+- Alt-n / Alt-p repeat the last search without the prompt, the way n
+  and N do in vi: the next match after, the one before, wrapping
+  around the buffer, every match keeping its light until the next key
+  that is not one of the search's own turns it off
+- Alt-Backspace deletes the run of blanks the cursor sits behind and
+  the word before them, back to the word's own start when the cursor
+  sits inside one, the way the shells erase a word; Alt-d deletes the
+  text the word move right crosses; at the edges of a line the lines
+  merge, and each press is one undo step
 
 New in 0.3.1:
 
