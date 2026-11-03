@@ -199,6 +199,18 @@ delete the text the word move right crosses: the run the cursor sits
 in and the blanks behind it, up to the start of the next word, one
 undo step; at the end of a line the line below joins it
 .TP
+.B Alt\-/
+complete the word before the cursor with the words of the buffer,
+the way dabbrev\-expand does in Emacs: the menu the Ctrl\-B picker
+uses lists every distinct word that starts with it, the nearest
+first — the words before the cursor and the rows above it, then the
+ones after it — the arrows and the wheel move through them, Enter or
+a left click takes one and the cursor lands behind it, ESC leaves
+the word as it was typed. A word is what the word moves cross
+(letters, digits, underscore, every script), the match is exact,
+case and all, the word the cursor sits inside is not offered, and
+the whole pick is one undo step
+.TP
 .B Delete
 delete the character under the cursor
 .TP
@@ -241,10 +253,10 @@ typing the way the shift selections are, a pointer that runs onto
 the bars scrolling the viewport a screen line along at a report
 until the text's last line reaches the bottom; the wheel scrolls the
 viewport three screen lines at a notch, the way Alt\-e and Alt\-y
-scroll one; over the Ctrl\-B buffer list a left click takes the
-buffer drawn under it, the wheel stepping the selection a buffer at
-a notch. Clicks on the bars at the bottom place nothing, and the
-middle and the right button are not bound
+scroll one; over the Ctrl\-B buffer list and the Alt\-/ completion
+menu a left click takes the line drawn under it, the wheel stepping
+the selection a line at a notch. Clicks on the bars at the bottom
+place nothing, and the middle and the right button are not bound
 .TP
 .B Ctrl\-C / Ctrl\-X
 copy or cut the selection (or the current line) to the system clipboard
