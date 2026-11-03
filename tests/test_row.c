@@ -238,11 +238,36 @@ static void TestCompletionsExtendTheWordLeftOfTheCursor(void)
 static void TestCompletionsComeNearestFirst(void)
 {
     const char *const texts[] = {"count counter", "amount counted count",
-                                 "counter", NULL};
+                                 "amount", NULL};
 
-    /* the word on the same row before the cursor, then the rows
-       above read backwards, then the rows below */
+    /* words said as often as one another keep the order the scan
+       gave them: the word on the same row before the cursor, then
+       the rows above read backwards, then the rows below */
     CheckCompletions(texts, 1, 20, (const char *[]){"counted", "counter"}, 2, 5);
+}
+
+static void TestCompletionsComeFrequentFirst(void)
+{
+    /* counter is said twice, counted once: the saying beats the
+       nearness that collected counted first */
+    {
+        const char *const texts[] = {"counted once", "count counter",
+                                     "counter", NULL};
+
+        CheckCompletions(texts, 1, 5,
+                         (const char *[]){"counter", "counted"}, 2, 5);
+    }
+
+    /* a saying under either spelling lifts the word: Prints and
+       prints both raise the pair, and printy said once stays last
+       however near it is */
+    {
+        const char *const texts[] = {"prints Prints", "print printy", NULL};
+
+        CheckCompletions(texts, 1, 5,
+                         (const char *[]){"Prints", "prints", "printy"},
+                         3, 5);
+    }
 }
 
 static void TestCompletionsLookForwardToo(void)
@@ -1985,6 +2010,7 @@ int main(void)
     TestWordMovementEmptyRow();
     TestCompletionsExtendTheWordLeftOfTheCursor();
     TestCompletionsComeNearestFirst();
+    TestCompletionsComeFrequentFirst();
     TestCompletionsLookForwardToo();
     TestCompletionsSkipTheWordTheCursorSitsInside();
     TestCompletionsFoldTheCase();
