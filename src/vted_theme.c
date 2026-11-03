@@ -218,6 +218,21 @@ static const struct
         "color tab      #6272a4\n"
         "color indent   #44475a\n"
         "color marker   #343746\n"
+    },
+    {"solarized-dark",
+        "color comment  #586e75\n"
+        "color string   #2aa198\n"
+        "color number   #d33682\n"
+        "color keyword  #859900\n"
+        "color type     #b58900\n"
+        "color preproc  #cb4b16\n"
+        "color removed  #dc322f\n"
+        "color context  #586e75\n"
+        "color function #268bd2\n"
+        "color match    #5f5200\n"
+        "color tab      #586e75\n"
+        "color indent   #12404c\n"
+        "color marker   #073642\n"
     }
 };
 

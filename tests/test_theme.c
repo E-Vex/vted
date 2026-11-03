@@ -141,7 +141,8 @@ static void TestBuiltinThemes(void)
     } builtin_keywords[] = {
         {"gruvbox", "\x1b[38;2;251;73;52m"},
         {"nord", "\x1b[38;2;129;161;193m"},
-        {"dracula", "\x1b[38;2;255;121;198m"}
+        {"dracula", "\x1b[38;2;255;121;198m"},
+        {"solarized-dark", "\x1b[38;2;133;153;0m"}
     };
     size_t i;
 
