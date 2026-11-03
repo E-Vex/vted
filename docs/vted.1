@@ -200,13 +200,14 @@ in and the blanks behind it, up to the start of the next word, one
 undo step; at the end of a line the line below joins it
 .TP
 .B Alt\-/
-complete the word before the cursor with the words of the buffer,
-the way dabbrev\-expand does in Emacs: the menu the Ctrl\-B picker
-uses lists every distinct word that starts with it, the nearest
-first — the words before the cursor and the rows above it, then the
-ones after it — the arrows and the wheel move through them, Enter or
-a left click takes one and the cursor lands behind it, ESC leaves
-the word as it was typed. A word is what the word moves cross
+complete the word before the cursor with the words of the open
+buffers, the way dabbrev\-expand does in Emacs: the menu the Ctrl\-B
+picker uses lists every distinct word that starts with it, the
+nearest first — the words before the cursor and the rows above it,
+then the ones after it, then the other open buffers, the next one
+first around the ring — the arrows and the wheel move through them,
+Enter or a left click takes one and the cursor lands behind it, ESC
+leaves the word as it was typed. A word is what the word moves cross
 (letters, digits, underscore, every script), the match is exact,
 case and all, the word the cursor sits inside is not offered, and
 the whole pick is one undo step
