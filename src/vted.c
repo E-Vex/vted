@@ -1663,6 +1663,32 @@ int main(int argc, char *argv[])
                     EditorDelChar();
                 }
             }
+            else if (c_in == DeleteWordLeft)
+            {
+                /* Alt-Backspace removes the selection, or the word
+                   left of the cursor the way the shells do */
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+                else
+                {
+                    EditorDeleteWordLeft();
+                }
+            }
+            else if (c_in == DeleteWordRight)
+            {
+                /* Alt-d removes the selection, or the word right of
+                   the cursor, the way Ctrl-Right would cross it */
+                if (EditSelectionActive())
+                {
+                    EditDeleteSelection();
+                }
+                else
+                {
+                    EditorDeleteWordRight();
+                }
+            }
             else if (c_in == DeleteKey)
             {
                 /* Delete removes the selection, or the character under
