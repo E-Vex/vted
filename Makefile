@@ -49,7 +49,7 @@ BR4 = \033[38;5;136m
 BR5 = \033[38;5;172m
 BR6 = \033[38;5;178m
 
-.PHONY: all banner clean install uninstall test bench
+.PHONY: all banner clean install uninstall test check bench
 
 all: banner
 	@printf "$(GREEN)$(BOLD)Building VTED...$(RESET)\n\n"
@@ -116,6 +116,16 @@ test: $(TEST_BINS)
 	@printf "$(CYAN)Running unit tests:$(RESET)\n"
 	@for test_bin in $(TEST_BINS); do ./$$test_bin || exit 1; done
 	@printf "$(GREEN)$(BOLD)✓ All tests passed$(RESET)\n"
+
+# One command for a contributor: builds the editor and the unit
+# tests, runs the unit tests, then walks the editor over a pty —
+# the smoke test the CI runs — against the binary just built
+check: all $(TEST_BINS)
+	@printf "$(CYAN)Running unit tests:$(RESET)\n"
+	@for test_bin in $(TEST_BINS); do ./$$test_bin || exit 1; done
+	@printf "$(CYAN)Smoke testing the editor over a pty:$(RESET)\n"
+	python3 packaging/smoke-test.py ./$(TARGET)
+	@printf "$(GREEN)$(BOLD)✓ Unit tests and smoke test passed$(RESET)\n"
 
 # Benchmark: loading, saving and editing a ~100 MB file.
 bench: bench/bench
