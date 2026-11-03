@@ -1137,6 +1137,130 @@ static void CollectNearestFirst(const vted_buffer_t *text, int cy, int cx,
     }
 }
 
+/* one pass over the rows, every run of word characters raising the
+   count of every word its length and bytes fold to — the same fold
+   that collected the words, so a saying under either spelling lifts
+   the word it was collected as */
+static void CountWordRuns(const vted_buffer_t *text,
+                          const char *words, int word_size,
+                          int *counts, const int *lens, int count)
+{
+    int r;
+    int i;
+
+    for (r = 0; r < text->num_rows; r++)
+    {
+        const vted_row_t *row = &text->rows[r];
+        int at = 0;
+
+        while (at < row->size)
+        {
+            Utf8Class run = RowClassAt(row, at);
+            int start;
+
+            if (run == Utf8ClassBlank)
+            {
+                at = Utf8NextBoundary(row->chars, row->size, at);
+                continue;
+            }
+
+            start = at;
+
+            while (at < row->size && RowClassAt(row, at) == run)
+            {
+                at = Utf8NextBoundary(row->chars, row->size, at);
+            }
+
+            if (run != Utf8ClassWord)
+            {
+                continue; /* punctuation is nobody's word */
+            }
+
+            for (i = 0; i < count; i++)
+            {
+                if (at - start == lens[i] &&
+                    BytesFoldEqual(row->chars + start,
+                                   words + (size_t)i * (size_t)word_size,
+                                   lens[i]))
+                {
+                    counts[i]++;
+                }
+            }
+        }
+    }
+}
+
+/* the words ranked by how often the text says them, the ones it says
+   most first: a saying lifts a word over a nearer one said seldom,
+   and words said as often as one another keep the order the scan
+   gave them, the nearest still first. No room to rank in, the scan
+   order stands */
+static void RankWordsByFrequency(const vted_buffer_t *text,
+                                 char *words, int count, int word_size)
+{
+    int *scratch;
+    int *counts;
+    int *lens;
+    char *line;
+    int i;
+
+    if (count < 2)
+    {
+        return; /* a word alone has no rank to trade */
+    }
+
+    /* one scratch holds the sayings, the length of every word, and
+       the line a swap moves */
+    scratch = malloc((size_t)count * (2 * sizeof(int)) + (size_t)word_size);
+
+    if (scratch == NULL)
+    {
+        return; /* no room to rank: the scan order stands */
+    }
+
+    counts = scratch;
+    lens = scratch + count;
+    line = (char *)(scratch + 2 * count);
+
+    for (i = 0; i < count; i++)
+    {
+        counts[i] = 0;
+        lens[i] = (int)strlen(words + (size_t)i * (size_t)word_size);
+    }
+
+    CountWordRuns(text, words, word_size, counts, lens, count);
+
+    /* insertion sort, the most said first: only a word said oftener
+       than the one before it moves, so equals keep their places */
+    for (i = 1; i < count; i++)
+    {
+        int said = counts[i];
+        int j = i - 1;
+
+        if (counts[j] >= said)
+        {
+            continue;
+        }
+
+        memcpy(line, words + (size_t)i * (size_t)word_size,
+               (size_t)word_size);
+
+        while (j >= 0 && counts[j] < said)
+        {
+            counts[j + 1] = counts[j];
+            memcpy(words + (size_t)(j + 1) * (size_t)word_size,
+                   words + (size_t)j * (size_t)word_size, (size_t)word_size);
+            j--;
+        }
+
+        counts[j + 1] = said;
+        memcpy(words + (size_t)(j + 1) * (size_t)word_size, line,
+               (size_t)word_size);
+    }
+
+    free(scratch);
+}
+
 int BufferCollectCompletions(int cy, int cx,
                              char *words, int max_words, int word_size,
                              int *out_prefix_len)
@@ -1184,6 +1308,12 @@ int BufferCollectCompletions(int cy, int cx,
     set.count = 0;
 
     CollectNearestFirst(&vted_buffer, cy, cx, &set);
+
+    /* the words the buffer being edited offered are ranked by how
+       often it says them; the words of the other buffers, collected
+       by BufferCollectTextWords after this returns, keep the order
+       their rows read in */
+    RankWordsByFrequency(&vted_buffer, words, set.count, word_size);
 
     return set.count;
 }

@@ -201,7 +201,11 @@ int RowWordLeft(const vted_row_t *row, int cx);
    search uses, every other byte agreeing with itself alone. The
    words are collected nearest first — the text before the cursor and
    the rows above it, read backwards, then the text after it and the
-   rows below, read forwards — each copied NUL-terminated into
+   rows below, read forwards — then ranked by how often the buffer
+   says them, the ones it says most first, a saying counted under
+   either spelling of a word and words said as often as one another
+   keeping the nearness they were collected in. Each is copied
+   NUL-terminated into
    word_size bytes of the caller's words array, at most max_words of
    them; a word too long for a line of the array is passed over, and
    so is the word the cursor sits inside, which would only double its
