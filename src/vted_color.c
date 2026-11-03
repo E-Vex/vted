@@ -1,4 +1,5 @@
 /*===============================*/
+#include <stdio.h>
 #include <string.h>
 /*===============================*/
 #include "vted_color.h"
@@ -274,4 +275,41 @@ int ColorParse(const char *text, size_t len, vted_rgb_t *color)
     }
 
     return ParseName(text, len, color);
+}
+
+void ColorEscape(char *buffer, size_t size, vted_rgb_t color, int background,
+                 int mode)
+{
+    int ground = background ? 48 : 38;
+    int written;
+
+    if (mode == 2)
+    {
+        written = snprintf(buffer, size, "\x1b[%d;2;%d;%d;%dm", ground,
+                           color.red, color.green, color.blue);
+    }
+    else if (mode == 1)
+    {
+        written = snprintf(buffer, size, "\x1b[%d;5;%dm", ground,
+                           ColorNearest256(color));
+    }
+    else
+    {
+        /* 0 to 7 are 30 to 37 (40 to 47 behind), the bright ones 8 to
+           15 are 90 to 97 (100 to 107 behind) */
+        int index = ColorNearest16(color);
+        int base = background ? 40 : 30;
+
+        written = snprintf(buffer, size, "\x1b[%dm",
+                           index < 8 ? base + index : base + 60 + (index - 8));
+    }
+
+    /* an answer that did not fit is an empty one, never half an escape */
+    if (written < 0 || (size_t)written >= size)
+    {
+        if (size > 0)
+        {
+            buffer[0] = '\0';
+        }
+    }
 }

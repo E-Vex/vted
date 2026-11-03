@@ -44,4 +44,13 @@ int ColorNearest256(vted_rgb_t color);
    counterparts */
 int ColorNearest16(vted_rgb_t color);
 
+/* writes the escape that makes a terminal draw in the color into
+   buffer, of the given size: the text when background is 0, the cell
+   behind it when 1. The mode picks the spelling: 2 is truecolor RGB, 1
+   the nearest color of the 256-color palette, anything else the
+   nearest of the 16 terminal colors. A buffer of 24 bytes always
+   holds it; one too small receives an empty string */
+void ColorEscape(char *buffer, size_t size, vted_rgb_t color, int background,
+                 int mode);
+
 #endif

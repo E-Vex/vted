@@ -264,6 +264,51 @@ static void TestNearest16(void)
     CHECK_INT(ColorNearest16(color), 3);
 }
 
+static void TestEscape(void)
+{
+    char escape[24];
+    vted_rgb_t orange = {255, 135, 0};
+    vted_rgb_t red = {205, 0, 0};
+    vted_rgb_t bright_red = {255, 0, 0};
+
+    /* truecolor spells the channels out, for the text and behind it */
+    ColorEscape(escape, sizeof(escape), orange, 0, 2);
+    CHECK_STR(escape, "\x1b[38;2;255;135;0m");
+    ColorEscape(escape, sizeof(escape), orange, 1, 2);
+    CHECK_STR(escape, "\x1b[48;2;255;135;0m");
+
+    /* 256 colors name the nearest palette entry */
+    ColorEscape(escape, sizeof(escape), orange, 0, 1);
+    CHECK_STR(escape, "\x1b[38;5;208m");
+    ColorEscape(escape, sizeof(escape), orange, 1, 1);
+    CHECK_STR(escape, "\x1b[48;5;208m");
+
+    /* 16 colors: the normal ones are 30 to 37, the bright 90 to 97 */
+    ColorEscape(escape, sizeof(escape), red, 0, 0);
+    CHECK_STR(escape, "\x1b[31m");
+    ColorEscape(escape, sizeof(escape), bright_red, 0, 0);
+    CHECK_STR(escape, "\x1b[91m");
+
+    /* ...and behind the text 40 to 47, and 100 to 107 */
+    ColorEscape(escape, sizeof(escape), red, 1, 0);
+    CHECK_STR(escape, "\x1b[41m");
+    ColorEscape(escape, sizeof(escape), bright_red, 1, 0);
+    CHECK_STR(escape, "\x1b[101m");
+
+    /* the widest escape fits the buffer the header promises */
+    vted_rgb_t widest = {255, 255, 255};
+
+    ColorEscape(escape, sizeof(escape), widest, 1, 2);
+    CHECK_STR(escape, "\x1b[48;2;255;255;255m");
+
+    /* a buffer too small gets nothing rather than half an escape */
+    char small[8];
+
+    memset(small, 'x', sizeof(small));
+    ColorEscape(small, sizeof(small), widest, 1, 2);
+    CHECK_STR(small, "");
+}
+
 int main(void)
 {
     TestHex();
@@ -271,6 +316,7 @@ int main(void)
     TestPalette();
     TestNearest256();
     TestNearest16();
+    TestEscape();
 
     return TestSummary("color");
 }
