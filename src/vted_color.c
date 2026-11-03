@@ -117,6 +117,62 @@ vted_rgb_t ColorFromPalette(int index)
     return color;
 }
 
+/* the squared distance between two colors, in RGB space */
+static int Distance(vted_rgb_t a, vted_rgb_t b)
+{
+    int red = a.red - b.red;
+    int green = a.green - b.green;
+    int blue = a.blue - b.blue;
+
+    return red * red + green * green + blue * blue;
+}
+
+/* the step of the cube axis whose level lies nearest to the value:
+   the levels are 0, 95, 135, 175, 215 and 255, so the boundaries
+   fall at 48, 115, 155, 195 and 235 */
+static int NearestCubeStep(int value)
+{
+    if (value < 48)
+    {
+        return 0;
+    }
+
+    if (value < 115)
+    {
+        return 1;
+    }
+
+    return (value - 35) / 40;
+}
+
+int ColorNearest256(vted_rgb_t color)
+{
+    int cube = 16 + 36 * NearestCubeStep(color.red) +
+               6 * NearestCubeStep(color.green) + NearestCubeStep(color.blue);
+
+    /* the ramp of grays holds the color nearest to the average of the
+       three channels */
+    int average = (color.red + color.green + color.blue) / 3;
+    int ramp = (average - 8 + 5) / 10;
+
+    if (ramp < 0)
+    {
+        ramp = 0;
+    }
+
+    if (ramp > 23)
+    {
+        ramp = 23;
+    }
+
+    int gray = 232 + ramp;
+
+    return Distance(color, ColorFromPalette(gray)) <
+                   Distance(color, ColorFromPalette(cube))
+               ? gray
+               : cube;
+}
+
 /* reads a decimal number of up to three digits as a palette index */
 static int ParsePalette(const char *text, size_t len, vted_rgb_t *color)
 {

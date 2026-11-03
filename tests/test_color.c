@@ -162,11 +162,74 @@ static void TestPalette(void)
     CHECK(Same(color, 229, 229, 229));
 }
 
+static void TestNearest256(void)
+{
+    vted_rgb_t color;
+
+    /* a color the cube holds exactly is found at its own index */
+    color = ColorFromPalette(208);
+    CHECK_INT(ColorNearest256(color), 208);
+    color = ColorFromPalette(21);
+    CHECK_INT(ColorNearest256(color), 21);
+
+    color.red = 255;
+    color.green = 0;
+    color.blue = 0;
+    CHECK_INT(ColorNearest256(color), 196);
+
+    color.red = 0;
+    color.green = 0;
+    color.blue = 0;
+    CHECK_INT(ColorNearest256(color), 16);
+
+    color.red = 255;
+    color.green = 255;
+    color.blue = 255;
+    CHECK_INT(ColorNearest256(color), 231);
+
+    /* a gray the ramp holds is found there, where the cube is further
+       off than the ramp is */
+    color.red = 128;
+    color.green = 128;
+    color.blue = 128;
+    CHECK_INT(ColorNearest256(color), 244);
+
+    /* a color between two levels goes to the nearer one: 100 is
+       closer to 95 than to 135 */
+    color.red = 100;
+    color.green = 0;
+    color.blue = 0;
+    CHECK_INT(ColorNearest256(color), 52);
+
+    /* the answer is always a color of the cube or the ramp, whatever
+       the input: never one of the terminal's own 16 */
+    int red;
+    int green;
+    int blue;
+
+    for (red = 0; red < 256; red += 51)
+    {
+        for (green = 0; green < 256; green += 51)
+        {
+            for (blue = 0; blue < 256; blue += 51)
+            {
+                color.red = (unsigned char)red;
+                color.green = (unsigned char)green;
+                color.blue = (unsigned char)blue;
+                int index = ColorNearest256(color);
+
+                CHECK(index >= 16 && index <= 255);
+            }
+        }
+    }
+}
+
 int main(void)
 {
     TestHex();
     TestNames();
     TestPalette();
+    TestNearest256();
 
     return TestSummary("color");
 }

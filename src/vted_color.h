@@ -33,4 +33,10 @@ int ColorParse(const char *text, size_t len, vted_rgb_t *color);
    and 232 to 255 a ramp of grays. An index out of range is clamped */
 vted_rgb_t ColorFromPalette(int index);
 
+/* the palette index, 16 to 255, whose color lies nearest to the given
+   one: the cube or the ramp of grays, whichever comes closer. The 16
+   terminal colors are left out of the match, since each terminal
+   shades them as it likes */
+int ColorNearest256(vted_rgb_t color);
+
 #endif
