@@ -173,6 +173,26 @@ int ColorNearest256(vted_rgb_t color)
                : cube;
 }
 
+int ColorNearest16(vted_rgb_t color)
+{
+    int best = 0;
+    int best_distance = Distance(color, standard_colors[0]);
+    int i;
+
+    for (i = 1; i < 16; i++)
+    {
+        int distance = Distance(color, standard_colors[i]);
+
+        if (distance < best_distance)
+        {
+            best = i;
+            best_distance = distance;
+        }
+    }
+
+    return best;
+}
+
 /* reads a decimal number of up to three digits as a palette index */
 static int ParsePalette(const char *text, size_t len, vted_rgb_t *color)
 {

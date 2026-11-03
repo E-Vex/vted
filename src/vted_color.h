@@ -39,4 +39,9 @@ vted_rgb_t ColorFromPalette(int index);
    shades them as it likes */
 int ColorNearest256(vted_rgb_t color);
 
+/* the terminal color, 0 to 15, whose usual shade lies nearest to the
+   given color: 0 to 7 are the normal colors and 8 to 15 their bright
+   counterparts */
+int ColorNearest16(vted_rgb_t color);
+
 #endif

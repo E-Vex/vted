@@ -224,12 +224,53 @@ static void TestNearest256(void)
     }
 }
 
+static void TestNearest16(void)
+{
+    vted_rgb_t color;
+    int index;
+
+    /* each of the sixteen is its own nearest */
+    for (index = 0; index < 16; index++)
+    {
+        color = ColorFromPalette(index);
+        CHECK_INT(ColorNearest16(color), index);
+    }
+
+    /* a color between them goes to the nearer */
+    color.red = 200;
+    color.green = 10;
+    color.blue = 10;
+    CHECK_INT(ColorNearest16(color), 1);
+
+    color.red = 250;
+    color.green = 20;
+    color.blue = 20;
+    CHECK_INT(ColorNearest16(color), 9);
+
+    color.red = 20;
+    color.green = 20;
+    color.blue = 20;
+    CHECK_INT(ColorNearest16(color), 0);
+
+    color.red = 130;
+    color.green = 130;
+    color.blue = 130;
+    CHECK_INT(ColorNearest16(color), 8);
+
+    /* a dull yellow is yellow, not red or gray */
+    color.red = 170;
+    color.green = 130;
+    color.blue = 0;
+    CHECK_INT(ColorNearest16(color), 3);
+}
+
 int main(void)
 {
     TestHex();
     TestNames();
     TestPalette();
     TestNearest256();
+    TestNearest16();
 
     return TestSummary("color");
 }
