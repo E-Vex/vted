@@ -4,6 +4,7 @@
 /*===============================*/
 #include "vted_theme.h"
 #include "vted_color.h"
+#include "vted_config.h"
 #include "vted_syntax.h"
 /*===============================*/
 
@@ -304,4 +305,33 @@ int ThemeSelect(const char *name)
     }
 
     return -1;
+}
+
+const char *ThemesDir(void)
+{
+    static char dir[512];
+    const char *settings = SettingsPath();
+
+    if (settings == NULL)
+    {
+        return NULL;
+    }
+
+    /* the directory of the settings file, with themes inside it */
+    const char *slash = strrchr(settings, '/');
+
+    if (slash == NULL)
+    {
+        return NULL;
+    }
+
+    int written = snprintf(dir, sizeof(dir), "%.*s/themes",
+                           (int)(slash - settings), settings);
+
+    if (written < 0 || (size_t)written >= sizeof(dir))
+    {
+        return NULL;
+    }
+
+    return dir;
 }

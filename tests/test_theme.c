@@ -1,5 +1,8 @@
+/* setenv() is POSIX, not ISO C11 */
+#define _POSIX_C_SOURCE 200809L
 /*===============================*/
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 /*===============================*/
 #include "tests/vted_test.h"
@@ -164,6 +167,26 @@ static void TestBuiltinThemes(void)
     SyntaxSetColorMode(-1);
 }
 
+static void TestThemesDir(void)
+{
+    /* beside the settings file, wherever that is */
+    setenv("XDG_CONFIG_HOME", "/tmp/xdg-config", 1);
+    CHECK_STR(ThemesDir(), "/tmp/xdg-config/vted/themes");
+
+    unsetenv("XDG_CONFIG_HOME");
+    setenv("HOME", "/home/someone", 1);
+    CHECK_STR(ThemesDir(), "/home/someone/.config/vted/themes");
+
+    /* an empty XDG_CONFIG_HOME is no config home */
+    setenv("XDG_CONFIG_HOME", "", 1);
+    CHECK_STR(ThemesDir(), "/home/someone/.config/vted/themes");
+
+    /* no home at all, no directory */
+    unsetenv("XDG_CONFIG_HOME");
+    unsetenv("HOME");
+    CHECK(ThemesDir() == NULL);
+}
+
 static void TestSelect(void)
 {
     SyntaxSetColorMode(2);
@@ -229,6 +252,7 @@ static void TestSelect(void)
 
 int main(void)
 {
+    TestThemesDir();
     TestSelect();
     TestBuiltinThemes();
     TestNameValid();

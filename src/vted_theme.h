@@ -59,4 +59,10 @@ const char *ThemeBuiltinName(int index);
    can serve as the start of one; NULL when the number is out of range */
 const char *ThemeBuiltinText(int index);
 
+/* the directory the themes of the person live in, beside the settings
+   file: $XDG_CONFIG_HOME/vted/themes or ~/.config/vted/themes. NULL
+   when no home can be found. The buffer is static and reused on every
+   call */
+const char *ThemesDir(void);
+
 #endif
