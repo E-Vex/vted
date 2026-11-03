@@ -21,6 +21,7 @@ vted_settings_t SettingsDefaults(void)
     settings.wrap_indent = 1;
     settings.indent_guides = 0;
     settings.bracket_color = 0;
+    settings.ignore_case = 0;
     strcpy(settings.theme, "default");
 
     return settings;
@@ -281,6 +282,21 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->indent_guides = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "ignore-case"))
+        {
+            /* the search takes the letters of a query for either of
+               their cases; the replace follows the same way */
+            int on_off = ParseOnOff(value, value_len);
+
+            if (on_off == -1)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->ignore_case = on_off;
             }
         }
         else if (TextIs(key, key_len, "bracket-color"))

@@ -42,6 +42,7 @@ static void TestDefaults(void)
     CHECK_INT(settings.wrap_indent, 1);
     CHECK_INT(settings.indent_guides, 0);
     CHECK_INT(settings.bracket_color, 0);
+    CHECK_INT(settings.ignore_case, 0);
     CHECK_STR(settings.theme, "default");
 }
 
@@ -220,6 +221,21 @@ static void TestIndentGuides(void)
     CHECK_INT(settings.indent_guides, 0);
 }
 
+static void TestIgnoreCase(void)
+{
+    vted_settings_t settings;
+
+    CHECK_INT(LoadLines("set ignore-case on\n", &settings), 0);
+    CHECK_INT(settings.ignore_case, 1);
+
+    CHECK_INT(LoadLines("set ignore-case off\n", &settings), 0);
+    CHECK_INT(settings.ignore_case, 0);
+
+    /* anything else is not a setting */
+    CHECK_INT(LoadLines("set ignore-case maybe\n", &settings), 1);
+    CHECK_INT(settings.ignore_case, 0);
+}
+
 static void TestBracketColor(void)
 {
     vted_settings_t settings;
@@ -391,6 +407,7 @@ int main(void)
     TestWrapColumn();
     TestWrapIndent();
     TestIndentGuides();
+    TestIgnoreCase();
     TestBracketColor();
     TestParseBracketColor();
     TestBracketColorName();
