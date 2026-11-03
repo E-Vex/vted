@@ -179,6 +179,30 @@ void DisableBracketedPaste(void)
     }
 }
 
+/* set while mouse reporting is on, so turning it off writes nothing
+   when it was never turned on */
+static int mouse_tracking_enabled = 0;
+
+void EnableMouseTracking(void)
+{
+    /* mode 1000 reports the buttons going down and up, 1002 the
+       motion of a held one, and 1006 asks for the SGR dialect: plain
+       decimal numbers in the sequence, the one the keyboard module
+       parses. A terminal that knows none of them ignores the request
+       and simply never sends a report */
+    write(STDOUT_FILENO, "\x1b[?1000h\x1b[?1002h\x1b[?1006h", 24);
+    mouse_tracking_enabled = 1;
+}
+
+void DisableMouseTracking(void)
+{
+    if (mouse_tracking_enabled)
+    {
+        write(STDOUT_FILENO, "\x1b[?1000l\x1b[?1002l\x1b[?1006l", 24);
+        mouse_tracking_enabled = 0;
+    }
+}
+
 void SetupExitSignals(void)
 {
     struct sigaction action;
@@ -229,6 +253,10 @@ void RestoreTerminalSettings(void)
     /* this runs on every way out, KillApp included: the terminal must
        not keep wrapping pastes in markers once the shell has it back */
     DisableBracketedPaste();
+
+    /* nor keep the mouse to itself: the shell's own selections work
+       again the moment the reporting is off */
+    DisableMouseTracking();
 
     tcsetattr_return = tcsetattr(tty_fd, TCSAFLUSH, &old_terminal_settings);
 

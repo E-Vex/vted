@@ -24,6 +24,15 @@ void RestoreTerminalSettings(void);
 void EnableBracketedPaste(void);
 void DisableBracketedPaste(void);
 
+/* asks the terminal to report the mouse: where a button goes down,
+   where it comes up, where it is dragged and which way the wheel
+   turns, as SGR sequences the keyboard module parses. The modes are
+   switched off again on every way out (RestoreTerminalSettings runs
+   at exit), so the shell gets the mouse back for its own selections;
+   holding Shift bypasses the reporting in most terminals either way */
+void EnableMouseTracking(void);
+void DisableMouseTracking(void);
+
 /* ask the editor to leave on the next loop turn: SIGHUP, SIGINT and
    SIGTERM all do this, and the terminal is then restored the usual
    way (through the exit handlers) */

@@ -1340,6 +1340,7 @@ int main(int argc, char *argv[])
     SetupResizeSignal();
     EnterToAlternateScreenBuffer();
     EnableBracketedPaste();
+    EnableMouseTracking();
     InitBuffer();
 
     /* registered right after the buffer exists, so the state is
