@@ -942,16 +942,18 @@ static void EditorPickBuffer(void)
     }
 }
 
-/* completes the word before the cursor with the words of the buffer,
-   dabbrev style: the menu the buffer picker uses lists every distinct
-   word that starts with it, the nearest first, and Enter or a click
-   takes one. ESC leaves the word as it was typed */
+/* completes the word before the cursor with the words of the open
+   buffers, dabbrev style: the menu the buffer picker uses lists every
+   distinct word that starts with it — the buffer being edited around
+   the cursor, the nearest first, then the other buffers — and Enter or
+   a click takes one. ESC leaves the word as it was typed */
 static void EditorCompleteWord(void)
 {
     char words[COMPLETION_WORDS][COMPLETION_WIDTH];
     const char *shown_lines[COMPLETION_LINES];
     char prefix[COMPLETION_WIDTH];
     int prefix_len = 0;
+    int shown_len;
     int count;
     int selection = 0;
     int chosen = -1;
@@ -968,18 +970,36 @@ static void EditorCompleteWord(void)
         return;
     }
 
-    /* the word being completed, for the hint and the answers: a word
-       too long for a line of the menu has no completion anyway, so
-       the copy keeps what fits */
+    /* the word being completed, for the hint, the answers and the
+       other buffers' scan: a word too long for a line of the menu
+       has no completion anyway, so the copy keeps what fits */
+    shown_len = prefix_len < COMPLETION_WIDTH ? prefix_len
+                                              : COMPLETION_WIDTH - 1;
     {
         const vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
         int from = vted_editor_config.cursor_x - prefix_len;
-        int shown_len = prefix_len < COMPLETION_WIDTH
-                            ? prefix_len
-                            : COMPLETION_WIDTH - 1;
 
         memcpy(prefix, &row->chars[from], (size_t)shown_len);
         prefix[shown_len] = '\0';
+    }
+
+    /* dabbrev goes on past the buffer being edited, once it has had
+       its say: the other open buffers follow, the next one first
+       around the ring, filling the lines the menu has left, each
+       read from its first row to its last */
+    for (i = 1; count < COMPLETION_WORDS && i < BuffersCount(); i++)
+    {
+        const vted_buffer_t *text =
+            BuffersText((BuffersCurrent() + i) % BuffersCount());
+
+        if (text == NULL)
+        {
+            continue; /* the live one, scanned above already */
+        }
+
+        count = BufferCollectTextWords(text, prefix, shown_len,
+                                       &words[0][0], COMPLETION_WORDS,
+                                       COMPLETION_WIDTH, count);
     }
 
     if (count == 0)
@@ -2024,8 +2044,8 @@ int main(int argc, char *argv[])
             else if (c_in == WordComplete)
             {
                 /* Alt-/ completes the word before the cursor with the
-                   words of the buffer, dabbrev style: the menu the
-                   buffer picker uses lists them */
+                   words of the open buffers, dabbrev style: the menu
+                   the buffer picker uses lists them */
                 EditClearSelection();
                 ScreenSetSelection(-1, 0, -1, 0);
                 EditorCompleteWord();

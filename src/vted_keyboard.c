@@ -481,8 +481,8 @@ int ParseArrowKey(void)
     }
 
     /* Alt-/ completes the word left of the cursor with the words of
-       the buffer, the way dabbrev-expand in Emacs does; a plain / is
-       a character of the text and stays one */
+       the open buffers, the way dabbrev-expand in Emacs does; a
+       plain / is a character of the text and stays one */
     if (introducer == '/')
     {
         return WordComplete;

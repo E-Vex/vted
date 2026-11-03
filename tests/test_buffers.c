@@ -341,6 +341,52 @@ static void TestAWaitingBufferReadsWhileAnotherIsEdited(void)
     }
 }
 
+static void TestAWordCompletesFromTheOtherBuffersToo(void)
+{
+    char words[16][32];
+    char prefix[32];
+    int prefix_len = 0;
+    int count;
+    int i;
+
+    Begin();
+    WriteFile(first_path, "fool food\n");
+    WriteFile(second_path, "foo\n");
+    BuffersOpen(first_path);
+    BuffersOpen(second_path);
+
+    /* the cursor sits past foo, the whole word of the live buffer */
+    vted_editor_config.cursor_y = 0;
+    vted_editor_config.cursor_x = 3;
+
+    count = BufferCollectCompletions(0, 3, &words[0][0], 16, 32, &prefix_len);
+    CHECK_INT(count, 0); /* the live buffer has nothing but the word itself */
+    CHECK_INT(prefix_len, 3);
+
+    memcpy(prefix, &vted_buffer.rows[0].chars[0], (size_t)prefix_len);
+    prefix[prefix_len] = '\0';
+
+    /* the other buffers follow the live one around the ring, the way
+       Alt-/'s menu reads them */
+    for (i = 1; count < 16 && i < BuffersCount(); i++)
+    {
+        const vted_buffer_t *text =
+            BuffersText((BuffersCurrent() + i) % BuffersCount());
+
+        if (text == NULL)
+        {
+            continue; /* the live one, collected above already */
+        }
+
+        count = BufferCollectTextWords(text, prefix, prefix_len,
+                                       &words[0][0], 16, 32, count);
+    }
+
+    CHECK_INT(count, 2);
+    CHECK_STR(words[0], "fool");
+    CHECK_STR(words[1], "food");
+}
+
 static void TestEachBufferKeepsItsOwnTabWidth(void)
 {
     Begin();
@@ -529,6 +575,7 @@ int main(void)
     TestDirtyCountsAcrossBuffers();
     TestNamesAndDirtyFlags();
     TestAWaitingBufferReadsWhileAnotherIsEdited();
+    TestAWordCompletesFromTheOtherBuffersToo();
     TestEachBufferKeepsItsOwnTabWidth();
     TestTheSettingsWidthReachesEveryBuffer();
     TestCloseBounds();
