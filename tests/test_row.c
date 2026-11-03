@@ -268,11 +268,48 @@ static void TestCompletionsSkipTheWordTheCursorSitsInside(void)
     }
 }
 
-static void TestCompletionsMatchExactlyCaseAndAll(void)
+static void TestCompletionsFoldTheCase(void)
 {
-    const char *const texts[] = {"Foo bar", "foo", NULL};
+    /* Fooey extends foo: the letters of the prefix agree with either
+       of their cases in a candidate */
+    {
+        const char *const texts[] = {"Fooey foo", "foo", NULL};
 
-    CheckCompletions(texts, 1, 3, (const char *[]){""}, 0, 3);
+        CheckCompletions(texts, 1, 3, (const char *[]){"Fooey"}, 1, 3);
+    }
+
+    /* the same the other way round: FOO finds the lower word */
+    {
+        const char *const texts[] = {"fooey bar", "FOO", NULL};
+
+        CheckCompletions(texts, 1, 3, (const char *[]){"fooey"}, 1, 3);
+    }
+
+    /* distinct spellings stay distinct words: both are offered, the
+       nearer one first */
+    {
+        const char *const texts[] = {"Prints", "print prints", NULL};
+
+        CheckCompletions(texts, 1, 5,
+                         (const char *[]){"Prints", "prints"}, 2, 5);
+    }
+
+    /* extending is still extending: Foo is no completion of foo
+       while it holds nothing past it, case as it may */
+    {
+        const char *const texts[] = {"Foo bar", "foo", NULL};
+
+        CheckCompletions(texts, 1, 3, (const char *[]){""}, 0, 3);
+    }
+
+    /* the fold is the search's: ASCII letters alone have another
+       case, a multibyte character agrees with itself alone — É is
+       not e, however alike they look */
+    {
+        const char *const texts[] = {"caf\xC3\x89s cafex", "cafe cafexy", NULL};
+
+        CheckCompletions(texts, 1, 4, (const char *[]){"cafex", "cafexy"}, 2, 4);
+    }
 }
 
 static void TestCompletionsAreWordsNotPunctuation(void)
@@ -437,6 +474,31 @@ static void TestTextWordsExtendThePrefixToo(void)
     CHECK_INT(count, 2);
     CHECK_STR(words[0], "fool");
     CHECK_STR(words[1], "food");
+
+    FreeText(&text);
+}
+
+static void TestTextWordsFoldTheCaseToo(void)
+{
+    const char *const live[] = {"foo", NULL};
+    const char *const other[] = {"Fooey", NULL};
+    vted_buffer_t text = MakeText(other);
+    char words[16][32];
+    int prefix_len = 0;
+    int count;
+
+    MakeBuffer(live);
+
+    count = BufferCollectCompletions(0, 3, &words[0][0], 16, 32, &prefix_len);
+    CHECK_INT(count, 0);
+    CHECK_INT(prefix_len, 3);
+
+    /* the other text's words answer with the same folded match, the
+       spelling they carry kept */
+    count = BufferCollectTextWords(&text, "foo", 3,
+                                   &words[0][0], 16, 32, count);
+    CHECK_INT(count, 1);
+    CHECK_STR(words[0], "Fooey");
 
     FreeText(&text);
 }
@@ -1925,7 +1987,7 @@ int main(void)
     TestCompletionsComeNearestFirst();
     TestCompletionsLookForwardToo();
     TestCompletionsSkipTheWordTheCursorSitsInside();
-    TestCompletionsMatchExactlyCaseAndAll();
+    TestCompletionsFoldTheCase();
     TestCompletionsAreWordsNotPunctuation();
     TestCompletionsTakeTheUnderscoreAlong();
     TestCompletionsUtf8();
@@ -1935,6 +1997,7 @@ int main(void)
     TestCompletionsPassOverWordsTooLongForALine();
     TestTextWordsExtendThePrefixToo();
     TestTextWordsPassOverTheCollectedOnes();
+    TestTextWordsFoldTheCaseToo();
     TestTextWordsFillOnlyTheLinesLeft();
     TestTextWordsPassOverWordsTooLongForALine();
     TestTextWordsOfNothing();
