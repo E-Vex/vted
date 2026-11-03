@@ -674,6 +674,12 @@ static void EditorCloseBuffer(void)
 #define PICKER_LINES 16
 #define PICKER_WIDTH 96
 
+/* the most words the completion menu offers, the most lines of them
+   it shows, and the room one line of it takes: a word */
+#define COMPLETION_WORDS 64
+#define COMPLETION_LINES 16
+#define COMPLETION_WIDTH 64
+
 /* pressing Ctrl-Q, or Ctrl-E on a modified buffer, this many times in
    a row overrides unsaved changes */
 #define QUIT_CONFIRMATIONS 3
@@ -934,6 +940,182 @@ static void EditorPickBuffer(void)
                                                       : "[No Name]",
                          BuffersCurrent() + 1, BuffersCount());
     }
+}
+
+/* completes the word before the cursor with the words of the buffer,
+   dabbrev style: the menu the buffer picker uses lists every distinct
+   word that starts with it, the nearest first, and Enter or a click
+   takes one. ESC leaves the word as it was typed */
+static void EditorCompleteWord(void)
+{
+    char words[COMPLETION_WORDS][COMPLETION_WIDTH];
+    const char *shown_lines[COMPLETION_LINES];
+    char prefix[COMPLETION_WIDTH];
+    int prefix_len = 0;
+    int count;
+    int selection = 0;
+    int chosen = -1;
+    int i;
+
+    count = BufferCollectCompletions(vted_editor_config.cursor_y,
+                                     vted_editor_config.cursor_x,
+                                     &words[0][0], COMPLETION_WORDS,
+                                     COMPLETION_WIDTH, &prefix_len);
+
+    if (prefix_len == 0)
+    {
+        SetStatusMessage("No word to complete");
+        return;
+    }
+
+    /* the word being completed, for the hint and the answers: a word
+       too long for a line of the menu has no completion anyway, so
+       the copy keeps what fits */
+    {
+        const vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+        int from = vted_editor_config.cursor_x - prefix_len;
+        int shown_len = prefix_len < COMPLETION_WIDTH
+                            ? prefix_len
+                            : COMPLETION_WIDTH - 1;
+
+        memcpy(prefix, &row->chars[from], (size_t)shown_len);
+        prefix[shown_len] = '\0';
+    }
+
+    if (count == 0)
+    {
+        SetStatusMessage("No completion for '%s'", prefix);
+        return;
+    }
+
+    while (1)
+    {
+        /* a window of the words that follows the selection, the way
+           the buffer picker's list does */
+        int shown = count;
+        int first;
+
+        if (shown > COMPLETION_LINES)
+        {
+            shown = COMPLETION_LINES;
+        }
+        if (shown > vted_editor_config.screen_rows - 2)
+        {
+            shown = vted_editor_config.screen_rows - 2;
+        }
+        if (shown < 1)
+        {
+            shown = 1;
+        }
+
+        first = selection - shown / 2;
+        if (first < 0)
+        {
+            first = 0;
+        }
+        if (first > count - shown)
+        {
+            first = count - shown;
+        }
+
+        for (i = 0; i < shown; i++)
+        {
+            shown_lines[i] = words[first + i];
+        }
+
+        ScreenShowMenu(shown_lines, shown, selection - first);
+
+        SetStatusMessage("Complete '%s': arrows move, Enter or a click takes, ESC cancels",
+                         prefix);
+
+        RefreshScreen();
+
+        int c = ReadKeyPress();
+
+        if (c == 0)
+        {
+            /* idle read timeout: just repaint the menu — unless a
+               signal asked the editor to leave, which the menu must
+               not outwait */
+            if (TerminalWantsExit())
+            {
+                break;
+            }
+
+            continue;
+        }
+
+        if (c == 27) /* ESC: the word stays as it was typed */
+        {
+            break;
+        }
+
+        if (c == '\r' || c == '\n')
+        {
+            chosen = selection;
+            break;
+        }
+
+        /* a left click takes the word drawn under it, the way Enter
+           takes the one under the selection; a click past the list
+           keeps it waiting */
+        if (c == MousePress)
+        {
+            if (MouseLastButton() == 0)
+            {
+                int line = ScreenMenuLineAt(MouseLastY());
+
+                if (line >= 0)
+                {
+                    chosen = first + line;
+                    break;
+                }
+            }
+
+            continue;
+        }
+
+        /* a wheel notch steps the selection a word, the way an arrow
+           does without its wrap */
+        if (c == MouseWheelUp || c == MouseWheelDown)
+        {
+            if (c == MouseWheelUp && selection > 0)
+            {
+                selection--;
+            }
+
+            if (c == MouseWheelDown && selection < count - 1)
+            {
+                selection++;
+            }
+
+            continue;
+        }
+
+        if (c == ArrowUp)
+        {
+            selection = selection > 0 ? selection - 1 : count - 1;
+        }
+        else if (c == ArrowDown)
+        {
+            selection = selection < count - 1 ? selection + 1 : 0;
+        }
+    }
+
+    /* the lines were only borrowed, and the rows under the menu need
+       their own paint back */
+    ScreenShowMenu(NULL, 0, 0);
+
+    if (chosen < 0)
+    {
+        SetStatusMessage("");
+        return;
+    }
+
+    EditorInsertCompletion(words[chosen], (int)strlen(words[chosen]),
+                           prefix_len);
+
+    SetStatusMessage("Completed '%s' as '%s'", prefix, words[chosen]);
 }
 
 /* the match light a repeated search left on: it stays until the next
@@ -1838,6 +2020,15 @@ int main(int argc, char *argv[])
                 {
                     EditorDeleteWordRight();
                 }
+            }
+            else if (c_in == WordComplete)
+            {
+                /* Alt-/ completes the word before the cursor with the
+                   words of the buffer, dabbrev style: the menu the
+                   buffer picker uses lists them */
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+                EditorCompleteWord();
             }
             else if (c_in == DeleteKey)
             {
