@@ -38,7 +38,11 @@ The whole interface is drawn on the standard output, so
 .B vted
 refuses to start when that is not a terminal. Keys are read from the
 terminal, which may be the controlling one when standard input holds
-piped text instead.
+piped text instead. The mouse is asked to report clicks, drags and
+wheel turns over the viewport while the editor runs and gives the
+reporting back on every way out, so the shell's own selections keep
+working; most terminals also let Shift bypass the reporting, for the
+times their own selection is the one wanted.
 .SH OPTIONS
 .TP
 .BR \-h , " " \-\-help
@@ -223,6 +227,18 @@ move the current line up or down; the cursor rides the line
 .TP
 .B Shift\-Arrows
 start or extend a character selection
+.TP
+.B mouse
+a click places the cursor at the position drawn under it — the
+number gutter counting as the first text cell of its row, a cell past
+the right edge as the last one on screen, a wrapped line as a screen
+line of its own, and the tildes below the text as the row past the
+end; holding the left button down and moving the mouse selects from
+where the click went down, taken by Ctrl\-C, Ctrl\-X, Ctrl\-/ and
+typing the way the shift selections are; the wheel scrolls the
+viewport three screen lines at a notch, the way Alt\-e and Alt\-y
+scroll one. Clicks over the two bars at the bottom do nothing, and
+the middle and the right button are not bound
 .TP
 .B Ctrl\-C / Ctrl\-X
 copy or cut the selection (or the current line) to the system clipboard
