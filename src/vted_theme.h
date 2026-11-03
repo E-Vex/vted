@@ -26,4 +26,13 @@
    when the word names none */
 int ThemeParseClass(const char *name, size_t len);
 
+/* reads the lines of a theme, a NUL-terminated text, and gives the
+   classes they name the colors they give. Nothing is taken back first,
+   so a later line wins over an earlier one and the colors already
+   chosen stay where a line leaves them alone. Returns the number of
+   lines that could not be used (an unknown class, a word that is no
+   color, a line that is none of these), which the caller may report;
+   the other lines still apply */
+int ThemeApply(const char *text);
+
 #endif

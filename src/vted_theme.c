@@ -2,6 +2,7 @@
 #include <string.h>
 /*===============================*/
 #include "vted_theme.h"
+#include "vted_color.h"
 #include "vted_syntax.h"
 /*===============================*/
 
@@ -40,4 +41,102 @@ int ThemeParseClass(const char *name, size_t len)
     }
 
     return -1;
+}
+
+static int IsBlank(char c)
+{
+    return c == ' ' || c == '\t';
+}
+
+/* the end of the word that starts at at, within end */
+static const char *WordEnd(const char *at, const char *end)
+{
+    while (at < end && !IsBlank(*at))
+    {
+        at++;
+    }
+
+    return at;
+}
+
+static const char *SkipBlanks(const char *at, const char *end)
+{
+    while (at < end && IsBlank(*at))
+    {
+        at++;
+    }
+
+    return at;
+}
+
+/* applies one line, the len bytes at line; 1 when it could not be used */
+static int ApplyLine(const char *line, size_t len)
+{
+    const char *at = line;
+    const char *end = line + len;
+
+    /* a Windows line ending and trailing blanks are nothing to read */
+    while (end > at && (IsBlank(end[-1]) || end[-1] == '\r'))
+    {
+        end--;
+    }
+
+    at = SkipBlanks(at, end);
+
+    /* blank lines and comments */
+    if (at == end || *at == '#')
+    {
+        return 0;
+    }
+
+    /* every other line gives a color: color <class> <color> */
+    const char *word_end = WordEnd(at, end);
+
+    if (word_end - at != 5 || memcmp(at, "color", 5) != 0)
+    {
+        return 1;
+    }
+
+    at = SkipBlanks(word_end, end);
+    word_end = WordEnd(at, end);
+
+    int hl_class = ThemeParseClass(at, (size_t)(word_end - at));
+
+    if (hl_class < 0)
+    {
+        return 1;
+    }
+
+    /* the color is the rest of the line */
+    at = SkipBlanks(word_end, end);
+
+    vted_rgb_t color;
+
+    if (ColorParse(at, (size_t)(end - at), &color) != 0)
+    {
+        return 1;
+    }
+
+    return SyntaxSetClassColor(hl_class, color) != 0;
+}
+
+int ThemeApply(const char *text)
+{
+    int bad = 0;
+
+    while (*text != '\0')
+    {
+        const char *newline = strchr(text, '\n');
+        size_t len = newline != NULL ? (size_t)(newline - text) : strlen(text);
+
+        bad += ApplyLine(text, len);
+        text += len;
+
+        if (*text == '\n')
+        {
+            text++;
+        }
+    }
+
+    return bad;
 }
