@@ -203,6 +203,21 @@ static const struct
         "color tab      #4c566a\n"
         "color indent   #434c5e\n"
         "color marker   #3b4252\n"
+    },
+    {"dracula",
+        "color comment  #6272a4\n"
+        "color string   #f1fa8c\n"
+        "color number   #bd93f9\n"
+        "color keyword  #ff79c6\n"
+        "color type     #8be9fd\n"
+        "color preproc  #ffb86c\n"
+        "color removed  #ff5555\n"
+        "color context  #6b7090\n"
+        "color function #50fa7b\n"
+        "color match    #6f5f1a\n"
+        "color tab      #6272a4\n"
+        "color indent   #44475a\n"
+        "color marker   #343746\n"
     }
 };
 
