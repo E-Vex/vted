@@ -23,6 +23,9 @@ jobs:
       - name: Run the unit tests
         run: make test CFLAGS="-Wall -Wextra -Wconversion -std=c11 -I. -Werror"
 
+      - name: Smoke test the editor over a pty
+        run: python3 packaging/smoke-test.py ./vted
+
       - name: Verify a staged install
         run: |
           make install DESTDIR="$PWD/stage"
@@ -41,3 +44,6 @@ jobs:
           make clean
           make CFLAGS="-Wall -Wextra -Wconversion -std=c11 -I. -Werror -fsanitize=address,undefined -fno-omit-frame-pointer"
           make test CFLAGS="-Wall -Wextra -Wconversion -std=c11 -I. -Werror -fsanitize=address,undefined -fno-omit-frame-pointer"
+
+      - name: Smoke test the sanitized editor over a pty
+        run: python3 packaging/smoke-test.py ./vted
