@@ -266,8 +266,11 @@ could not be used. A theme's name is made of letters, digits, `-` and
 | Alt-/           | complete the word before the cursor with the
   words of the open buffers, the way dabbrev-expand does in Emacs:
   the menu the Ctrl-B picker uses lists every distinct word that
-  starts with it, the nearest first — the words before the cursor
-  and the rows above it, then the ones after it, then the other open
+  starts with it — the words before the cursor
+  and the rows above it, then the ones after it, ranked by how
+  often the buffer says them, the ones it says most first, a saying
+  counted under either spelling and words said as often as one
+  another keeping the near order — then the other open
   buffers, the next one first around the ring, every word of theirs
   followed by its buffer's name so the menu says where it came from,
   while the words of the buffer being edited stand bare, their
@@ -351,9 +354,12 @@ New in 0.3.3:
 - Word completion: Alt-/ completes the word before the cursor with
   the words of the open buffers, the way dabbrev-expand does in
   Emacs. The menu the Ctrl-B picker uses lists every distinct word
-  that starts with the one being typed, the nearest first — the words
+  that starts with the one being typed — the words
   before the cursor and the rows above it, then the ones after it,
-  then the other open buffers, the next one first around the ring,
+  ranked by how often the buffer says them, the ones it says most
+  first, a saying counted under either spelling and words said as
+  often as one another keeping the near order — then the
+  other open buffers, the next one first around the ring,
   each read from its first row to its last, every word of theirs
   followed by its buffer's name while the words of the buffer being
   edited stand bare, so the menu says where each answer came from;
