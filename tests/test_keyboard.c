@@ -267,6 +267,25 @@ static void TestSearchRepeatKeys(void)
     CHECK_INT(ReadKeyPress(), 'p');
 }
 
+static void TestWordDeleteKeys(void)
+{
+    /* Alt-Backspace deletes the word left of the cursor, the way the
+       shells spell it; Alt-d deletes the word right of it, readline's
+       kill word */
+    FeedInput("\x1b\x7f");
+    CHECK_INT(ReadKeyPress(), DeleteWordLeft);
+    FeedInput("\x1b" "d");
+    CHECK_INT(ReadKeyPress(), DeleteWordRight);
+
+    /* a plain backspace stays itself, and a plain d is still text */
+    FeedInput("\x7f");
+    CHECK_INT(ReadKeyPress(), 127);
+    FeedInput("d");
+    CHECK_INT(ReadKeyPress(), 'd');
+    FeedInput("D");
+    CHECK_INT(ReadKeyPress(), 'D');
+}
+
 static void TestCommentToggleKey(void)
 {
     /* Ctrl-/ arrives as the byte 0x1F, the one Ctrl-_ has always
@@ -437,6 +456,7 @@ int main(void)
     TestThemePrompt();
     TestBracketJumpKey();
     TestSearchRepeatKeys();
+    TestWordDeleteKeys();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();

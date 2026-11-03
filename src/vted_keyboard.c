@@ -364,6 +364,21 @@ int ParseArrowKey(void)
         return SearchPrev;
     }
 
+    /* Alt-Backspace deletes the word left of the cursor, the way the
+       shells and readline spell it; Ctrl-W is taken by the tab width,
+       so the backspace goes with Alt */
+    if (introducer == 0x7F)
+    {
+        return DeleteWordLeft;
+    }
+
+    /* Alt-d deletes the word right of the cursor, readline's kill
+       word; a plain d is a character of the text and stays one */
+    if (introducer == 'd')
+    {
+        return DeleteWordRight;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')

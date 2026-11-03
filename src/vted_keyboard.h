@@ -59,6 +59,8 @@ typedef enum
     SearchNext,  /* Alt-n: the match after the last search's cursor,
                      the way n does in vi */
     SearchPrev,  /* Alt-p: the match before it, the way N does */
+    DeleteWordLeft,  /* Alt-Backspace: the word left of the cursor */
+    DeleteWordRight, /* Alt-d: the word right of the cursor */
 
 } EditorKey;
 
