@@ -675,10 +675,13 @@ static void EditorCloseBuffer(void)
 #define PICKER_WIDTH 96
 
 /* the most words the completion menu offers, the most lines of them
-   it shows, and the room one line of it takes: a word */
+   it shows, the room one of its words takes, and the room one of
+   its lines takes: a word, and behind it the name of the buffer it
+   was collected from */
 #define COMPLETION_WORDS 64
 #define COMPLETION_LINES 16
 #define COMPLETION_WIDTH 64
+#define COMPLETION_MENU_WIDTH 104
 
 /* pressing Ctrl-Q, or Ctrl-E on a modified buffer, this many times in
    a row overrides unsaved changes */
@@ -945,24 +948,36 @@ static void EditorPickBuffer(void)
 /* completes the word before the cursor with the words of the open
    buffers, dabbrev style: the menu the buffer picker uses lists every
    distinct word that starts with it — the buffer being edited around
-   the cursor, the nearest first, then the other buffers — and Enter or
-   a click takes one. ESC leaves the word as it was typed */
+   the cursor, the nearest first, then the other buffers, each of
+   whose words is followed by its buffer's name — and Enter or a click
+   takes one. ESC leaves the word as it was typed */
 static void EditorCompleteWord(void)
 {
     char words[COMPLETION_WORDS][COMPLETION_WIDTH];
+    char lines[COMPLETION_LINES][COMPLETION_MENU_WIDTH];
     const char *shown_lines[COMPLETION_LINES];
+    int origins[COMPLETION_WORDS]; /* the buffer each word came from */
     char prefix[COMPLETION_WIDTH];
     int prefix_len = 0;
     int shown_len;
     int count;
+    int live = BuffersCurrent();
     int selection = 0;
     int chosen = -1;
     int i;
+    int j;
 
     count = BufferCollectCompletions(vted_editor_config.cursor_y,
                                      vted_editor_config.cursor_x,
                                      &words[0][0], COMPLETION_WORDS,
                                      COMPLETION_WIDTH, &prefix_len);
+
+    /* every word collected so far came from the buffer being edited,
+       the only one scanned yet */
+    for (j = 0; j < count; j++)
+    {
+        origins[j] = live;
+    }
 
     if (prefix_len == 0)
     {
@@ -986,11 +1001,14 @@ static void EditorCompleteWord(void)
     /* dabbrev goes on past the buffer being edited, once it has had
        its say: the other open buffers follow, the next one first
        around the ring, filling the lines the menu has left, each
-       read from its first row to its last */
+       read from its first row to its last, and every word one of
+       them gave keeps the buffer it came from, for the menu to
+       say it */
     for (i = 1; count < COMPLETION_WORDS && i < BuffersCount(); i++)
     {
-        const vted_buffer_t *text =
-            BuffersText((BuffersCurrent() + i) % BuffersCount());
+        int at = (live + i) % BuffersCount();
+        const vted_buffer_t *text = BuffersText(at);
+        int before = count;
 
         if (text == NULL)
         {
@@ -1000,6 +1018,11 @@ static void EditorCompleteWord(void)
         count = BufferCollectTextWords(text, prefix, shown_len,
                                        &words[0][0], COMPLETION_WORDS,
                                        COMPLETION_WIDTH, count);
+
+        for (j = before; j < count; j++)
+        {
+            origins[j] = at;
+        }
     }
 
     if (count == 0)
@@ -1040,7 +1063,24 @@ static void EditorCompleteWord(void)
 
         for (i = 0; i < shown; i++)
         {
-            shown_lines[i] = words[first + i];
+            int word = first + i;
+
+            /* a word another buffer gave is followed by its name, so
+               the menu says where it came from; the words of the
+               buffer being edited stand bare, their source being
+               where the cursor already is */
+            if (origins[word] == live)
+            {
+                shown_lines[i] = words[word];
+            }
+            else
+            {
+                const char *name = BuffersName(origins[word]);
+
+                snprintf(lines[i], sizeof(lines[i]), "%s - %.32s",
+                         words[word], name != NULL ? name : "[No Name]");
+                shown_lines[i] = lines[i];
+            }
         }
 
         ScreenShowMenu(shown_lines, shown, selection - first);
