@@ -276,7 +276,10 @@ could not be used. A theme's name is made of letters, digits, `-` and
   wheel move through them, Enter or a left click takes one and the
   cursor lands behind it, ESC leaves the word as it was typed; a
   word is what the word moves cross (letters, digits, underscore,
-  every script), the match exact, case and all, the word the cursor
+  every script), the match folds the case — a letter of the word
+  agrees with either of its cases in a candidate, the fold the
+  search uses, so Foo completes foo and FOO completes it too, every
+  spelling keeping its own — the word the cursor
   sits inside is not offered, and the whole pick is one undo step |
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
@@ -359,7 +362,10 @@ New in 0.3.3:
   or a left click takes one, the mouse over the menu answering the
   way it answers the buffer list, and ESC leaves the word as it was
   typed. A word is what the word moves cross (letters, digits,
-  underscore, every script), the match is exact, case and all, the
+  underscore, every script), the match folds the case — a letter of
+  the word agrees with either of its cases in a candidate, the fold
+  the search uses, so Foo completes foo and FOO completes it too,
+  every spelling keeping its own — the
   word the cursor sits inside is not offered, and the whole pick is
   one undo step
 - Mouse support: a click places the cursor at the position the
