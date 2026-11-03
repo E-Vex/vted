@@ -1110,6 +1110,33 @@ static void CollectRowForward(const vted_row_t *row, int from,
     }
 }
 
+/* the words of the text around the cursor at (cy, cx), the nearest
+   first: the text before it on its own row, then the rows above it,
+   all read backwards, then the rest of its own row and the rows
+   below it, read forwards */
+static void CollectNearestFirst(const vted_buffer_t *text, int cy, int cx,
+                                completion_set_t *set)
+{
+    const vted_row_t *row = &text->rows[cy];
+    int i;
+
+    CollectRowBackward(row, cx, cx, set);
+
+    for (i = cy - 1; i >= 0 && set->count < set->max_words; i--)
+    {
+        CollectRowBackward(&text->rows[i],
+                           text->rows[i].size,
+                           text->rows[i].size, set);
+    }
+
+    CollectRowForward(row, cx, set);
+
+    for (i = cy + 1; i < text->num_rows && set->count < set->max_words; i++)
+    {
+        CollectRowForward(&text->rows[i], 0, set);
+    }
+}
+
 int BufferCollectCompletions(int cy, int cx,
                              char *words, int max_words, int word_size,
                              int *out_prefix_len)
@@ -1117,7 +1144,6 @@ int BufferCollectCompletions(int cy, int cx,
     completion_set_t set;
     const vted_row_t *row;
     int prefix_start;
-    int i;
 
     if (out_prefix_len != NULL)
     {
@@ -1157,26 +1183,7 @@ int BufferCollectCompletions(int cy, int cx,
     set.word_size = word_size;
     set.count = 0;
 
-    /* the words before the cursor first, the nearest of them first:
-       the text before it on its own row, then the rows above it, all
-       read backwards */
-    CollectRowBackward(row, cx, cx, &set);
-
-    for (i = cy - 1; i >= 0 && set.count < set.max_words; i--)
-    {
-        CollectRowBackward(&vted_buffer.rows[i],
-                           vted_buffer.rows[i].size,
-                           vted_buffer.rows[i].size, &set);
-    }
-
-    /* then the words after it: the rest of its own row, then the rows
-       below it, read forwards */
-    CollectRowForward(row, cx, &set);
-
-    for (i = cy + 1; i < vted_buffer.num_rows && set.count < set.max_words; i++)
-    {
-        CollectRowForward(&vted_buffer.rows[i], 0, &set);
-    }
+    CollectNearestFirst(&vted_buffer, cy, cx, &set);
 
     return set.count;
 }
