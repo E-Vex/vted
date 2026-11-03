@@ -168,12 +168,48 @@ set wrap-indent off
 set wrap-column 80
 set indent-guides on
 set bracket-color red
+set theme gruvbox
 ```
 
 Blank lines and `#` comments are skipped, a later line wins over an
 earlier one, and a line that cannot be used is reported in the
 message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N,
-Alt-t, Ctrl-L, Alt-i, Alt-g and Alt-c set while editing.
+Alt-t, Ctrl-L, Alt-i, Alt-g, Alt-c and Alt-s set while editing.
+
+## Themes
+
+A theme is a set of colors for the kinds of text the highlighter tells
+apart. `set theme NAME` in the settings file picks one, and Alt-s picks
+one while editing. Six come with the editor: `default` (the built-in
+colors), `gruvbox`, `nord`, `dracula`, `solarized-dark` and `light`.
+
+Your own live in `$XDG_CONFIG_HOME/vted/themes/NAME.theme`
+(`~/.config/vted/themes/NAME.theme` by default), and a file there
+stands in for a built-in theme of the same name. A theme names only
+what it changes, one color per line:
+
+```
+# ~/.config/vted/themes/mine.theme
+color keyword  #fb4934
+color string   green
+color comment  245
+color match    #7c5e10
+```
+
+A color is `#rrggbb`, `#rgb`, a name (black, red, green, yellow, blue,
+magenta, cyan, white, gray, orange) or a number from 0 to 255 of the
+256-color palette. Whatever way it is written, it reaches the terminal
+in the richest form it understands: truecolor, the nearest color of the
+256-color palette, or the nearest of the 16 terminal colors.
+
+The classes are `comment`, `string`, `number`, `keyword`, `type`,
+`preproc`, `removed`, `context`, `function`, `match`, `tab`, `indent`
+and `marker`. `match` (what a search found) and `marker` (the wrap
+column) are backgrounds; the rest color the text. The bracket match
+keeps its own setting, `bracket-color`. Blank lines and `#` comments
+are skipped, a later line wins, and the message bar reports lines that
+could not be used. A theme's name is made of letters, digits, `-` and
+`_`, so it can never name a file outside the themes directory.
 
 ## Keys
 
@@ -207,6 +243,9 @@ Alt-t, Ctrl-L, Alt-i, Alt-g and Alt-c set while editing.
 | Alt-%           | jump to the partner of the bracket under the
   cursor (or right behind it), the way % does in vi; a partner off
   screen lands mid-viewport                         |
+| Alt-s           | pick the color scheme: the prompt opens with the
+  theme in use, so Enter alone loads it again (handy
+  while writing a theme file) and a name changes it |
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
@@ -260,6 +299,15 @@ unsaved changes ask for three more presses first, the way Ctrl-Q
 does, and closing the last buffer starts a fresh empty one.
 
 ## Features
+
+Unreleased:
+
+- Color themes: `set theme NAME`, or Alt-s while editing, picks the
+  colors the text is drawn in. `gruvbox`, `nord`, `dracula`,
+  `solarized-dark` and `light` come with the editor, and a file in
+  `~/.config/vted/themes/` makes a theme of your own, with colors
+  written as `#rrggbb`, a name or a 256-color palette number and
+  fitted to what the terminal can show
 
 New in 0.3.1:
 
