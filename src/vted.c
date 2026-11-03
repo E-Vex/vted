@@ -666,9 +666,9 @@ static void EditorCloseBuffer(void)
 #define CLOSE_CONFIRMATIONS 3
 
 /* picks one of the open buffers from a list: the arrows move through
-   them, Enter takes the one under the selection, Ctrl-E closes the
-   one under it without leaving the list, and ESC puts the buffer
-   that was live back */
+   them, a left click takes the buffer drawn under it, Enter takes the
+   one under the selection, Ctrl-E closes the one under it without
+   leaving the list, and ESC puts the buffer that was live back */
 static void EditorPickBuffer(void)
 {
     char lines[PICKER_LINES][PICKER_WIDTH];
@@ -738,7 +738,7 @@ static void EditorPickBuffer(void)
         }
         else
         {
-            SetStatusMessage("Switch buffer: arrows move, Enter picks, ESC cancels, Ctrl-E closes");
+            SetStatusMessage("Switch buffer: arrows move, Enter or a click picks, ESC cancels, Ctrl-E closes");
         }
 
         RefreshScreen();
@@ -838,6 +838,26 @@ static void EditorPickBuffer(void)
                 selection = wanted - 1;
                 break;
             }
+            continue;
+        }
+
+        /* a left click takes the buffer drawn under it, the way Enter
+           takes the one under the selection; the middle and the right
+           button arrive unbound, the way they do over the text, and a
+           click past the list keeps it waiting */
+        if (c == MousePress)
+        {
+            if (MouseLastButton() == 0)
+            {
+                int line = ScreenMenuLineAt(MouseLastY());
+
+                if (line >= 0)
+                {
+                    selection = first + line;
+                    break;
+                }
+            }
+
             continue;
         }
 
