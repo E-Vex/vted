@@ -248,10 +248,11 @@ static void EditorJumpToBracket(void)
 /* the mouse over the viewport: a click places the cursor at the
    buffer position the renderer drew under it, a notch of the wheel
    scrolls the viewport, and a drag carries a selection from where
-   the click went down. The hit test walks the same layout the frame
-   draws, so a click lands on the very glyph it was aimed at — the
-   gutter, a wrapped line, a viewport scrolled sideways, the phantom
-   row past the end, all of it */
+   the click went down, one that runs onto the bars scrolling the
+   viewport a screen line along at a report. The hit test walks the
+   same layout the frame draws, so a click lands on the very glyph
+   it was aimed at — the gutter, a wrapped line, a viewport scrolled
+   sideways, the phantom row past the end, all of it */
 
 /* set from the press to the release of a held left button: the
    selection follows the cursor from the anchor the press left */
@@ -261,6 +262,7 @@ static void EditorHandleMouse(int key)
 {
     int hit_y;
     int hit_x;
+    int row = MouseLastY();
 
     if (key == MouseWheelUp || key == MouseWheelDown)
     {
@@ -281,7 +283,19 @@ static void EditorHandleMouse(int key)
         return;
     }
 
-    if (!ScreenHitTest(MouseLastX(), MouseLastY(), &hit_y, &hit_x))
+    /* a drag carrying a selection that leaves the text for the bars
+       pulls the viewport one screen line down at a report — they are
+       the only edge past the viewport a terminal reports, the top
+       being where its pointer stops — and the cell under the pointer
+       is then the bottom row, whatever the scroll left under it */
+    if (key == MouseDrag && mouse_dragging &&
+        row >= vted_editor_config.screen_rows)
+    {
+        ScreenScroll(1);
+        row = vted_editor_config.screen_rows - 1;
+    }
+
+    if (!ScreenHitTest(MouseLastX(), row, &hit_y, &hit_x))
     {
         /* over the bars: nothing to place, and a drag keeps waiting
            for the pointer to come back over the text */
