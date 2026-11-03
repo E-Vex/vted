@@ -153,6 +153,13 @@ changes it — the same names the
 setting of the rc
 file takes
 .TP
+.B Alt\-s
+pick the color scheme, the theme the
+.B theme
+setting of the rc file names: the prompt opens with the theme in use,
+so Enter alone loads it again, which is handy while writing a theme
+file, and a name changes it
+.TP
 .B Alt\-%
 jump to the partner of the bracket under the cursor, or the one
 right behind it, the way % does in vi: the partner the highlight
@@ -427,7 +434,33 @@ Blank lines and lines starting with # are skipped, and a later line
 wins over an earlier one. A line that cannot be used is reported in
 the message bar while the setting it would have set stays at its
 default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N, Alt\-t,
-Ctrl\-L, Alt\-i and Alt\-g set while editing.
+Ctrl\-L, Alt\-i, Alt\-g and Alt\-s set while editing.
+.PP
+Themes of your own live in
+.I $XDG_CONFIG_HOME/vted/themes/NAME.theme
+(or
+.IR ~/.config/vted/themes/NAME.theme ),
+and a file there stands in for a built\-in theme of the same name. A
+theme names only the colors it changes, one per line:
+.PP
+.RS
+.nf
+color keyword #fb4934
+color string green
+color match 94
+.fi
+.RE
+.PP
+The classes are comment, string, number, keyword, type, preproc,
+removed, context, function, match, tab, indent and marker; match and
+marker are backgrounds, the rest color the text. A color is #rrggbb,
+#rgb, one of black, red, green, yellow, blue, magenta, cyan, white,
+gray and orange, or a number from 0 to 255 of the 256\-color palette,
+and reaches the terminal as truecolor, the nearest 256\-color palette
+entry or the nearest of the 16 terminal colors, whichever the terminal
+can show. Blank lines and lines starting with # are skipped, a later
+line wins, and lines that cannot be used are reported in the message
+bar. A theme's name is made of letters, digits, \- and _.
 .PP
 Line endings are kept as found: LF, CRLF, CR and mixed files save
 back unchanged, byte for byte, and a file without a trailing newline
