@@ -1132,22 +1132,34 @@ int BufferReplaceAll(const char *query, const char *replacement)
 
         while (start + query_len <= row->size)
         {
-            const char *found = strstr(&row->chars[start], query);
-            int hit;
+            /* the search runs in the row module, so a case the
+               setting folds folds here the same way */
+            int hit = RowFindNext(row, start, row->size, query, query_len);
 
-            if (found == NULL)
+            if (hit < 0)
             {
                 break;
             }
 
-            hit = (int)(found - row->chars);
-
             {
+                /* the bytes the match stood for go into the undo step,
+                   taken from the row: a folded search matches letters
+                   of either case, and undo has to put back the very
+                   bytes that were there */
+                char *old_text = malloc((size_t)query_len);
+
+                if (old_text == NULL)
+                {
+                    KillApp("malloc");
+                }
+
+                memcpy(old_text, &row->chars[hit], (size_t)query_len);
+
                 UndoEntry entry = {
                     .kind = UndoKindReplaceBytes,
                     .row = row_index,
                     .cx = hit,
-                    .bytes = (char *)query,
+                    .bytes = old_text,
                     .length = query_len,
                     .new_bytes = (char *)replacement,
                     .new_length = replacement_len,
@@ -1158,6 +1170,8 @@ int BufferReplaceAll(const char *query, const char *replacement)
                 };
 
                 UndoPush(&entry);
+
+                free(old_text);
 
                 { /* remove the old text at hit */
                     int i;

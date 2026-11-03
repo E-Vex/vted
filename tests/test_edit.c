@@ -810,6 +810,34 @@ static void TestBufferReplaceAllEmptyQueryDoesNothing(void)
     CHECK_INT(vted_buffer.dirty, 0);
 }
 
+static void TestBufferReplaceAllFoldsCase(void)
+{
+    /* with the fold off, only the exact bytes answer */
+    RowSetIgnoreCase(0);
+    Begin("aBc abc AbC");
+
+    CHECK_INT(BufferReplaceAll("abc", "X"), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aBc X AbC");
+
+    /* folded, every spelling is replaced, each still its own step */
+    RowSetIgnoreCase(1);
+    Begin("aBc abc AbC");
+
+    CHECK_INT(BufferReplaceAll("abc", "X"), 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "X X X");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "X X AbC");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "X abc AbC");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aBc abc AbC");
+
+    RowSetIgnoreCase(0);
+}
+
 int main(void)
 {
     TestInsertChar();
@@ -845,6 +873,7 @@ int main(void)
     TestBufferReplaceAllDeletesWithEmptyReplacement();
     TestBufferReplaceAllAcrossRows();
     TestBufferReplaceAllEmptyQueryDoesNothing();
+    TestBufferReplaceAllFoldsCase();
     TestInsertTextInsideALine();
     TestInsertTextSeveralLines();
     TestInsertTextAddsNoIndent();

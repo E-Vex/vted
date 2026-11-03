@@ -187,6 +187,10 @@ static void ApplySettings(const vted_settings_t *settings)
        holds it the way it holds the language of the file */
     SyntaxSetBracketColor(settings->bracket_color);
 
+    /* the search takes its case from the setting, and the replace
+       follows, both through the row module the search runs in */
+    RowSetIgnoreCase(settings->ignore_case);
+
     /* the width reaches every buffer open at startup, so they all
        begin with it; Ctrl-W later sets the live one's alone */
     BuffersSetTabWidth(settings->tab_width);
