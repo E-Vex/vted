@@ -253,6 +253,7 @@ static const struct
 };
 
 static char current_theme[33] = "default";
+static int bad_lines;
 
 int ThemeBuiltinCount(void)
 {
@@ -277,6 +278,11 @@ const char *ThemeBuiltinText(int index)
     }
 
     return builtin_themes[index].text;
+}
+
+int ThemeBadLines(void)
+{
+    return bad_lines;
 }
 
 const char *ThemeCurrent(void)
@@ -350,7 +356,7 @@ int ThemeSelect(const char *name)
     if (found > 0)
     {
         SyntaxResetClassColors();
-        ThemeApply(file_text);
+        bad_lines = ThemeApply(file_text);
         snprintf(current_theme, sizeof(current_theme), "%s", name);
         return 0;
     }
@@ -360,7 +366,7 @@ int ThemeSelect(const char *name)
         if (strcmp(builtin_themes[i].name, name) == 0)
         {
             SyntaxResetClassColors();
-            ThemeApply(builtin_themes[i].text);
+            bad_lines = ThemeApply(builtin_themes[i].text);
             snprintf(current_theme, sizeof(current_theme), "%s", name);
             return 0;
         }

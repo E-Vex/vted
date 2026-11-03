@@ -276,6 +276,14 @@ static void TestThemeFiles(void)
     WriteTheme(dir, "sloppy", "color keyword #0d0e0f\nbogus line\n");
     CHECK_INT(ThemeSelect("sloppy"), 0);
     CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;13;14;15m");
+    CHECK_INT(ThemeBadLines(), 1);
+
+    /* the count belongs to the last theme chosen: a failed choice
+       leaves it, and a clean theme zeroes it */
+    CHECK_INT(ThemeSelect("nonesuch"), -1);
+    CHECK_INT(ThemeBadLines(), 1);
+    CHECK_INT(ThemeSelect("mine"), 0);
+    CHECK_INT(ThemeBadLines(), 0);
 
     /* a name that reaches out of the directory is refused before any
        file is looked for */

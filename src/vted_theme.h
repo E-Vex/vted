@@ -49,6 +49,12 @@ int ThemeNameValid(const char *name);
    too large), in which case the theme in use is left as it was */
 int ThemeSelect(const char *name);
 
+/* how many lines of the theme the last successful ThemeSelect chose
+   could not be used (an unknown class, a word that is no color); the
+   lines that could be used applied all the same. 0 for the built-in
+   themes, which are all well formed */
+int ThemeBadLines(void);
+
 /* the name of the theme in use: "default" until another is selected */
 const char *ThemeCurrent(void);
 
