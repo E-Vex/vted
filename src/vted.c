@@ -25,6 +25,10 @@
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
 #define PROMPT_MAX 1024
 
+/* how many screen lines one notch of the wheel scrolls, the way a
+   terminal of its own scrolls a page the mouse is over */
+#define MOUSE_WHEEL_LINES 3
+
 /* the answer the search prompts keep, so the next one opens with
    it: Enter alone repeats the search as it stands */
 static char last_query[PROMPT_MAX + 1];
@@ -241,15 +245,28 @@ static void EditorJumpToBracket(void)
     ScreenCenterCursor();
 }
 
-/* a mouse button going down over the viewport places the cursor at
-   the buffer position the renderer drew under it: the hit test walks
-   the same layout the frame draws, so the click lands on the very
-   glyph it was aimed at — the gutter, a wrapped line, a viewport
-   scrolled sideways, the phantom row past the end, all of it */
-static void EditorHandleMouse(void)
+/* the mouse over the viewport: a click places the cursor at the
+   buffer position the renderer drew under it, a notch of the wheel
+   scrolls the viewport. The hit test walks the same layout the frame
+   draws, so a click lands on the very glyph it was aimed at — the
+   gutter, a wrapped line, a viewport scrolled sideways, the phantom
+   row past the end, all of it */
+static void EditorHandleMouse(int key)
 {
     int hit_y;
     int hit_x;
+
+    if (key == MouseWheelUp || key == MouseWheelDown)
+    {
+        /* the wheel scrolls whole screen lines, the scroll Alt-e and
+           Alt-y make, three of them at a turn; the selection is gone
+           with it, the way those keys take it */
+        EditClearSelection();
+        ScreenSetSelection(-1, 0, -1, 0);
+        ScreenScroll(key == MouseWheelDown ? MOUSE_WHEEL_LINES
+                                           : -MOUSE_WHEEL_LINES);
+        return;
+    }
 
     if (!ScreenHitTest(MouseLastX(), MouseLastY(), &hit_y, &hit_x))
     {
@@ -1672,11 +1689,12 @@ int main(int argc, char *argv[])
                     free(pasted);
                 }
             }
-            else if (c_in == MousePress)
+            else if (c_in == MousePress || c_in == MouseWheelUp || c_in == MouseWheelDown)
             {
-                /* a click on the viewport places the cursor at the
-                   position the renderer drew under it */
-                EditorHandleMouse();
+                /* the mouse over the viewport: a click places the
+                   cursor at the position the renderer drew under it,
+                   a wheel notch scrolls that position into view */
+                EditorHandleMouse(c_in);
             }
             else if (c_in == '\r' || c_in == '\n')
             {
