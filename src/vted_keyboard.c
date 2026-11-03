@@ -68,6 +68,97 @@ static int ReadSequenceByte(void)
 #define MODIFIER_ALT 2
 #define MODIFIER_CTRL 4
 
+/* the position and the button of the last mouse report, kept for the
+   key code it arrived with; -1 before the first one. The terminal
+   counts its cells from one, the editor from zero, and the button is
+   0 left, 1 middle, 2 right and 3 none */
+static int mouse_last_x = -1;
+static int mouse_last_y = -1;
+static int mouse_last_button = -1;
+
+int MouseLastX(void)
+{
+    return mouse_last_x;
+}
+
+int MouseLastY(void)
+{
+    return mouse_last_y;
+}
+
+int MouseLastButton(void)
+{
+    return mouse_last_button;
+}
+
+/* SGR mouse reports have the shape
+     ESC [ < button ; x ; y M     (a press or a motion)
+     ESC [ < button ; x ; y m     (a release)
+   The button byte packs what happened: bits 0 and 1 the button itself
+   (0 left, 1 middle, 2 right), bit 2 shift, bit 3 alt, bit 4 ctrl,
+   bit 5 a motion with the button held, bit 6 the wheel (the button
+   bits then saying which way, 0 up and 1 down). x and y count screen
+   cells from one; they are clamped here to a screen no terminal is
+   wider than, so a report garbled into a huge number cannot move the
+   cursor somewhere strange */
+#define MOUSE_MAX_COORDINATE 9999
+
+static int ParseMouseReport(const char *parameters, int final_byte)
+{
+    /* the parameters are "button ; x ; y", digits and separators */
+    long fields[3] = {0, 0, 0};
+    int field = 0;
+    int i;
+
+    for (i = 0; parameters[i] != '\0' && field < 3; i++)
+    {
+        if (parameters[i] == ';')
+        {
+            field++;
+        }
+        else if (parameters[i] >= '0' && parameters[i] <= '9')
+        {
+            fields[field] = fields[field] * 10 + (parameters[i] - '0');
+
+            if (fields[field] > MOUSE_MAX_COORDINATE)
+            {
+                fields[field] = MOUSE_MAX_COORDINATE;
+            }
+        }
+        else
+        {
+            return NO_KEY; /* not a mouse report after all */
+        }
+    }
+
+    mouse_last_x = (int)fields[1] - 1;
+    mouse_last_y = (int)fields[2] - 1;
+    mouse_last_button = (int)(fields[0] & 3);
+
+    /* the wheel is its own two keys: up and down a notch */
+    if (fields[0] & 64)
+    {
+        switch (fields[0] & 3)
+        {
+        case 0:
+            return MouseWheelUp;
+        case 1:
+            return MouseWheelDown;
+        default:
+            return NO_KEY; /* the side wheels of exotic mice: not bound */
+        }
+    }
+
+    /* a motion with a button held drags; a press and a release are
+       told apart by the final byte alone */
+    if (fields[0] & 32)
+    {
+        return MouseDrag;
+    }
+
+    return final_byte == 'M' ? MousePress : MouseRelease;
+}
+
 /* modifier bits of a CSI key, 0 for a plain key. Older terminals leave
    out the leading 1 (ESC [ 5 C), so the last number counts either way */
 static int CsiModifierBits(const char *parameters)
@@ -96,6 +187,7 @@ static int ParseCsiSequence(void)
     |   ESC [ n ~          -> extended keys:          |
     |     1,7 = Home   3 = Delete   4,8 = End         |
     |     5 = PageUp   6 = PageDown                   |
+    |   ESC [ < b;x;y M/m  -> an SGR mouse report     |
     =================================================*/
 
     char parameters[16];
@@ -128,6 +220,15 @@ static int ParseCsiSequence(void)
     {
         ReadSequenceByte();
         return NO_KEY;
+    }
+
+    /* a mouse report names itself with a leading < among the
+       parameters: ESC [ < 0 ; 10 ; 5 M, say. It is read here so the
+       numbers and the final byte, taken for key parameters on any
+       other sequence, reach the mouse parser instead */
+    if (parameters[0] == '<' && (final_byte == 'M' || final_byte == 'm'))
+    {
+        return ParseMouseReport(parameters + 1, final_byte);
     }
 
     switch (final_byte)

@@ -317,6 +317,57 @@ static void TestCtrlUpDownMoveLines(void)
     CHECK_INT(ReadKeyPress(), MoveLineDown);
 }
 
+static void TestMouseReports(void)
+{
+    /* SGR mouse reports: ESC [ < button ; x ; y M for a press or a
+       motion, m for a release. The cell the report names counts from
+       one at the screen's top-left corner; the editor counts from
+       zero, so the report of (5, 2) is the cell (4, 1) */
+
+    /* the left button going down and coming back up */
+    FeedInput("\x1b[<0;5;2M");
+    CHECK_INT(ReadKeyPress(), MousePress);
+    CHECK_INT(MouseLastX(), 4);
+    CHECK_INT(MouseLastY(), 1);
+    CHECK_INT(MouseLastButton(), 0);
+    FeedInput("\x1b[<0;5;2m");
+    CHECK_INT(ReadKeyPress(), MouseRelease);
+
+    /* the middle and the right button arrive as their own numbers */
+    FeedInput("\x1b[<1;1;1M");
+    CHECK_INT(ReadKeyPress(), MousePress);
+    CHECK_INT(MouseLastButton(), 1);
+    FeedInput("\x1b[<2;1;1M");
+    CHECK_INT(ReadKeyPress(), MousePress);
+    CHECK_INT(MouseLastButton(), 2);
+
+    /* a motion with the left button held drags */
+    FeedInput("\x1b[<32;9;7M");
+    CHECK_INT(ReadKeyPress(), MouseDrag);
+    CHECK_INT(MouseLastButton(), 0);
+    CHECK_INT(MouseLastX(), 8);
+    CHECK_INT(MouseLastY(), 6);
+
+    /* the wheel: 64 scrolls a notch up, 65 a notch down */
+    FeedInput("\x1b[<64;5;2M");
+    CHECK_INT(ReadKeyPress(), MouseWheelUp);
+    FeedInput("\x1b[<65;5;2M");
+    CHECK_INT(ReadKeyPress(), MouseWheelDown);
+
+    /* a huge coordinate is clamped, not wrapped around */
+    FeedInput("\x1b[<0;999999;999999M");
+    CHECK_INT(ReadKeyPress(), MousePress);
+    CHECK_INT(MouseLastX(), 9998);
+    CHECK_INT(MouseLastY(), 9998);
+
+    /* an old X10 report (ESC [ M followed by three raw bytes) is not
+       spoken to: it is ignored, and the byte after it stays a key of
+       its own */
+    FeedInput("\x1b[Mx");
+    CHECK_INT(ReadKeyPress(), 0);
+    CHECK_INT(ReadKeyPress(), 'x');
+}
+
 static void TestSequencesDoNotLeakText(void)
 {
     /* the tail of a modified key must not come back as typed text:
@@ -460,6 +511,7 @@ int main(void)
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();
+    TestMouseReports();
     TestSequencesDoNotLeakText();
     TestCutShortSequences();
     TestBracketedPasteMarkers();

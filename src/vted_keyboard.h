@@ -61,10 +61,24 @@ typedef enum
     SearchPrev,  /* Alt-p: the match before it, the way N does */
     DeleteWordLeft,  /* Alt-Backspace: the word left of the cursor */
     DeleteWordRight, /* Alt-d: the word right of the cursor */
+    MousePress,      /* a mouse button went down over the screen */
+    MouseRelease,    /* the button came back up */
+    MouseDrag,       /* the mouse moved with a button held down */
+    MouseWheelUp,    /* the wheel scrolled a notch up */
+    MouseWheelDown,  /* the wheel scrolled a notch down */
 
 } EditorKey;
 
 int ReadKeyPress(void);
+
+/* the position and the button of the last mouse report: x and y are
+   cells from the screen's top-left corner (the terminal counts from
+   one, the editor from zero), the button 0 left, 1 middle, 2 right
+   and 3 none. They hold the values of the report that came with the
+   key and stay put while other keys arrive */
+int MouseLastX(void);
+int MouseLastY(void);
+int MouseLastButton(void);
 
 /* reads the bytes of a bracketed paste up to its end marker; returns
    them NUL-terminated in a heap buffer the caller frees (NULL when
