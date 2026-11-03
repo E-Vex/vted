@@ -167,6 +167,7 @@ set wrap on
 set wrap-indent off
 set wrap-column 80
 set indent-guides on
+set ignore-case on
 set bracket-color red
 set theme gruvbox
 ```
