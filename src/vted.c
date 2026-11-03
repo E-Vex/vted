@@ -796,6 +796,27 @@ static void EditorPickBuffer(void)
     }
 }
 
+/* the match light a repeated search left on: it stays until the next
+   key that is not one of the search's own turns it off, the way the
+   leaving of the search itself does */
+static int search_highlight_on = 0;
+
+/* takes the light off every match and drops the inverted one: the
+   rows it stood on repaint without it */
+static void ClearSearchHighlight(void)
+{
+    if (vted_editor_config.match_row >= 0)
+    {
+        ScreenMarkRowDirty(vted_editor_config.match_row);
+    }
+
+    vted_editor_config.match_row = -1;
+    vted_editor_config.match_len = 0;
+
+    ScreenSetSearchQuery(NULL, 0);
+    search_highlight_on = 0;
+}
+
 static int FindMatch(const char *query, int start_row, int start_col,
                      int direction, int *match_row, int *match_col)
 {
@@ -1129,18 +1150,71 @@ static void EditorFind(void)
     }
 
     /* leaving the search clears the highlight */
+    ClearSearchHighlight();
+
+    SetStatusMessage("");
+}
+
+/* Alt-n and Alt-p step the cursor to the match after and before the
+   one it sits on, the way n and N do in vi: the last search's query
+   runs again from where the cursor stands, wrapping around the
+   buffer, and every match of it lights up until the next key that is
+   not one of the search's own turns the light off */
+static void EditorSearchRepeat(int direction)
+{
+    int query_len = (int)strlen(last_query);
+    int search_row = vted_editor_config.cursor_y;
+    int search_col = vted_editor_config.cursor_x;
+    int match_row;
+    int match_col;
+
+    if (query_len == 0)
+    {
+        SetStatusMessage("No search to repeat");
+        return;
+    }
+
+    /* the cursor may rest on the phantom row past the end */
+    if (search_row >= vted_buffer.num_rows)
+    {
+        search_row = vted_buffer.num_rows - 1;
+    }
+
+    /* a match under the cursor is not the one the step is looking
+       for: the forward step starts past it, the backward one before */
+    search_col += direction > 0 ? 1 : 0;
+
+    if (FindMatch(last_query, search_row, search_col, direction,
+                  &match_row, &match_col) != 0)
+    {
+        ClearSearchHighlight();
+        SetStatusMessage("No matches: %s", last_query);
+        return;
+    }
+
+    /* the match that was lit repaints without it, and the one the
+       cursor lands on is inverted, the way the search leaves it */
     if (vted_editor_config.match_row >= 0)
     {
         ScreenMarkRowDirty(vted_editor_config.match_row);
     }
 
-    vted_editor_config.match_row = -1;
-    vted_editor_config.match_len = 0;
+    vted_editor_config.cursor_y = match_row;
+    vted_editor_config.cursor_x = match_col;
 
-    /* and the highlighting of every match with it */
-    ScreenSetSearchQuery(NULL, 0);
+    /* a match that left the viewport comes back mid-viewport, the
+       way a step inside the search lands one */
+    ScreenCenterCursor();
 
-    SetStatusMessage("");
+    vted_editor_config.match_row = match_row;
+    vted_editor_config.match_col = match_col;
+    vted_editor_config.match_len = query_len;
+    ScreenMarkRowDirty(match_row);
+
+    ScreenSetSearchQuery(last_query, query_len);
+    search_highlight_on = 1;
+
+    SetStatusMessage("Find: %s", last_query);
 }
 
 static void EditorReplace(void)
@@ -1394,6 +1468,16 @@ int main(int argc, char *argv[])
                 vted_editor_config.preferred_rx = -1;
             }
 
+            /* the light a repeated search left on the matches goes out
+               on the next key that is not one of the search's own: a
+               step with Alt-n or Alt-p keeps it, opening the search
+               again hands the light over to the prompt */
+            if (search_highlight_on && c_in != SearchNext && c_in != SearchPrev &&
+                c_in != CTRL_KEY('f') && c_in != CTRL_KEY('F'))
+            {
+                ClearSearchHighlight();
+            }
+
             /* one key, one action: the dispatch is a chain so special
                key codes are never mistaken for text bytes */
             if (c_in == ShiftArrowLeft || c_in == ShiftArrowRight || c_in == ShiftArrowUp ||
@@ -1443,6 +1527,15 @@ int main(int argc, char *argv[])
                 EditClearSelection();
                 ScreenSetSelection(-1, 0, -1, 0);
                 EditorJumpToBracket();
+            }
+            else if (c_in == SearchNext || c_in == SearchPrev)
+            {
+                /* Alt-n and Alt-p repeat the last search without the
+                   prompt, the way n and N do in vi: a movement, so
+                   the selection is gone on arrival */
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+                EditorSearchRepeat(c_in == SearchNext ? 1 : -1);
             }
             else if (c_in == ShowTabsToggle)
             {
