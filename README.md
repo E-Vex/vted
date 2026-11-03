@@ -280,7 +280,9 @@ wrapped line as a screen line of its own, the tildes below the text
 as the row past the end; holding the left button down and moving the
 mouse selects from where the click went down, and the wheel scrolls
 the viewport three screen lines at a notch, the way Alt-e and Alt-y
-scroll one. Hold Shift for the terminal's own selection    |
+scroll one; over the Ctrl-B buffer list a click takes the buffer
+drawn under it, the wheel stepping the selection a buffer at a
+notch. Hold Shift for the terminal's own selection    |
 | Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
 | Ctrl-R          | search and replace every occurrence; the
   prompts open with the last query and answer              |
@@ -310,9 +312,11 @@ scroll one. Hold Shift for the terminal's own selection    |
 
 With several buffers open, Ctrl-B lists them with their numbers and
 names (a `+` marks unsaved changes): the arrows wrap around the list,
-Enter takes the one under the selection, Ctrl-E closes it without
-leaving the list (unsaved changes ask for three more presses first)
-and ESC stays where you were.
+the wheel steps the selection the way they do without the wrap, a
+left click takes the buffer drawn under it, Enter takes the one
+under the selection, Ctrl-E closes it without leaving the list
+(unsaved changes ask for three more presses first) and ESC stays
+where you were.
 Alt-, and Alt-. step through them and Alt-1 to Alt-9 jump to one by
 number, while the status bar shows which one is being edited
 ("2/3, Ln 5/120, Col 12"). Ctrl-E closes the buffer being edited:
@@ -329,7 +333,9 @@ New in 0.3.3:
   included — a drag with the left button held selects from where the
   click went down (Ctrl-C, Ctrl-X, Ctrl-/ and typing take it the way
   they take the shift selections), and the wheel scrolls the viewport
-  three screen lines at a notch. The terminal is asked for the
+  three screen lines at a notch. The Ctrl-B buffer list takes a left
+  click on the buffer drawn under it, the wheel stepping its
+  selection a buffer at a notch. The terminal is asked for the
   reports at startup and gives them back on every way out, so the
   shell's own selections keep working; most terminals also let Shift
   bypass the reporting while the editor runs

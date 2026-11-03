@@ -26,9 +26,11 @@ the status bar says which of them is on ("2/3, Ln 5/120, Col 12"), and
 opening a path that is already open switches to that buffer instead
 of opening it twice. Ctrl\-B lists the open buffers over the bottom of
 the viewport with their numbers and names (a + marks unsaved changes):
-the arrows wrap around the list, Enter takes the one under the
-selection, Ctrl\-E closes it without leaving the list (unsaved
-changes ask for three more presses first) and ESC stays on the
+the arrows wrap around the list, the wheel steps the selection
+without the wrap, a left click takes the buffer drawn under it,
+Enter takes the one under the selection, Ctrl\-E closes it without
+leaving the list (unsaved changes ask for three more presses first)
+and ESC stays on the
 buffer that was live. Ctrl\-E closes
 the buffer being edited; unsaved changes require three additional
 confirmations first, and closing the last buffer starts a fresh empty
@@ -237,7 +239,9 @@ end; holding the left button down and moving the mouse selects from
 where the click went down, taken by Ctrl\-C, Ctrl\-X, Ctrl\-/ and
 typing the way the shift selections are; the wheel scrolls the
 viewport three screen lines at a notch, the way Alt\-e and Alt\-y
-scroll one. Clicks over the two bars at the bottom do nothing, and
+scroll one; over the Ctrl\-B buffer list a left click takes the
+buffer drawn under it, the wheel stepping the selection a buffer at
+a notch. Clicks over the two bars at the bottom do nothing, and
 the middle and the right button are not bound
 .TP
 .B Ctrl\-C / Ctrl\-X
@@ -277,8 +281,10 @@ require three additional confirmations first
 .TP
 .B Ctrl\-B
 list the open buffers over the bottom of the viewport; the arrows
-move through the list (wrapping around both ends), Enter takes the
-one under the selection, Alt\-1 to Alt\-9 take theirs straight away
+move through the list (wrapping around both ends), the wheel steps
+the selection the same way without the wrap, a left click takes the
+buffer drawn under it, Enter takes the one under the selection,
+Alt\-1 to Alt\-9 take theirs straight away
 and ESC stays on the buffer that was live
 .TP
 .B Alt\-, / Alt\-.
