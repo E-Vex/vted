@@ -255,6 +255,14 @@ could not be used. A theme's name is made of letters, digits, `-` and
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop      |
 | Backspace       | delete the character on the left, merge lines    |
+| Alt-Backspace   | delete the run of blanks the cursor sits behind
+  and the word before them, one undo step — back to the word's own
+  start when the cursor sits inside it, the way the shells erase a
+  word; at column zero the line merges into the one above |
+| Alt-d           | delete the text the word move right crosses
+  (Ctrl-Right, Alt-f): the run the cursor sits in and the blanks
+  behind it, up to the start of the next word, one undo step; at the
+  end of a line the line below joins it |
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
 | Ctrl-D          | duplicate the line under the cursor, or the whole

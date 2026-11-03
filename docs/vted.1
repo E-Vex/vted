@@ -182,6 +182,17 @@ insert a tab character, shown up to the next tab stop (every 8 cells)
 .B Backspace
 delete the character to the left, merge lines at column zero
 .TP
+.B Alt\-Backspace
+delete the run of blanks the cursor sits behind and the word before
+them, one undo step — back to the word's own start when the cursor
+sits inside it, the way the shells erase a word; at column zero the
+line merges into the one above
+.TP
+.B Alt\-d
+delete the text the word move right crosses: the run the cursor sits
+in and the blanks behind it, up to the start of the next word, one
+undo step; at the end of a line the line below joins it
+.TP
 .B Delete
 delete the character under the cursor
 .TP
