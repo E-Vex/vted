@@ -263,16 +263,17 @@ could not be used. A theme's name is made of letters, digits, `-` and
   (Ctrl-Right, Alt-f): the run the cursor sits in and the blanks
   behind it, up to the start of the next word, one undo step; at the
   end of a line the line below joins it |
-| Alt-/           | complete the word before the cursor with the words
-  of the buffer, the way dabbrev-expand does in Emacs: the menu the
-  Ctrl-B picker uses lists every distinct word that starts with it,
-  the nearest first — the words before the cursor and the rows above
-  it, then the ones after it — the arrows and the wheel move through
-  them, Enter or a left click takes one and the cursor lands behind
-  it, ESC leaves the word as it was typed; a word is what the word
-  moves cross (letters, digits, underscore, every script), the match
-  exact, case and all, the word the cursor sits inside is not
-  offered, and the whole pick is one undo step |
+| Alt-/           | complete the word before the cursor with the
+  words of the open buffers, the way dabbrev-expand does in Emacs:
+  the menu the Ctrl-B picker uses lists every distinct word that
+  starts with it, the nearest first — the words before the cursor
+  and the rows above it, then the ones after it, then the other open
+  buffers, the next one first around the ring — the arrows and the
+  wheel move through them, Enter or a left click takes one and the
+  cursor lands behind it, ESC leaves the word as it was typed; a
+  word is what the word moves cross (letters, digits, underscore,
+  every script), the match exact, case and all, the word the cursor
+  sits inside is not offered, and the whole pick is one undo step |
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
 | Ctrl-D          | duplicate the line under the cursor, or the whole
@@ -340,11 +341,13 @@ does, and closing the last buffer starts a fresh empty one.
 
 New in 0.3.3:
 
-- Word completion: Alt-/ completes the word before the cursor with the
-  words of the buffer, the way dabbrev-expand does in Emacs. The menu
-  the Ctrl-B picker uses lists every distinct word that starts with
-  the one being typed, the nearest first — the words before the cursor
-  and the rows above it, then the ones after it — the arrows and the
+- Word completion: Alt-/ completes the word before the cursor with
+  the words of the open buffers, the way dabbrev-expand does in
+  Emacs. The menu the Ctrl-B picker uses lists every distinct word
+  that starts with the one being typed, the nearest first — the words
+  before the cursor and the rows above it, then the ones after it,
+  then the other open buffers, the next one first around the ring,
+  each read from its first row to its last — the arrows and the
   wheel move through them, Enter or a left click takes one, the mouse
   over the menu answering the way it answers the buffer list, and ESC
   leaves the word as it was typed. A word is what the word moves cross
