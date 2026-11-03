@@ -263,6 +263,16 @@ could not be used. A theme's name is made of letters, digits, `-` and
   (Ctrl-Right, Alt-f): the run the cursor sits in and the blanks
   behind it, up to the start of the next word, one undo step; at the
   end of a line the line below joins it |
+| Alt-/           | complete the word before the cursor with the words
+  of the buffer, the way dabbrev-expand does in Emacs: the menu the
+  Ctrl-B picker uses lists every distinct word that starts with it,
+  the nearest first — the words before the cursor and the rows above
+  it, then the ones after it — the arrows and the wheel move through
+  them, Enter or a left click takes one and the cursor lands behind
+  it, ESC leaves the word as it was typed; a word is what the word
+  moves cross (letters, digits, underscore, every script), the match
+  exact, case and all, the word the cursor sits inside is not
+  offered, and the whole pick is one undo step |
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
 | Ctrl-D          | duplicate the line under the cursor, or the whole
@@ -282,9 +292,10 @@ mouse selects from where the click went down — a pointer that runs
 onto the bars at the bottom scrolling the viewport a screen line
 along at a report — and the wheel scrolls
 the viewport three screen lines at a notch, the way Alt-e and Alt-y
-scroll one; over the Ctrl-B buffer list a click takes the buffer
-drawn under it, the wheel stepping the selection a buffer at a
-notch. Hold Shift for the terminal's own selection    |
+scroll one; over the Ctrl-B buffer list and the Alt-/ completion
+menu a click takes the line drawn under it, the wheel stepping the
+selection a line at a notch. Hold Shift for the terminal's own
+selection    |
 | Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
 | Ctrl-R          | search and replace every occurrence; the
   prompts open with the last query and answer              |
@@ -329,6 +340,17 @@ does, and closing the last buffer starts a fresh empty one.
 
 New in 0.3.3:
 
+- Word completion: Alt-/ completes the word before the cursor with the
+  words of the buffer, the way dabbrev-expand does in Emacs. The menu
+  the Ctrl-B picker uses lists every distinct word that starts with
+  the one being typed, the nearest first — the words before the cursor
+  and the rows above it, then the ones after it — the arrows and the
+  wheel move through them, Enter or a left click takes one, the mouse
+  over the menu answering the way it answers the buffer list, and ESC
+  leaves the word as it was typed. A word is what the word moves cross
+  (letters, digits, underscore, every script), the match is exact,
+  case and all, the word the cursor sits inside is not offered, and
+  the whole pick is one undo step
 - Mouse support: a click places the cursor at the position the
   renderer drew under it — the number gutter, a wrapped line, a
   viewport scrolled sideways and the tildes past the end all
