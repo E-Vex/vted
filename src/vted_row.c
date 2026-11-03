@@ -1188,6 +1188,38 @@ int BufferCollectCompletions(int cy, int cx,
     return set.count;
 }
 
+int BufferCollectTextWords(const vted_buffer_t *text,
+                           const char *prefix, int prefix_len,
+                           char *words, int max_words, int word_size,
+                           int count)
+{
+    completion_set_t set;
+    int i;
+
+    /* nothing to scan, or no line left to fill */
+    if (text == NULL || prefix == NULL || prefix_len <= 0 ||
+        count < 0 || count >= max_words)
+    {
+        return count;
+    }
+
+    set.prefix = prefix;
+    set.prefix_len = prefix_len;
+    set.words = words;
+    set.max_words = max_words;
+    set.word_size = word_size;
+    set.count = count;
+
+    /* a text no cursor sits in has no near or far: its rows read
+       from the first to the last */
+    for (i = 0; i < text->num_rows && set.count < set.max_words; i++)
+    {
+        CollectRowForward(&text->rows[i], 0, &set);
+    }
+
+    return set.count;
+}
+
 int RowFindNext(const vted_row_t *row, int from, int to,
                 const char *query, int query_len)
 {

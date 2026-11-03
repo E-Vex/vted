@@ -370,6 +370,171 @@ static void TestCompletionsPassOverWordsTooLongForALine(void)
     CHECK_INT(prefix_len, 3);
 }
 
+/* builds a text of its own, apart from the editor's globals: one
+   heap row per text, from a NULL-terminated list */
+static vted_buffer_t MakeText(const char *const *texts)
+{
+    vted_buffer_t text;
+    int count = 0;
+    int i;
+
+    while (texts[count] != NULL)
+    {
+        count++;
+    }
+
+    text.rows = malloc((size_t)(count > 0 ? count : 1) * sizeof *text.rows);
+    text.num_rows = count;
+    text.filename = NULL;
+    text.dirty = 0;
+    text.final_newline = 1;
+
+    for (i = 0; i < count; i++)
+    {
+        text.rows[i].size = (int)strlen(texts[i]);
+        text.rows[i].chars = malloc((size_t)text.rows[i].size + 1);
+        memcpy(text.rows[i].chars, texts[i], (size_t)text.rows[i].size + 1);
+        text.rows[i].eol = VTED_EOL_LF;
+    }
+
+    return text;
+}
+
+/* gives a text built by MakeText back */
+static void FreeText(vted_buffer_t *text)
+{
+    int i;
+
+    for (i = 0; i < text->num_rows; i++)
+    {
+        free(text->rows[i].chars);
+    }
+
+    free(text->rows);
+    text->rows = NULL;
+    text->num_rows = 0;
+}
+
+static void TestTextWordsExtendThePrefixToo(void)
+{
+    const char *const live[] = {"foo", NULL};
+    const char *const other[] = {"fool", "food", NULL};
+    vted_buffer_t text = MakeText(other);
+    char words[16][32];
+    int prefix_len = 0;
+    int count;
+
+    MakeBuffer(live);
+
+    /* the buffer being edited holds nothing but the word itself */
+    count = BufferCollectCompletions(0, 3, &words[0][0], 16, 32, &prefix_len);
+    CHECK_INT(count, 0);
+    CHECK_INT(prefix_len, 3);
+
+    /* the other text's words answer, its first row before its last */
+    count = BufferCollectTextWords(&text, "foo", 3,
+                                   &words[0][0], 16, 32, count);
+    CHECK_INT(count, 2);
+    CHECK_STR(words[0], "fool");
+    CHECK_STR(words[1], "food");
+
+    FreeText(&text);
+}
+
+static void TestTextWordsPassOverTheCollectedOnes(void)
+{
+    const char *const live[] = {"foo bar", "baz foobar quux", NULL};
+    const char *const other[] = {"foobar foosball", NULL};
+    vted_buffer_t text = MakeText(other);
+    char words[16][32];
+    int prefix_len = 0;
+    int count;
+
+    MakeBuffer(live);
+
+    count = BufferCollectCompletions(0, 3, &words[0][0], 16, 32, &prefix_len);
+    CHECK_INT(count, 1);
+
+    /* foobar is held already: only foosball is new */
+    count = BufferCollectTextWords(&text, "foo", 3,
+                                   &words[0][0], 16, 32, count);
+    CHECK_INT(count, 2);
+    CHECK_STR(words[0], "foobar");
+    CHECK_STR(words[1], "foosball");
+
+    FreeText(&text);
+}
+
+static void TestTextWordsFillOnlyTheLinesLeft(void)
+{
+    const char *const other[] = {"aa1 aa2 aa3", NULL};
+    vted_buffer_t text = MakeText(other);
+    char words[16][32];
+    int i;
+
+    for (i = 0; i < 16; i++)
+    {
+        words[i][0] = '\0';
+    }
+
+    /* two lines left of sixteen: the third word is passed over */
+    CHECK_INT(BufferCollectTextWords(&text, "aa", 2, &words[0][0], 16, 32, 14),
+              16);
+    CHECK_STR(words[14], "aa1");
+    CHECK_STR(words[15], "aa2");
+
+    /* and none left at all changes nothing */
+    CHECK_INT(BufferCollectTextWords(&text, "aa", 2, &words[0][0], 16, 32, 16),
+              16);
+
+    FreeText(&text);
+}
+
+static void TestTextWordsPassOverWordsTooLongForALine(void)
+{
+    const char *const other[] = {"foooooooblar food", NULL};
+    vted_buffer_t text = MakeText(other);
+    char words[16][32];
+
+    words[0][0] = '\0';
+
+    /* word_size counts the terminating null: 12 characters do not fit */
+    CHECK_INT(BufferCollectTextWords(&text, "foo", 3, &words[0][0], 16, 8, 0),
+              1);
+    CHECK_STR(words[0], "food");
+
+    FreeText(&text);
+}
+
+static void TestTextWordsOfNothing(void)
+{
+    const char *const other[] = {"food", NULL};
+    const char *const none[] = {NULL};
+    vted_buffer_t text = MakeText(other);
+    vted_buffer_t empty = MakeText(none);
+    char words[16][32];
+
+    words[0][0] = '\0';
+
+    /* a text of NULL, a prefix of NULL or no bytes, a count below
+       zero or already full: nothing changes */
+    CHECK_INT(BufferCollectTextWords(NULL, "foo", 3, &words[0][0], 16, 32, 0),
+              0);
+    CHECK_INT(BufferCollectTextWords(&text, NULL, 3, &words[0][0], 16, 32, 0),
+              0);
+    CHECK_INT(BufferCollectTextWords(&text, "foo", 0, &words[0][0], 16, 32, 0),
+              0);
+    CHECK_INT(BufferCollectTextWords(&text, "foo", 3, &words[0][0], 16, 32, -1),
+              -1);
+
+    /* a text with no rows holds no words either */
+    CHECK_INT(BufferCollectTextWords(&empty, "foo", 3, &words[0][0], 16, 32, 0),
+              0);
+
+    FreeText(&text);
+    FreeText(&empty);
+}
+
 /* builds a row whose text lives on the heap, as RowSetText needs */
 static vted_row_t HeapRow(const char *text)
 {
@@ -1768,6 +1933,11 @@ int main(void)
     TestCompletionsPastTheRows();
     TestCompletionsDedupeAndCapTheirNumber();
     TestCompletionsPassOverWordsTooLongForALine();
+    TestTextWordsExtendThePrefixToo();
+    TestTextWordsPassOverTheCollectedOnes();
+    TestTextWordsFillOnlyTheLinesLeft();
+    TestTextWordsPassOverWordsTooLongForALine();
+    TestTextWordsOfNothing();
     TestTruncate();
     TestSetText();
     TestInsertString();

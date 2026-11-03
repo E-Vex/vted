@@ -192,13 +192,13 @@ int RowWordRight(const vted_row_t *row, int cx);
 int RowWordLeft(const vted_row_t *row, int cx);
 
 /* word completion, the way dabbrev-expand in Emacs works: collects
-   the distinct words of the buffer that start with the word left of
-   the cursor at (cy, cx), so a menu can offer them. A word is a run
-   of word characters, the unit the word moves cross, and the word
-   being completed is the run of them that ends at the cursor; the
-   match is exact, case and all. The words are collected nearest
-   first — the text before the cursor and the rows above it, read
-   backwards, then the text after it and the rows below, read
+   the distinct words of the buffer being edited that start with the
+   word left of the cursor at (cy, cx), so a menu can offer them. A
+   word is a run of word characters, the unit the word moves cross,
+   and the word being completed is the run of them that ends at the
+   cursor; the match is exact, case and all. The words are collected
+   nearest first — the text before the cursor and the rows above it,
+   read backwards, then the text after it and the rows below, read
    forwards — each copied NUL-terminated into word_size bytes of the
    caller's words array, at most max_words of them; a word too long
    for a line of the array is passed over, and so is the word the
@@ -209,6 +209,21 @@ int RowWordLeft(const vted_row_t *row, int cx);
 int BufferCollectCompletions(int cy, int cx,
                              char *words, int max_words, int word_size,
                              int *out_prefix_len);
+
+/* the words of a text that is not the one being edited — another
+   open buffer's, say: every distinct word of its rows, first row to
+   last, that starts with prefix and is longer than it, appended
+   NUL-terminated to the first count lines of the caller's words
+   array, the same lines BufferCollectCompletions fills, so a word
+   they hold already is passed over, until max_words lines are filled
+   in all; a word too long for a line of the array is passed over the
+   same way. How many lines the array holds afterwards is returned. A
+   text of NULL, a prefix of NULL or no bytes, a count below zero or
+   already at max_words, changes nothing */
+int BufferCollectTextWords(const vted_buffer_t *text,
+                           const char *prefix, int prefix_len,
+                           char *words, int max_words, int word_size,
+                           int count);
 
 /* where the bytes of query sit in the row: the first match that
    starts inside [from, to), or the last one, or -1 when there is
