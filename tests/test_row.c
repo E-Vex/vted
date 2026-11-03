@@ -22,6 +22,9 @@ static vted_row_t MakeRow(const char *text)
     return row;
 }
 
+/* builds a buffer of rows from a NULL-terminated list of texts */
+static void MakeBuffer(const char *const *texts);
+
 static void TestCharWidth(void)
 {
     vted_row_t row = MakeRow("a\t\x01\x7F\xC3\xA9\xE4\xB8\xAD");
@@ -198,6 +201,173 @@ static void TestWordMovementEmptyRow(void)
 
     CHECK_INT(RowWordRight(&row, 0), 0);
     CHECK_INT(RowWordLeft(&row, 0), 0);
+}
+
+/* collects the completions of a buffer at one cursor spot and checks
+   they are the given words, in order */
+static void CheckCompletions(const char *const *texts, int cy, int cx,
+                             const char *const *expected, int expected_count,
+                             int expected_prefix)
+{
+    char words[16][32];
+    int prefix_len = -1;
+    int count;
+    int i;
+
+    MakeBuffer(texts);
+    count = BufferCollectCompletions(cy, cx, &words[0][0], 16, 32, &prefix_len);
+
+    CHECK_INT(count, expected_count);
+
+    for (i = 0; i < count && i < expected_count; i++)
+    {
+        CHECK_STR(words[i], expected[i]);
+    }
+
+    CHECK_INT(prefix_len, expected_prefix);
+}
+
+static void TestCompletionsExtendTheWordLeftOfTheCursor(void)
+{
+    const char *const texts[] = {"foo bar", "baz foobar quux", "bar", NULL};
+
+    /* only the words that start with the one being completed */
+    CheckCompletions(texts, 0, 3, (const char *[]){"foobar"}, 1, 3);
+}
+
+static void TestCompletionsComeNearestFirst(void)
+{
+    const char *const texts[] = {"count counter", "amount counted count",
+                                 "counter", NULL};
+
+    /* the word on the same row before the cursor, then the rows
+       above read backwards, then the rows below */
+    CheckCompletions(texts, 1, 20, (const char *[]){"counted", "counter"}, 2, 5);
+}
+
+static void TestCompletionsLookForwardToo(void)
+{
+    const char *const texts[] = {"alpha beta", "alphabet gamma", NULL};
+
+    /* nothing above the cursor extends it: the rows below answer */
+    CheckCompletions(texts, 0, 5, (const char *[]){"alphabet"}, 1, 5);
+}
+
+static void TestCompletionsSkipTheWordTheCursorSitsInside(void)
+{
+    const char *const alone[] = {"completion", NULL};
+
+    /* completing a word with itself would only double its tail */
+    CheckCompletions(alone, 0, 4, (const char *[]){""}, 0, 4);
+
+    /* the same word on another row is still offered */
+    {
+        const char *const twice[] = {"completion", "completion", NULL};
+
+        CheckCompletions(twice, 0, 4, (const char *[]){"completion"}, 1, 4);
+    }
+}
+
+static void TestCompletionsMatchExactlyCaseAndAll(void)
+{
+    const char *const texts[] = {"Foo bar", "foo", NULL};
+
+    CheckCompletions(texts, 1, 3, (const char *[]){""}, 0, 3);
+}
+
+static void TestCompletionsAreWordsNotPunctuation(void)
+{
+    const char *const texts[] = {"-> x", "foo->bar", "foobar", NULL};
+
+    CheckCompletions(texts, 1, 3, (const char *[]){"foobar"}, 1, 3);
+}
+
+static void TestCompletionsTakeTheUnderscoreAlong(void)
+{
+    const char *const texts[] = {"foo_bar x", "foo", NULL};
+
+    /* foo_bar is one word, the way the word moves cross it */
+    CheckCompletions(texts, 1, 3, (const char *[]){"foo_bar"}, 1, 3);
+}
+
+static void TestCompletionsUtf8(void)
+{
+    /* caf\xC3\xA9: the prefix caf ends inside the row of a word with a
+       multibyte character, and caf\xC3\xA9s and cafe both extend it */
+    const char *const texts[] = {"caf\xC3\xA9", "caf\xC3\xA9s", "cafe", NULL};
+
+    CheckCompletions(texts, 0, 3,
+                     (const char *[]){"caf\xC3\xA9s", "cafe"}, 2, 3);
+}
+
+static void TestCompletionsWithoutAWordToComplete(void)
+{
+    const char *const texts[] = {"foo bar", NULL};
+
+    /* the cursor sits past a blank: no word before it */
+    CheckCompletions(texts, 0, 4, (const char *[]){""}, 0, 0);
+
+    /* the start of a row: nothing before it */
+    CheckCompletions(texts, 0, 0, (const char *[]){""}, 0, 0);
+
+    /* an empty buffer has no words at all */
+    {
+        const char *const empty[] = {NULL};
+
+        CheckCompletions(empty, 0, 0, (const char *[]){""}, 0, 0);
+    }
+}
+
+static void TestCompletionsPastTheRows(void)
+{
+    const char *const texts[] = {"foo", NULL};
+
+    /* the phantom row past the end holds no word */
+    CheckCompletions(texts, 1, 0, (const char *[]){""}, 0, 0);
+
+    /* a column past the row's end reads as its end */
+    CheckCompletions(texts, 0, 99, (const char *[]){""}, 0, 3);
+}
+
+static void TestCompletionsDedupeAndCapTheirNumber(void)
+{
+    const char *const texts[] = {"aa1 aa2 aa3 aa4 aa5", NULL};
+    char words[16][32];
+    int prefix_len = 0;
+    int count;
+
+    MakeBuffer(texts);
+
+    /* the cursor sits inside aa4, after the prefix aa: every word it
+       completes with, once, nearest first — aa4 itself left out, the
+       way the word the cursor sits inside always is */
+    count = BufferCollectCompletions(0, 14, &words[0][0], 16, 32, &prefix_len);
+    CHECK_INT(prefix_len, 2);
+    CHECK_INT(count, 4);
+    CHECK_STR(words[0], "aa3");
+    CHECK_STR(words[1], "aa2");
+    CHECK_STR(words[2], "aa1");
+    CHECK_STR(words[3], "aa5");
+
+    /* the array stops at its last line */
+    count = BufferCollectCompletions(0, 14, &words[0][0], 2, 32, &prefix_len);
+    CHECK_INT(count, 2);
+    CHECK_STR(words[0], "aa3");
+    CHECK_STR(words[1], "aa2");
+}
+
+static void TestCompletionsPassOverWordsTooLongForALine(void)
+{
+    const char *const texts[] = {"verylongword foo", NULL};
+    char words[16][32];
+    int prefix_len = 0;
+
+    MakeBuffer(texts);
+
+    /* word_size counts the terminating null: 12 characters do not
+       fit, and nothing else extends foo */
+    CHECK_INT(BufferCollectCompletions(0, 16, &words[0][0], 16, 8, &prefix_len), 0);
+    CHECK_INT(prefix_len, 3);
 }
 
 /* builds a row whose text lives on the heap, as RowSetText needs */
@@ -1586,6 +1756,18 @@ int main(void)
     TestWordLeft();
     TestWordMovementUtf8();
     TestWordMovementEmptyRow();
+    TestCompletionsExtendTheWordLeftOfTheCursor();
+    TestCompletionsComeNearestFirst();
+    TestCompletionsLookForwardToo();
+    TestCompletionsSkipTheWordTheCursorSitsInside();
+    TestCompletionsMatchExactlyCaseAndAll();
+    TestCompletionsAreWordsNotPunctuation();
+    TestCompletionsTakeTheUnderscoreAlong();
+    TestCompletionsUtf8();
+    TestCompletionsWithoutAWordToComplete();
+    TestCompletionsPastTheRows();
+    TestCompletionsDedupeAndCapTheirNumber();
+    TestCompletionsPassOverWordsTooLongForALine();
     TestTruncate();
     TestSetText();
     TestInsertString();

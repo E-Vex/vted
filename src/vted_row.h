@@ -191,6 +191,25 @@ int BufferIndentEdges(int row, int *edges, int max);
 int RowWordRight(const vted_row_t *row, int cx);
 int RowWordLeft(const vted_row_t *row, int cx);
 
+/* word completion, the way dabbrev-expand in Emacs works: collects
+   the distinct words of the buffer that start with the word left of
+   the cursor at (cy, cx), so a menu can offer them. A word is a run
+   of word characters, the unit the word moves cross, and the word
+   being completed is the run of them that ends at the cursor; the
+   match is exact, case and all. The words are collected nearest
+   first — the text before the cursor and the rows above it, read
+   backwards, then the text after it and the rows below, read
+   forwards — each copied NUL-terminated into word_size bytes of the
+   caller's words array, at most max_words of them; a word too long
+   for a line of the array is passed over, and so is the word the
+   cursor sits inside, which would only double its own tail. How many
+   words filled the array is returned, and the length of the one
+   being completed in *out_prefix_len (0 when the cursor sits past no
+   word at all) */
+int BufferCollectCompletions(int cy, int cx,
+                             char *words, int max_words, int word_size,
+                             int *out_prefix_len);
+
 /* where the bytes of query sit in the row: the first match that
    starts inside [from, to), or the last one, or -1 when there is
    none. A match may start anywhere, even inside a multi-byte

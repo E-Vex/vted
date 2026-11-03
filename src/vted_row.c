@@ -954,6 +954,233 @@ int RowWordLeft(const vted_row_t *row, int cx)
     return at;
 }
 
+/* the words collected so far and what they are matched against: one
+   array of fixed lines the scanners fill, the prefix they extend */
+typedef struct
+{
+    const char *prefix; /* the word being completed, borrowed */
+    int prefix_len;
+    char *words;  /* max_words lines of word_size bytes each */
+    int max_words;
+    int word_size;
+    int count; /* lines filled so far */
+} completion_set_t;
+
+/* the start of the run of word characters that ends at cx: cx itself
+   when the character left of the cursor is not a word character */
+static int WordRunEndingAt(const vted_row_t *row, int cx)
+{
+    int at = cx;
+    int prev;
+
+    while (at > 0)
+    {
+        prev = Utf8PrevBoundary(row->chars, at);
+
+        if (RowClassAt(row, prev) != Utf8ClassWord)
+        {
+            break;
+        }
+
+        at = prev;
+    }
+
+    return at;
+}
+
+/* the run [start, end) of the row offered as a completion: a word
+   that starts with the prefix, is longer than it, fits a line of the
+   array and has not been collected before — the first one stands as
+   the nearest. Anything else changes nothing */
+static void OfferWord(const vted_row_t *row, int start, int end,
+                      completion_set_t *set)
+{
+    int len = end - start;
+    char *line;
+
+    if (RowClassAt(row, start) != Utf8ClassWord)
+    {
+        return; /* punctuation and symbols are not words to complete */
+    }
+
+    if (len <= set->prefix_len || len + 1 > set->word_size)
+    {
+        return; /* it extends nothing, or fits no line of the array */
+    }
+
+    if (memcmp(row->chars + start, set->prefix, (size_t)set->prefix_len) != 0)
+    {
+        return; /* the match is exact, case and all */
+    }
+
+    for (line = set->words; line < set->words + set->count * set->word_size;
+         line += set->word_size)
+    {
+        if (strncmp(line, row->chars + start, (size_t)len) == 0 &&
+            line[len] == '\0')
+        {
+            return; /* collected before: the nearer one stands */
+        }
+    }
+
+    memcpy(set->words + set->count * set->word_size, row->chars + start,
+           (size_t)len);
+    set->words[set->count * set->word_size + len] = '\0';
+    set->count++;
+}
+
+/* walks the runs of the row right to left, from byte index from down
+   to its start, offering each word. A run that reaches past the byte
+   index past is skipped whole: on the row of the cursor that is the
+   word it sits inside, which would only complete to itself */
+static void CollectRowBackward(const vted_row_t *row, int from, int past,
+                               completion_set_t *set)
+{
+    int at = from;
+
+    while (at > 0 && set->count < set->max_words)
+    {
+        int start = RowWordLeft(row, at);
+        int end;
+        Utf8Class run;
+
+        if (start >= at)
+        {
+            break; /* nothing but blanks left of at */
+        }
+
+        /* the run RowWordLeft found ends where its class first
+           changes again */
+        run = RowClassAt(row, start);
+        end = start;
+
+        while (end < row->size && RowClassAt(row, end) == run)
+        {
+            end = Utf8NextBoundary(row->chars, row->size, end);
+        }
+
+        if (end <= past)
+        {
+            OfferWord(row, start, end, set);
+        }
+
+        at = start;
+    }
+}
+
+/* walks the runs of the row left to right, from byte index from to
+   its end, offering each word. The run from sits inside, when it does,
+   began before it: the backward scan of the cursor's row offered it
+   already, so it is stepped over whole */
+static void CollectRowForward(const vted_row_t *row, int from,
+                              completion_set_t *set)
+{
+    int at = from;
+
+    if (at > 0 && RowClassAt(row, at) != Utf8ClassBlank &&
+        RowClassAt(row, Utf8PrevBoundary(row->chars, at)) == RowClassAt(row, at))
+    {
+        Utf8Class run = RowClassAt(row, at);
+
+        while (at < row->size && RowClassAt(row, at) == run)
+        {
+            at = Utf8NextBoundary(row->chars, row->size, at);
+        }
+    }
+
+    while (at < row->size && set->count < set->max_words)
+    {
+        Utf8Class run = RowClassAt(row, at);
+        int start;
+
+        if (run == Utf8ClassBlank)
+        {
+            at = Utf8NextBoundary(row->chars, row->size, at);
+            continue;
+        }
+
+        start = at;
+
+        while (at < row->size && RowClassAt(row, at) == run)
+        {
+            at = Utf8NextBoundary(row->chars, row->size, at);
+        }
+
+        OfferWord(row, start, at, set);
+    }
+}
+
+int BufferCollectCompletions(int cy, int cx,
+                             char *words, int max_words, int word_size,
+                             int *out_prefix_len)
+{
+    completion_set_t set;
+    const vted_row_t *row;
+    int prefix_start;
+    int i;
+
+    if (out_prefix_len != NULL)
+    {
+        *out_prefix_len = 0;
+    }
+
+    /* no rows at all, a place past them, or the very start of a row:
+       no word sits left of the cursor */
+    if (cy < 0 || cy >= vted_buffer.num_rows || cx <= 0)
+    {
+        return 0;
+    }
+
+    row = &vted_buffer.rows[cy];
+
+    if (cx > row->size)
+    {
+        cx = row->size;
+    }
+
+    prefix_start = WordRunEndingAt(row, cx);
+
+    if (prefix_start == cx)
+    {
+        return 0; /* the character left of the cursor is not a word */
+    }
+
+    if (out_prefix_len != NULL)
+    {
+        *out_prefix_len = cx - prefix_start;
+    }
+
+    set.prefix = &row->chars[prefix_start];
+    set.prefix_len = cx - prefix_start;
+    set.words = words;
+    set.max_words = max_words;
+    set.word_size = word_size;
+    set.count = 0;
+
+    /* the words before the cursor first, the nearest of them first:
+       the text before it on its own row, then the rows above it, all
+       read backwards */
+    CollectRowBackward(row, cx, cx, &set);
+
+    for (i = cy - 1; i >= 0 && set.count < set.max_words; i--)
+    {
+        CollectRowBackward(&vted_buffer.rows[i],
+                           vted_buffer.rows[i].size,
+                           vted_buffer.rows[i].size, &set);
+    }
+
+    /* then the words after it: the rest of its own row, then the rows
+       below it, read forwards */
+    CollectRowForward(row, cx, &set);
+
+    for (i = cy + 1; i < vted_buffer.num_rows && set.count < set.max_words; i++)
+    {
+        CollectRowForward(&vted_buffer.rows[i], 0, &set);
+    }
+
+    return set.count;
+}
+
 int RowFindNext(const vted_row_t *row, int from, int to,
                 const char *query, int query_len)
 {
