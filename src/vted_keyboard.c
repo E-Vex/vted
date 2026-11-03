@@ -480,6 +480,14 @@ int ParseArrowKey(void)
         return DeleteWordRight;
     }
 
+    /* Alt-/ completes the word left of the cursor with the words of
+       the buffer, the way dabbrev-expand in Emacs does; a plain / is
+       a character of the text and stays one */
+    if (introducer == '/')
+    {
+        return WordComplete;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')

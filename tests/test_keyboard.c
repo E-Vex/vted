@@ -286,6 +286,18 @@ static void TestWordDeleteKeys(void)
     CHECK_INT(ReadKeyPress(), 'D');
 }
 
+static void TestWordCompleteKey(void)
+{
+    /* Alt-/ completes the word left of the cursor, the way
+       dabbrev-expand in Emacs does */
+    FeedInput("\x1b/");
+    CHECK_INT(ReadKeyPress(), WordComplete);
+
+    /* a plain / is still text */
+    FeedInput("/");
+    CHECK_INT(ReadKeyPress(), '/');
+}
+
 static void TestCommentToggleKey(void)
 {
     /* Ctrl-/ arrives as the byte 0x1F, the one Ctrl-_ has always
@@ -508,6 +520,7 @@ int main(void)
     TestBracketJumpKey();
     TestSearchRepeatKeys();
     TestWordDeleteKeys();
+    TestWordCompleteKey();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();

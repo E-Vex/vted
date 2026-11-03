@@ -61,6 +61,8 @@ typedef enum
     SearchPrev,  /* Alt-p: the match before it, the way N does */
     DeleteWordLeft,  /* Alt-Backspace: the word left of the cursor */
     DeleteWordRight, /* Alt-d: the word right of the cursor */
+    WordComplete,    /* Alt-/: the word left of the cursor, completed
+                        from the words of the buffer */
     MousePress,      /* a mouse button went down over the screen */
     MouseRelease,    /* the button came back up */
     MouseDrag,       /* the mouse moved with a button held down */
