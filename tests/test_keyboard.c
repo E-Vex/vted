@@ -217,6 +217,18 @@ static void TestIndentGuidesToggle(void)
     CHECK_INT(ReadKeyPress(), 'g');
 }
 
+static void TestThemePrompt(void)
+{
+    FeedInput("\x1b" "s");
+    CHECK_INT(ReadKeyPress(), ThemePrompt);
+
+    /* plain s is still text, and so is an upper-case S */
+    FeedInput("s");
+    CHECK_INT(ReadKeyPress(), 's');
+    FeedInput("S");
+    CHECK_INT(ReadKeyPress(), 'S');
+}
+
 static void TestBracketColorPrompt(void)
 {
     FeedInput("\x1b" "c");
@@ -406,6 +418,7 @@ int main(void)
     TestWrapIndentToggle();
     TestIndentGuidesToggle();
     TestBracketColorPrompt();
+    TestThemePrompt();
     TestBracketJumpKey();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();

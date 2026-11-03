@@ -336,6 +336,13 @@ int ParseArrowKey(void)
         return BracketColorPrompt;
     }
 
+    /* Alt-s picks the color scheme, the theme the settings file names
+       with set theme: s for scheme, since Alt-t is taken by the tabs */
+    if (introducer == 's')
+    {
+        return ThemePrompt;
+    }
+
     /* Alt-% jumps to the partner of the bracket the cursor sits on,
        the way % does in vi — the plain % is a character of the text,
        so the jump goes with Alt */
