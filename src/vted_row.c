@@ -1008,9 +1008,9 @@ static void OfferWord(const vted_row_t *row, int start, int end,
         return; /* it extends nothing, or fits no line of the array */
     }
 
-    if (memcmp(row->chars + start, set->prefix, (size_t)set->prefix_len) != 0)
+    if (!BytesFoldEqual(row->chars + start, set->prefix, set->prefix_len))
     {
-        return; /* the match is exact, case and all */
+        return; /* the match folds the case, the way the search does */
     }
 
     for (line = set->words; line < set->words + set->count * set->word_size;

@@ -196,23 +196,26 @@ int RowWordLeft(const vted_row_t *row, int cx);
    word left of the cursor at (cy, cx), so a menu can offer them. A
    word is a run of word characters, the unit the word moves cross,
    and the word being completed is the run of them that ends at the
-   cursor; the match is exact, case and all. The words are collected
-   nearest first — the text before the cursor and the rows above it,
-   read backwards, then the text after it and the rows below, read
-   forwards — each copied NUL-terminated into word_size bytes of the
-   caller's words array, at most max_words of them; a word too long
-   for a line of the array is passed over, and so is the word the
-   cursor sits inside, which would only double its own tail. How many
-   words filled the array is returned, and the length of the one
-   being completed in *out_prefix_len (0 when the cursor sits past no
-   word at all) */
+   cursor; the match folds the case — an ASCII letter of the prefix
+   agrees with either of its cases in a candidate, the fold the
+   search uses, every other byte agreeing with itself alone. The
+   words are collected nearest first — the text before the cursor and
+   the rows above it, read backwards, then the text after it and the
+   rows below, read forwards — each copied NUL-terminated into
+   word_size bytes of the caller's words array, at most max_words of
+   them; a word too long for a line of the array is passed over, and
+   so is the word the cursor sits inside, which would only double its
+   own tail. How many words filled the array is returned, and the
+   length of the one being completed in *out_prefix_len (0 when the
+   cursor sits past no word at all) */
 int BufferCollectCompletions(int cy, int cx,
                              char *words, int max_words, int word_size,
                              int *out_prefix_len);
 
 /* the words of a text that is not the one being edited — another
    open buffer's, say: every distinct word of its rows, first row to
-   last, that starts with prefix and is longer than it, appended
+   last, that starts with prefix and is longer than it, the match
+   folding the case the way BufferCollectCompletions does, appended
    NUL-terminated to the first count lines of the caller's words
    array, the same lines BufferCollectCompletions fills, so a word
    they hold already is passed over, until max_words lines are filled
