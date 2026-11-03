@@ -274,6 +274,13 @@ could not be used. A theme's name is made of letters, digits, `-` and
   non-blank, a space behind it                |
 | Ctrl-Up/Down    | move the current line up or down                 |
 | Shift-Arrows    | start or extend a character selection            |
+| mouse           | a click places the cursor at the position drawn
+under it — the gutter counting as the first text cell of its row, a
+wrapped line as a screen line of its own, the tildes below the text
+as the row past the end; holding the left button down and moving the
+mouse selects from where the click went down, and the wheel scrolls
+the viewport three screen lines at a notch, the way Alt-e and Alt-y
+scroll one. Hold Shift for the terminal's own selection    |
 | Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
 | Ctrl-R          | search and replace every occurrence; the
   prompts open with the last query and answer              |
@@ -313,6 +320,23 @@ unsaved changes ask for three more presses first, the way Ctrl-Q
 does, and closing the last buffer starts a fresh empty one.
 
 ## Features
+
+New in 0.3.3:
+
+- Mouse support: a click places the cursor at the position the
+  renderer drew under it — the number gutter, a wrapped line, a
+  viewport scrolled sideways and the tildes past the end all
+  included — a drag with the left button held selects from where the
+  click went down (Ctrl-C, Ctrl-X, Ctrl-/ and typing take it the way
+  they take the shift selections), and the wheel scrolls the viewport
+  three screen lines at a notch. The terminal is asked for the
+  reports at startup and gives them back on every way out, so the
+  shell's own selections keep working; most terminals also let Shift
+  bypass the reporting while the editor runs
+- A selection ending past the last row — the way Shift-Down onto the
+  tildes below the text makes — reads as the end of that last row,
+  which is what it selected all along; cutting it no longer reaches
+  past the end of the rows for the tail that rides onto the top row
 
 New in 0.3.2:
 
