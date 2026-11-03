@@ -35,4 +35,9 @@ int ThemeParseClass(const char *name, size_t len);
    the other lines still apply */
 int ThemeApply(const char *text);
 
+/* is the word fit to be the name of a theme? 1 to 32 letters, digits,
+   '-' and '_' and nothing else, so a name can never reach out of the
+   themes directory: no '/', no dots, no spaces */
+int ThemeNameValid(const char *name);
+
 #endif

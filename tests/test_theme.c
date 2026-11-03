@@ -104,8 +104,35 @@ static void TestApply(void)
     SyntaxSetColorMode(-1);
 }
 
+static void TestNameValid(void)
+{
+    CHECK_INT(ThemeNameValid("gruvbox"), 1);
+    CHECK_INT(ThemeNameValid("solarized-dark"), 1);
+    CHECK_INT(ThemeNameValid("my_theme_2"), 1);
+    CHECK_INT(ThemeNameValid("A"), 1);
+
+    /* the longest name there is */
+    CHECK_INT(ThemeNameValid("abcdefghijklmnopqrstuvwxyz012345"), 1);
+    CHECK_INT(ThemeNameValid("abcdefghijklmnopqrstuvwxyz0123456"), 0);
+
+    /* nothing that could leave the themes directory, or confuse a
+       file name */
+    CHECK_INT(ThemeNameValid(""), 0);
+    CHECK_INT(ThemeNameValid("."), 0);
+    CHECK_INT(ThemeNameValid(".."), 0);
+    CHECK_INT(ThemeNameValid("../etc/passwd"), 0);
+    CHECK_INT(ThemeNameValid("/etc/passwd"), 0);
+    CHECK_INT(ThemeNameValid("a/b"), 0);
+    CHECK_INT(ThemeNameValid("a\\b"), 0);
+    CHECK_INT(ThemeNameValid("a.theme"), 0);
+    CHECK_INT(ThemeNameValid("a b"), 0);
+    CHECK_INT(ThemeNameValid("a\n"), 0);
+    CHECK_INT(ThemeNameValid("caf\xc3\xa9"), 0);
+}
+
 int main(void)
 {
+    TestNameValid();
     TestClassNames();
     TestApply();
 

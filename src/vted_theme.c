@@ -140,3 +140,27 @@ int ThemeApply(const char *text)
 
     return bad;
 }
+
+int ThemeNameValid(const char *name)
+{
+    size_t len = strlen(name);
+    size_t i;
+
+    if (len < 1 || len > 32)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < len; i++)
+    {
+        char c = name[i];
+
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+              (c >= '0' && c <= '9') || c == '-' || c == '_'))
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
