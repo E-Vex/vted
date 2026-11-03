@@ -247,10 +247,16 @@ static void EditorJumpToBracket(void)
 
 /* the mouse over the viewport: a click places the cursor at the
    buffer position the renderer drew under it, a notch of the wheel
-   scrolls the viewport. The hit test walks the same layout the frame
+   scrolls the viewport, and a drag carries a selection from where
+   the click went down. The hit test walks the same layout the frame
    draws, so a click lands on the very glyph it was aimed at — the
    gutter, a wrapped line, a viewport scrolled sideways, the phantom
    row past the end, all of it */
+
+/* set from the press to the release of a held left button: the
+   selection follows the cursor from the anchor the press left */
+static int mouse_dragging = 0;
+
 static void EditorHandleMouse(int key)
 {
     int hit_y;
@@ -268,25 +274,57 @@ static void EditorHandleMouse(int key)
         return;
     }
 
-    if (!ScreenHitTest(MouseLastX(), MouseLastY(), &hit_y, &hit_x))
+    if (key == MouseRelease)
     {
-        return; /* over the bars: no buffer position to place */
-    }
-
-    /* the left button places the cursor; the middle and the right
-       one arrive unbound */
-    if (MouseLastButton() != 0)
-    {
+        /* the button came up: whatever the drag selected stays */
+        mouse_dragging = 0;
         return;
     }
 
-    /* a click is a movement: the selection it may have left behind is
-       gone on arrival, the way the arrow keys take it */
-    EditClearSelection();
-    ScreenSetSelection(-1, 0, -1, 0);
+    if (!ScreenHitTest(MouseLastX(), MouseLastY(), &hit_y, &hit_x))
+    {
+        /* over the bars: nothing to place, and a drag keeps waiting
+           for the pointer to come back over the text */
+        return;
+    }
 
-    vted_editor_config.cursor_y = hit_y;
-    vted_editor_config.cursor_x = hit_x;
+    if (key == MousePress)
+    {
+        /* the left button places the cursor and anchors a selection
+           there — empty until a drag carries the cursor away from
+           it, so a plain click selects nothing. The middle and the
+           right button arrive unbound */
+        if (MouseLastButton() != 0)
+        {
+            return;
+        }
+
+        EditClearSelection();
+        ScreenSetSelection(-1, 0, -1, 0);
+
+        vted_editor_config.cursor_y = hit_y;
+        vted_editor_config.cursor_x = hit_x;
+
+        EditSetAnchor(hit_y, hit_x);
+        mouse_dragging = 1;
+        return;
+    }
+
+    /* the drag carries the cursor, and the selection follows from
+       the anchor the press left, the way the shift moves extend one */
+    if (mouse_dragging)
+    {
+        int top;
+        int left;
+        int bottom;
+        int right;
+
+        vted_editor_config.cursor_y = hit_y;
+        vted_editor_config.cursor_x = hit_x;
+
+        EditSelectionRange(&top, &left, &bottom, &right);
+        ScreenSetSelection(top, left, bottom, right);
+    }
 }
 
 static void EditorLoadSettings(void)
@@ -1689,10 +1727,12 @@ int main(int argc, char *argv[])
                     free(pasted);
                 }
             }
-            else if (c_in == MousePress || c_in == MouseWheelUp || c_in == MouseWheelDown)
+            else if (c_in == MousePress || c_in == MouseRelease || c_in == MouseDrag ||
+                     c_in == MouseWheelUp || c_in == MouseWheelDown)
             {
                 /* the mouse over the viewport: a click places the
                    cursor at the position the renderer drew under it,
+                   a drag selects from where the click went down, and
                    a wheel notch scrolls that position into view */
                 EditorHandleMouse(c_in);
             }
