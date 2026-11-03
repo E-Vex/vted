@@ -284,13 +284,75 @@ const char *ThemeCurrent(void)
     return current_theme;
 }
 
+/* the most a theme file may hold: a theme names a dozen colors, so a
+   file past this is not one */
+#define THEME_FILE_MAX 16384
+
+/* reads NAME.theme from the themes directory into text, which holds
+   THEME_FILE_MAX + 1 bytes. 1 when the file was read, 0 when there is
+   none to read, -1 when it is too large */
+static int ReadThemeFile(const char *name, char *text)
+{
+    const char *dir = ThemesDir();
+    char path[600];
+
+    if (dir == NULL)
+    {
+        return 0;
+    }
+
+    int written = snprintf(path, sizeof(path), "%s/%s.theme", dir, name);
+
+    if (written < 0 || (size_t)written >= sizeof(path))
+    {
+        return 0;
+    }
+
+    FILE *file = fopen(path, "r");
+
+    if (file == NULL)
+    {
+        return 0;
+    }
+
+    size_t got = fread(text, 1, THEME_FILE_MAX + 1, file);
+
+    fclose(file);
+
+    if (got > THEME_FILE_MAX)
+    {
+        return -1;
+    }
+
+    text[got] = '\0';
+    return 1;
+}
+
 int ThemeSelect(const char *name)
 {
+    static char file_text[THEME_FILE_MAX + 1];
     int i;
 
     if (!ThemeNameValid(name))
     {
         return -1;
+    }
+
+    /* the person's own file comes first; the colors of the theme in
+       use are only taken back once the new one is known to be there */
+    int found = ReadThemeFile(name, file_text);
+
+    if (found < 0)
+    {
+        return -1;
+    }
+
+    if (found > 0)
+    {
+        SyntaxResetClassColors();
+        ThemeApply(file_text);
+        snprintf(current_theme, sizeof(current_theme), "%s", name);
+        return 0;
     }
 
     for (i = 0; i < ThemeBuiltinCount(); i++)

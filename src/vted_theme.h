@@ -42,9 +42,11 @@ int ThemeNameValid(const char *name);
 
 /* makes the named theme the one in use: the colors of whichever theme
    was before are taken back, and the named one's are given. The name is
-   one of the built-in themes. Returns 0, or -1 when the name is none
-   of them (or not fit to be a name), in which case the theme in use is
-   left as it was */
+   a file NAME.theme in the themes directory, or failing that one of
+   the built-in themes, so a file of the person's own can stand in for a
+   built-in of the same name. A file may be up to 16 KiB. Returns 0, or
+   -1 when the name is neither (or not fit to be a name, or the file is
+   too large), in which case the theme in use is left as it was */
 int ThemeSelect(const char *name);
 
 /* the name of the theme in use: "default" until another is selected */

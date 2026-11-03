@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 /*===============================*/
 #include "tests/vted_test.h"
 #include "src/vted_theme.h"
@@ -187,6 +189,120 @@ static void TestThemesDir(void)
     CHECK(ThemesDir() == NULL);
 }
 
+/* writes dir/themes/name.theme, with the text */
+static void WriteTheme(const char *dir, const char *name, const char *text)
+{
+    char path[512];
+
+    snprintf(path, sizeof(path), "%s/vted/themes/%s.theme", dir, name);
+
+    FILE *file = fopen(path, "w");
+
+    if (file == NULL)
+    {
+        perror("fopen");
+        exit(2);
+    }
+
+    fputs(text, file);
+    fclose(file);
+}
+
+static void TestThemeFiles(void)
+{
+    char dir[] = "/tmp/vted-theme-XXXXXX";
+    char path[512];
+
+    if (mkdtemp(dir) == NULL)
+    {
+        perror("mkdtemp");
+        exit(2);
+    }
+
+    snprintf(path, sizeof(path), "%s/vted", dir);
+    mkdir(path, 0700);
+    snprintf(path, sizeof(path), "%s/vted/themes", dir);
+    mkdir(path, 0700);
+    setenv("XDG_CONFIG_HOME", dir, 1);
+
+    SyntaxSetColorMode(2);
+    ThemeSelect("default");
+
+    /* a file in the themes directory is a theme by its name */
+    WriteTheme(dir, "mine", "color keyword #010203\ncolor string #040506\n");
+    CHECK_INT(ThemeSelect("mine"), 0);
+    CHECK_STR(ThemeCurrent(), "mine");
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;1;2;3m");
+    CHECK_STR(SyntaxStyle(HlString), "\x1b[38;2;4;5;6m");
+
+    /* the colors of the theme before are taken back: a theme names
+       only what it changes from the built-in ones */
+    WriteTheme(dir, "other", "color string #070809\n");
+    CHECK_INT(ThemeSelect("other"), 0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;170;130;0m");
+    CHECK_STR(SyntaxStyle(HlString), "\x1b[38;2;7;8;9m");
+
+    /* a file stands in for the built-in theme of its name */
+    WriteTheme(dir, "nord", "color keyword #0a0b0c\n");
+    CHECK_INT(ThemeSelect("nord"), 0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;10;11;12m");
+
+    /* without it the built-in one answers again */
+    snprintf(path, sizeof(path), "%s/vted/themes/nord.theme", dir);
+    unlink(path);
+    CHECK_INT(ThemeSelect("nord"), 0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;129;161;193m");
+
+    /* a name with no file and no built-in fails, and the theme in use
+       stays as it is */
+    CHECK_INT(ThemeSelect("nonesuch"), -1);
+    CHECK_STR(ThemeCurrent(), "nord");
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;129;161;193m");
+
+    /* a file too large to be a theme fails the same way */
+    char *big = malloc(20000);
+
+    memset(big, ' ', 19999);
+    big[19999] = '\0';
+    memcpy(big, "color keyword #ffffff\n", 22);
+    WriteTheme(dir, "big", big);
+    free(big);
+    CHECK_INT(ThemeSelect("big"), -1);
+    CHECK_STR(ThemeCurrent(), "nord");
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;129;161;193m");
+
+    /* a file with lines that cannot be used still selects, and the
+       lines that can be used apply */
+    WriteTheme(dir, "sloppy", "color keyword #0d0e0f\nbogus line\n");
+    CHECK_INT(ThemeSelect("sloppy"), 0);
+    CHECK_STR(SyntaxStyle(HlKeyword), "\x1b[38;2;13;14;15m");
+
+    /* a name that reaches out of the directory is refused before any
+       file is looked for */
+    CHECK_INT(ThemeSelect("../mine"), -1);
+    CHECK_INT(ThemeSelect("mine/../mine"), -1);
+
+    /* clean up */
+    static const char *const made[] = {"mine", "other", "big", "sloppy"};
+    size_t i;
+
+    for (i = 0; i < sizeof(made) / sizeof(made[0]); i++)
+    {
+        snprintf(path, sizeof(path), "%s/vted/themes/%s.theme", dir, made[i]);
+        unlink(path);
+    }
+
+    snprintf(path, sizeof(path), "%s/vted/themes", dir);
+    rmdir(path);
+    snprintf(path, sizeof(path), "%s/vted", dir);
+    rmdir(path);
+    rmdir(dir);
+
+    unsetenv("XDG_CONFIG_HOME");
+    ThemeSelect("default");
+    SyntaxSetColorMode(-1);
+}
+
 static void TestSelect(void)
 {
     SyntaxSetColorMode(2);
@@ -253,6 +369,7 @@ static void TestSelect(void)
 int main(void)
 {
     TestThemesDir();
+    TestThemeFiles();
     TestSelect();
     TestBuiltinThemes();
     TestNameValid();
