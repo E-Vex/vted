@@ -271,12 +271,13 @@ could not be used. A theme's name is made of letters, digits, `-` and
   buffers, the next one first around the ring, every word of theirs
   followed by its buffer's name so the menu says where it came from,
   while the words of the buffer being edited stand bare, their
-  source being where you already are; the arrows and the wheel move
-  through them, Enter or a left click takes one and the cursor lands
-  behind it, ESC leaves the word as it was typed; a word is what the
-  word moves cross (letters, digits, underscore, every script), the
-  match exact, case and all, the word the cursor sits inside is not
-  offered, and the whole pick is one undo step |
+  source being where you already are; a repeated Alt-/ steps through
+  the words the way dabbrev-expand does in Emacs, the arrows and the
+  wheel move through them, Enter or a left click takes one and the
+  cursor lands behind it, ESC leaves the word as it was typed; a
+  word is what the word moves cross (letters, digits, underscore,
+  every script), the match exact, case and all, the word the cursor
+  sits inside is not offered, and the whole pick is one undo step |
 | Delete          | delete the character under the cursor            |
 | Ctrl-K          | delete the whole line under the cursor           |
 | Ctrl-D          | duplicate the line under the cursor, or the whole
@@ -353,12 +354,14 @@ New in 0.3.3:
   each read from its first row to its last, every word of theirs
   followed by its buffer's name while the words of the buffer being
   edited stand bare, so the menu says where each answer came from;
-  the arrows and the wheel move through them, Enter or a left click
-  takes one, the mouse over the menu answering the way it answers
-  the buffer list, and ESC leaves the word as it was typed. A word
-  is what the word moves cross (letters, digits, underscore, every
-  script), the match is exact, case and all, the word the cursor
-  sits inside is not offered, and the whole pick is one undo step
+  a repeated Alt-/ steps through the answers the way dabbrev-expand
+  does in Emacs, the arrows and the wheel move through them, Enter
+  or a left click takes one, the mouse over the menu answering the
+  way it answers the buffer list, and ESC leaves the word as it was
+  typed. A word is what the word moves cross (letters, digits,
+  underscore, every script), the match is exact, case and all, the
+  word the cursor sits inside is not offered, and the whole pick is
+  one undo step
 - Mouse support: a click places the cursor at the position the
   renderer drew under it — the number gutter, a wrapped line, a
   viewport scrolled sideways and the tildes past the end all
