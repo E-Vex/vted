@@ -39,6 +39,13 @@ void EditorDeleteWordLeft(void);
    starts on the line below, so the lines merge the way Delete does */
 void EditorDeleteWordRight(void);
 
+/* completes the word before the cursor with the given one: the bytes
+   past the prefix — word[prefix_len..length) — land at the cursor and
+   the cursor lands after them, the prefix itself staying in the text.
+   The whole pick is one undoable step, the way the word deletions
+   are a word at a time */
+void EditorInsertCompletion(const char *word, int length, int prefix_len);
+
 void EditorDeleteLine(void);
 void EditorDuplicateLine(void);
 void EditorMoveLineUp(void);

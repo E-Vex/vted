@@ -393,6 +393,81 @@ static void TestDeleteWordRightUndoesAsSteps(void)
     CHECK_INT(vted_editor_config.cursor_x, 0);
 }
 
+static void TestInsertCompletion(void)
+{
+    /* the bytes past the prefix land at the cursor, the tail of the
+       row rides along */
+    Begin("foo  bar");
+    CursorAt(0, 3);
+
+    EditorInsertCompletion("foobar", 6, 3);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "foobar  bar");
+    CHECK_INT(vted_editor_config.cursor_x, 6);
+    CHECK_INT(vted_buffer.dirty, 1);
+}
+
+static void TestInsertCompletionUtf8(void)
+{
+    /* the bytes past the prefix may be half of a character */
+    Begin("caf x");
+    CursorAt(0, 3);
+
+    EditorInsertCompletion("caf\xC3\xA9", 5, 3);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "caf\xC3\xA9 x");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+}
+
+static void TestInsertCompletionUndoesAsSteps(void)
+{
+    /* the pick is one step, and two picks undo one at a time */
+    Begin("foo");
+    CursorAt(0, 3);
+
+    EditorInsertCompletion("foobar", 6, 3);
+    EditorInsertCompletion("foobarizer", 10, 6);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "foobarizer");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foobar");
+    CHECK_INT(vted_editor_config.cursor_x, 6);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foobar");
+    CHECK_INT(vted_editor_config.cursor_x, 6);
+}
+
+static void TestInsertCompletionOfNothing(void)
+{
+    /* a word that extends nothing places nothing */
+    Begin("foo bar");
+    CursorAt(0, 3);
+
+    EditorInsertCompletion("foo", 3, 3);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "foo bar");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+    CHECK_INT(vted_buffer.dirty, 0);
+}
+
+static void TestInsertCompletionOnPhantomRow(void)
+{
+    /* the phantom row past the end holds no prefix to complete */
+    Begin("foo");
+    CursorAt(1, 0);
+
+    EditorInsertCompletion("foobar", 6, 3);
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "foo");
+}
+
 static void TestDeleteLine(void)
 {
     Begin("one");
@@ -1177,6 +1252,11 @@ int main(void)
     TestDeleteWordRightOnPhantomRow();
     TestDeleteWordRightUtf8();
     TestDeleteWordRightUndoesAsSteps();
+    TestInsertCompletion();
+    TestInsertCompletionUtf8();
+    TestInsertCompletionUndoesAsSteps();
+    TestInsertCompletionOfNothing();
+    TestInsertCompletionOnPhantomRow();
     TestDeleteLine();
     TestDeleteLineClampsColumn();
     TestDeleteOnlyLine();

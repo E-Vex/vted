@@ -518,6 +518,64 @@ void EditorDeleteWordRight(void)
     free(removed);
 }
 
+void EditorInsertCompletion(const char *word, int length, int prefix_len)
+{
+    /* the word the menu picked lands at the cursor: the prefix is
+       already in the text, so only the bytes past it arrive */
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    int tail_len = length - prefix_len;
+
+    if (length <= prefix_len || prefix_len < 0)
+    {
+        return; /* the word extends nothing: nothing to place */
+    }
+
+    if (before_y >= vted_buffer.num_rows)
+    {
+        return; /* the phantom row past the end holds no prefix */
+    }
+
+    char *tail = malloc((size_t)tail_len);
+
+    if (tail == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    memcpy(tail, word + prefix_len, (size_t)tail_len);
+
+    /* the cursor keeps its row; the tail of the row rides along */
+    vted_row_t *row = &vted_buffer.rows[before_y];
+
+    if (RowInsertString(row, before_x, tail, tail_len) == -1)
+    {
+        KillApp("RowInsertString");
+    }
+
+    vted_editor_config.cursor_x = before_x + tail_len;
+
+    vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindInsertBytes,
+        .row = before_y,
+        .cx = before_x,
+        .bytes = tail,
+        .length = tail_len,
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = before_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    /* a word at a time, the way the word deletions undo: two picks
+       undo as two steps */
+    UndoPush(&entry);
+
+    free(tail);
+}
+
 void EditorDeleteLine(void)
 {
     /* Ctrl-K removes the whole line under the cursor */
