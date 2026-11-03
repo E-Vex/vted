@@ -98,6 +98,18 @@ This installs:
 
 To try it before installing anything, just run `./vted` after `make`.
 
+### Building from source, for contributors
+
+```sh
+make check
+```
+
+builds the editor and the unit tests, runs every unit test, then walks
+the editor over a pseudo terminal the way the CI does — the smoke test
+opens a file, quits cleanly, and completes a word from another buffer.
+A change is only done when `make check` says so; `make test` runs the
+unit tests alone, `make bench` times a ~100 MB file.
+
 ### From a release source tarball
 
 ```sh
