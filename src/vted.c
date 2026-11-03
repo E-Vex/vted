@@ -949,8 +949,9 @@ static void EditorPickBuffer(void)
    buffers, dabbrev style: the menu the buffer picker uses lists every
    distinct word that starts with it — the buffer being edited around
    the cursor, the nearest first, then the other buffers, each of
-   whose words is followed by its buffer's name — and Enter or a click
-   takes one. ESC leaves the word as it was typed */
+   whose words is followed by its buffer's name. A repeated Alt-/
+   steps through the answers the way Emacs walks its own, and Enter
+   or a click takes one. ESC leaves the word as it was typed */
 static void EditorCompleteWord(void)
 {
     char words[COMPLETION_WORDS][COMPLETION_WIDTH];
@@ -1085,7 +1086,7 @@ static void EditorCompleteWord(void)
 
         ScreenShowMenu(shown_lines, shown, selection - first);
 
-        SetStatusMessage("Complete '%s': arrows move, Enter or a click takes, ESC cancels",
+        SetStatusMessage("Complete '%s': Alt-/ steps, arrows move, Enter or a click takes, ESC cancels",
                          prefix);
 
         RefreshScreen();
@@ -1149,6 +1150,15 @@ static void EditorCompleteWord(void)
                 selection++;
             }
 
+            continue;
+        }
+
+        /* a repeated Alt-/ steps the selection down and wraps
+           around, the way a repeated dabbrev-expand in Emacs walks its
+           own answers: the key that opened the menu keeps it moving */
+        if (c == WordComplete)
+        {
+            selection = selection < count - 1 ? selection + 1 : 0;
             continue;
         }
 
