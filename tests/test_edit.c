@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 /*===============================*/
 #include "tests/vted_test.h"
@@ -968,6 +969,81 @@ static void TestDeleteSelectionMultiRowKeepsBottomTail(void)
     CHECK_INT(vted_editor_config.cursor_x, 4);
 }
 
+static void TestSelectionEndingPastTheLastRow(void)
+{
+    /* a selection that reaches the phantom row past the last line —
+       the way Shift-Down onto the tildes below the text makes — ends
+       at the end of that line: the range says so, the copy carries
+       the last row whole and the cut takes it out, and none of them
+       looks at a row that is not there */
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("abc", 3, VTED_EOL_LF);
+    AppendRow("def", 3, VTED_EOL_LF);
+
+    EditSetAnchor(0, 1);
+    vted_editor_config.cursor_y = 2; /* the phantom row past the end */
+    vted_editor_config.cursor_x = 0;
+
+    /* the range ends at the end of the last row */
+    {
+        int top;
+        int left;
+        int bottom;
+        int right;
+
+        EditSelectionRange(&top, &left, &bottom, &right);
+
+        CHECK_INT(top, 0);
+        CHECK_INT(left, 1);
+        CHECK_INT(bottom, 1);
+        CHECK_INT(right, 3);
+    }
+
+    /* the copy carries the tail of the first row and the last row
+       whole */
+    {
+        int length = 0;
+        char *text = EditCopyText(&length);
+
+        CHECK_STR(text, "bc\ndef");
+        free(text);
+    }
+
+    /* the cut leaves the head of the first row alone */
+    EditDeleteSelection();
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+
+    /* the same selection the other way round: the anchor past the
+       end, the cursor inside the text */
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("abc", 3, VTED_EOL_LF);
+    AppendRow("def", 3, VTED_EOL_LF);
+
+    EditSetAnchor(2, 0); /* the phantom row past the end */
+    vted_editor_config.cursor_y = 0;
+    vted_editor_config.cursor_x = 1;
+
+    {
+        int top;
+        int left;
+        int bottom;
+        int right;
+
+        EditSelectionRange(&top, &left, &bottom, &right);
+
+        CHECK_INT(top, 0);
+        CHECK_INT(left, 1);
+        CHECK_INT(bottom, 1);
+        CHECK_INT(right, 3);
+    }
+}
+
 static void TestDeleteSelectionRoundTrips(void)
 {
     Begin("abcdef");
@@ -1119,6 +1195,7 @@ int main(void)
     TestMoveLineAtTheEdgesDoesNothing();
     TestDeleteSelectionSingleRowKeepsTail();
     TestDeleteSelectionMultiRowKeepsBottomTail();
+    TestSelectionEndingPastTheLastRow();
     TestDeleteSelectionRoundTrips();
     TestBufferReplaceAll();
     TestBufferReplaceAllDeletesWithEmptyReplacement();

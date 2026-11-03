@@ -753,18 +753,38 @@ int EditSelectionActive(void)
     return sel_active;
 }
 
+/* an end of the selection that rests on the phantom row past the
+   text — where a shift or a drag onto the tildes below the last line
+   leaves it — is the end of the last row: that is what it selects,
+   and no reader of the range ever has to look at a row that is not
+   there. An empty buffer has no last row to point at, and its only
+   selection is the empty one anyway */
+static void NormalizePhantomRowEnd(int *y, int *x)
+{
+    if (*y == vted_buffer.num_rows && vted_buffer.num_rows > 0)
+    {
+        *y = vted_buffer.num_rows - 1;
+        *x = vted_buffer.rows[*y].size;
+    }
+}
+
 /* normalizes the anchor and the cursor into the top/left and
    bottom/right ends of the selection */
 void EditSelectionRange(int *top, int *left, int *bottom, int *right)
 {
     int cy = vted_editor_config.cursor_y;
     int cx = vted_editor_config.cursor_x;
+    int ay = sel_anchor_y;
+    int ax = sel_anchor_x;
 
-    if (sel_anchor_y < cy ||
-        (sel_anchor_y == cy && sel_anchor_x <= cx))
+    NormalizePhantomRowEnd(&cy, &cx);
+    NormalizePhantomRowEnd(&ay, &ax);
+
+    if (ay < cy ||
+        (ay == cy && ax <= cx))
     {
-        *top = sel_anchor_y;
-        *left = sel_anchor_x;
+        *top = ay;
+        *left = ax;
         *bottom = cy;
         *right = cx;
     }
@@ -772,8 +792,8 @@ void EditSelectionRange(int *top, int *left, int *bottom, int *right)
     {
         *top = cy;
         *left = cx;
-        *bottom = sel_anchor_y;
-        *right = sel_anchor_x;
+        *bottom = ay;
+        *right = ax;
     }
 }
 
