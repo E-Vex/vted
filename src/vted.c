@@ -370,6 +370,66 @@ static void EditorSetBracketColor(void)
     SetStatusMessage("Bracket color: %s", SettingsBracketColorName(color));
 }
 
+/* picks the color scheme while editing: the theme the rc file names
+   with set theme, answered here. Naming the theme already in use loads
+   it again, so a theme file being written can be tried by saving it
+   and answering with its own name */
+static void EditorSetTheme(void)
+{
+    /* the prompt lists the built-in themes, and a theme file in the
+       themes directory goes by its name as well */
+    char question[160] = "Theme (";
+    size_t used = strlen(question);
+    int i;
+
+    for (i = 0; i < ThemeBuiltinCount(); i++)
+    {
+        int written = snprintf(question + used, sizeof(question) - used, "%s%s",
+                               i > 0 ? "/" : "", ThemeBuiltinName(i));
+
+        if (written < 0 || (size_t)written >= sizeof(question) - used)
+        {
+            break;
+        }
+
+        used += (size_t)written;
+    }
+
+    snprintf(question + used, sizeof(question) - used, "): ");
+
+    /* the theme in use opens as the answer, so Enter alone loads it
+       again and a name is only typed to change it */
+    char *answer = EditorPrompt(question, ThemeCurrent());
+
+    if (answer == NULL)
+    {
+        SetStatusMessage("Theme unchanged");
+        return;
+    }
+
+    if (ThemeSelect(answer) != 0)
+    {
+        SetStatusMessage("Theme not found: %s", answer);
+        free(answer);
+        return;
+    }
+
+    free(answer);
+
+    /* every cell on screen may be drawn in another color now */
+    ScreenMarkAllDirty();
+
+    if (ThemeBadLines() > 0)
+    {
+        SetStatusMessage("Theme %s: %d line%s not understood", ThemeCurrent(),
+                         ThemeBadLines(), ThemeBadLines() == 1 ? "" : "s");
+    }
+    else
+    {
+        SetStatusMessage("Theme: %s", ThemeCurrent());
+    }
+}
+
 static void EditorSave(void)
 {
     int named_here = 0;
@@ -1419,6 +1479,13 @@ int main(int argc, char *argv[])
                    with: the setting the rc file holds, answered here
                    the way Ctrl-W answers the tab width */
                 EditorSetBracketColor();
+            }
+            else if (c_in == ThemePrompt)
+            {
+                /* Alt-s picks the color scheme: the theme the rc file
+                   names, answered here the way Alt-c answers the
+                   bracket color */
+                EditorSetTheme();
             }
             else if (c_in == MoveLineUp || c_in == MoveLineDown)
             {
