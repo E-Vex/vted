@@ -33,7 +33,14 @@ typedef enum
     UndoKindCommentRows   /* the line comment went in front of the rows
                              row through cx, or came off them again: the
                              bytes hold their old texts, one row per
-                             text and the texts joined by '\n' */
+                             text and the texts joined by '\n' */,
+    UndoKindIndentRows    /* an indent step went in front of the rows
+                             row through cx: the bytes hold their old
+                             texts, one row per text and the texts
+                             joined by '\n' */,
+    UndoKindOutdentRows   /* an indent step came off the rows row
+                             through cx, their old texts held the same
+                             way */
 } UndoKind;
 
 typedef struct

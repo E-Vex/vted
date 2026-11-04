@@ -465,6 +465,36 @@ static void Apply(const UndoEntry *entry)
         }
         break;
     }
+    case UndoKindIndentRows:
+    {
+        /* the unit the Tab key would insert goes in front of the rows
+           again, taken from the settings as they stand, the way the
+           comment's redo takes its token */
+        char unit[VTED_TAB_WIDTH_MAX];
+        int unit_len;
+        int changed;
+
+        RowIndentUnit(unit, &unit_len, vted_editor_config.insert_spaces);
+
+        if (BufferIndentRows(entry->row, entry->cx, unit, unit_len,
+                             &changed) == -1)
+        {
+            KillApp("BufferIndentRows");
+        }
+        break;
+    }
+    case UndoKindOutdentRows:
+    {
+        /* the width in place now measures the step going back off */
+        int changed;
+
+        if (BufferOutdentRows(entry->row, entry->cx,
+                              vted_editor_config.tab_width, &changed) == -1)
+        {
+            KillApp("BufferOutdentRows");
+        }
+        break;
+    }
     case UndoKindInsertText:
         if (entry->made_row &&
             InsertRow(entry->row, "", 0, entry->eol) == -1)
@@ -593,6 +623,12 @@ static void Revert(const UndoEntry *entry)
     case UndoKindCommentRows:
         /* the old texts come back one row at a time, out of the one
            helper the row spans share */
+        RestoreRowTexts(entry);
+        break;
+    case UndoKindIndentRows:
+    case UndoKindOutdentRows:
+        /* both keep the rows' old texts the way a comment toggle
+           does: the same helper puts them all back */
         RestoreRowTexts(entry);
         break;
     case UndoKindInsertText:
