@@ -62,6 +62,14 @@ static void TestPlainKeys(void)
     CHECK_INT(ReadKeyPress(), PageUp);
     FeedInput("\x1b[6~");
     CHECK_INT(ReadKeyPress(), PageDown);
+
+    FeedInput("\x1b[Z");
+    CHECK_INT(ReadKeyPress(), ShiftTab);
+
+    /* the spelling that names the shift among the modifier bits reads
+       the same */
+    FeedInput("\x1b[1;2Z");
+    CHECK_INT(ReadKeyPress(), ShiftTab);
 }
 
 static void TestApplicationCursorKeys(void)
