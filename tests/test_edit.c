@@ -1003,6 +1003,229 @@ static void TestInsertTextBreakAtTheEndOfTheLastLine(void)
     CHECK_INT(vted_editor_config.cursor_x, 0);
 }
 
+static void TestIndentSelectionIndentsTheSpan(void)
+{
+    Begin("one");
+    AppendRow("two", 3, VTED_EOL_LF);
+    AppendRow("three", 5, VTED_EOL_LF);
+    UndoReset();
+    EditClearSelection();
+    CursorAt(1, 1);
+
+    EditSetAnchor(0, 0);
+    CursorAt(1, 1);
+
+    EditorIndentSelection();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "\tone");
+    CHECK_STR(vted_buffer.rows[1].chars, "\ttwo");
+    CHECK_STR(vted_buffer.rows[2].chars, "three"); /* past the span */
+
+    /* the selection lives on, both its ends riding the shift */
+    CHECK_INT(EditSelectionActive(), 1);
+    {
+        int top;
+        int left;
+        int bottom;
+        int right;
+
+        EditSelectionRange(&top, &left, &bottom, &right);
+        CHECK_INT(top, 0);
+        CHECK_INT(left, 1);  /* the anchor rode its row */
+        CHECK_INT(bottom, 1);
+        CHECK_INT(right, 2); /* the cursor rode its own */
+    }
+
+    /* one undo takes the whole span back, cursor and all */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "two");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+
+    /* and one redo indents it again */
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "\tone");
+    CHECK_STR(vted_buffer.rows[1].chars, "\ttwo");
+
+    EditClearSelection();
+}
+
+static void TestIndentSelectionSkipsBlankRows(void)
+{
+    /* a row of only blanks keeps none of the step, the rows around
+       it take theirs */
+    Begin("one");
+    AppendRow("", 0, VTED_EOL_LF);
+    AppendRow("  two", 5, VTED_EOL_LF);
+    UndoReset();
+    EditClearSelection();
+
+    EditSetAnchor(0, 0);
+    CursorAt(2, 2);
+
+    EditorIndentSelection();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "\tone");
+    CHECK_STR(vted_buffer.rows[1].chars, "");
+    CHECK_STR(vted_buffer.rows[2].chars, "\t  two");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[2].chars, "  two");
+
+    EditClearSelection();
+}
+
+static void TestIndentSelectionOfSpaces(void)
+{
+    /* with insert-spaces on, the step is a run of spaces a tab stop
+       wide, the bytes the Tab key alone would put in */
+    Begin("a");
+    AppendRow("b", 1, VTED_EOL_LF);
+    UndoReset();
+    EditClearSelection();
+    vted_editor_config.insert_spaces = 1;
+    RowSetTabWidth(4);
+
+    EditSetAnchor(0, 0);
+    CursorAt(1, 1);
+
+    EditorIndentSelection();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "    a");
+    CHECK_STR(vted_buffer.rows[1].chars, "    b");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a");
+
+    RowSetTabWidth(VTED_TAB_STOP);
+    vted_editor_config.insert_spaces = 0;
+    EditClearSelection();
+}
+
+static void TestIndentOnAllBlankRowsDoesNothing(void)
+{
+    /* nothing the step could sit in front of: nothing changes, and
+       nothing enters the history */
+    Begin("");
+    AppendRow("   ", 3, VTED_EOL_LF);
+    AppendRow("\t\t", 2, VTED_EOL_LF);
+    UndoReset();
+    EditClearSelection();
+
+    EditSetAnchor(0, 0);
+    CursorAt(1, 0);
+
+    EditorIndentSelection();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "   ");
+    CHECK_STR(vted_buffer.rows[1].chars, "\t\t");
+    CHECK_INT(EditorUndo(), 0);
+
+    EditClearSelection();
+}
+
+static void TestIndentOnPhantomRowDoesNothing(void)
+{
+    Begin("x");
+    UndoReset();
+    EditClearSelection();
+    CursorAt(1, 0); /* the row past the end */
+
+    EditorIndentSelection();
+
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_INT(EditorUndo(), 0);
+
+    EditClearSelection();
+}
+
+static void TestOutdentSelectionTakesTheStepBack(void)
+{
+    Begin("\tone");
+    AppendRow("\t  two", 6, VTED_EOL_LF);
+    UndoReset();
+    EditClearSelection();
+    vted_editor_config.tab_width = 4;
+
+    EditSetAnchor(0, 1);
+    CursorAt(1, 3);
+
+    EditorOutdentSelection();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "  two"); /* the tab went */
+
+    /* the selection lives on, its ends riding the shrink */
+    CHECK_INT(EditSelectionActive(), 1);
+    {
+        int top;
+        int left;
+        int bottom;
+        int right;
+
+        EditSelectionRange(&top, &left, &bottom, &right);
+        CHECK_INT(top, 0);
+        CHECK_INT(left, 0);  /* the anchor rode back */
+        CHECK_INT(bottom, 1);
+        CHECK_INT(right, 2);
+    }
+
+    /* one undo puts the whole span back */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "\tone");
+    CHECK_STR(vted_buffer.rows[1].chars, "\t  two");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    /* and one redo takes the step off again */
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+
+    vted_editor_config.tab_width = VTED_TAB_STOP;
+    EditClearSelection();
+}
+
+static void TestOutdentOfTheLineUnderTheCursor(void)
+{
+    /* without a selection, the row of the cursor takes the step */
+    Begin("    deep");
+    UndoReset();
+    EditClearSelection();
+    vted_editor_config.tab_width = 4;
+    CursorAt(0, 7); /* on the last p */
+
+    EditorOutdentSelection();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "deep");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "    deep");
+    CHECK_INT(vted_editor_config.cursor_x, 7);
+
+    vted_editor_config.tab_width = VTED_TAB_STOP;
+    EditClearSelection();
+}
+
+static void TestOutdentWithNothingToTakeDoesNothing(void)
+{
+    Begin("plain");
+    UndoReset();
+    EditClearSelection();
+    vted_editor_config.tab_width = 4;
+    CursorAt(0, 2);
+
+    EditorOutdentSelection();
+
+    CHECK_STR(vted_buffer.rows[0].chars, "plain");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+    CHECK_INT(EditorUndo(), 0);
+
+    vted_editor_config.tab_width = VTED_TAB_STOP;
+    EditClearSelection();
+}
+
 static void TestDeleteSelectionSingleRowKeepsTail(void)
 {
     Begin("abcdef");
@@ -1295,6 +1518,14 @@ int main(void)
     TestInsertTextOfOneBreakEndingTheFile();
     TestInsertTextEndingWithABreakIntoAnEmptyBuffer();
     TestInsertTextBreakAtTheEndOfTheLastLine();
+    TestIndentSelectionIndentsTheSpan();
+    TestIndentSelectionSkipsBlankRows();
+    TestIndentSelectionOfSpaces();
+    TestIndentOnAllBlankRowsDoesNothing();
+    TestIndentOnPhantomRowDoesNothing();
+    TestOutdentSelectionTakesTheStepBack();
+    TestOutdentOfTheLineUnderTheCursor();
+    TestOutdentWithNothingToTakeDoesNothing();
 
     return TestSummary("edit");
 }
