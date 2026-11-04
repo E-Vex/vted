@@ -13,7 +13,7 @@
 # interactive path worked.
 #
 #   python3 packaging/smoke-test.py ./vted
-#   python3 packaging/smoke-test.py dist/vted_0.3.2_amd64.deb-extracted
+#   python3 packaging/smoke-test.py dist/vted_0.3.3_amd64.deb-extracted
 import os
 import pty
 import select
