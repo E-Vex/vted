@@ -59,6 +59,18 @@ void EditorMoveLineDown(void);
    only reported in the message bar */
 void EditorToggleComment(void);
 
+/* puts one indent step — the bytes the Tab key inserts — in front of
+   every row the selection spans, as one undo step; the selection and
+   the cursor ride the text as it shifts. A row of only blanks keeps
+   none */
+void EditorIndentSelection(void);
+
+/* takes one indent step off every row the selection spans — the tab
+   a row starts with, or else up to the tab width of its spaces — or
+   off the row of the cursor, when nothing is selected, as one undo
+   step; the selection and the cursor ride the text as it shrinks */
+void EditorOutdentSelection(void);
+
 /* selection: anchor/cursor model. The anchor is set with
    EditSetAnchor(); the cursor is the other end of the selection. */
 void EditSetAnchor(int y, int x);

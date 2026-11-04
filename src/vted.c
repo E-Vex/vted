@@ -2124,12 +2124,13 @@ int main(int argc, char *argv[])
             }
             else if (c_in == '\t')
             {
+                /* Tab indents the rows the selection spans; without
+                   one it inserts up to the next tab stop */
                 if (EditSelectionActive())
                 {
-                    EditDeleteSelection();
+                    EditorIndentSelection();
                 }
-
-                if (vted_editor_config.insert_spaces != 0)
+                else if (vted_editor_config.insert_spaces != 0)
                 {
                     /* Tab inserts spaces up to the next tab stop;
                        each keystroke is contiguous, so they undo as
@@ -2147,6 +2148,14 @@ int main(int argc, char *argv[])
                        lays it out up to the next tab stop */
                     EditorInsertChar('\t');
                 }
+            }
+            else if (c_in == ShiftTab)
+            {
+                /* Shift-Tab takes an indent step off the rows the
+                   selection spans — or off the row of the cursor
+                   when nothing is selected — the way Tab puts one
+                   in front of them */
+                EditorOutdentSelection();
             }
             else if (c_in == CTRL_KEY('e') || c_in == CTRL_KEY('E'))
             {

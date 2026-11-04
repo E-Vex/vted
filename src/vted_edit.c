@@ -1332,6 +1332,352 @@ void EditorToggleComment(void)
     }
 }
 
+/* how a column rides the indent that went in front of its row: every
+   byte of the row moved right by what came in, so the column moves
+   with the byte it sat on, no further than the row's new end */
+static int ShiftForIndent(int old_size, int new_size, int x)
+{
+    int moved = x + (new_size - old_size);
+
+    return moved > new_size ? new_size : moved;
+}
+
+/* and how a column rides the indent its row gave back: the bytes left
+   of it moved left by what came off, and a column the removal reached
+   lands at the start of the row */
+static int ShiftForOutdent(int removed, int x)
+{
+    return x > removed ? x - removed : 0;
+}
+
+void EditorIndentSelection(void)
+{
+    /* Tab with a selection puts one indent step — the bytes the Tab
+       key inserts — in front of every row the selection spans, whole
+       rows whatever part of them the selection covers. The whole span
+       is one undo step, and the selection and the cursor ride the
+       text as it shifts */
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    int first;
+    int last;
+    int left;
+    int right;
+    int changed;
+    int count;
+    int total;
+    int at;
+    int i;
+    char *blob;
+    char unit[VTED_TAB_WIDTH_MAX];
+    int unit_len;
+
+    if (vted_buffer.num_rows == 0 ||
+        vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        return; /* on the phantom row past the end: nothing to indent */
+    }
+
+    /* the selection says which rows; the dispatch calls here with one
+       active, and without one the row of the cursor takes the step */
+    if (EditSelectionActive())
+    {
+        EditSelectionRange(&first, &left, &last, &right);
+    }
+    else
+    {
+        first = last = vted_editor_config.cursor_y;
+    }
+
+    if (last >= vted_buffer.num_rows)
+    {
+        last = vted_buffer.num_rows - 1;
+    }
+
+    RowIndentUnit(unit, &unit_len, vted_editor_config.insert_spaces);
+
+    /* the old texts of the span, joined by newlines the way the
+       undo entry wants them: a row never holds one itself. The sizes
+       of the rows the cursor and the anchor sit on are kept along
+       the way, so their columns can ride the shift */
+    count = last - first + 1;
+    total = count - 1;
+
+    for (i = first; i <= last; i++)
+    {
+        total += vted_buffer.rows[i].size;
+    }
+
+    blob = malloc((size_t)(total > 0 ? total : 1));
+
+    if (blob == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    {
+        int cursor_old_size = -1;
+        int anchor_old_size = -1;
+
+        at = 0;
+        for (i = first; i <= last; i++)
+        {
+            vted_row_t *line = &vted_buffer.rows[i];
+
+            if (i > first)
+            {
+                blob[at++] = '\n';
+            }
+
+            memcpy(blob + at, line->chars, (size_t)line->size);
+            at += line->size;
+
+            if (i == vted_editor_config.cursor_y)
+            {
+                cursor_old_size = line->size;
+            }
+
+            if (i == sel_anchor_y)
+            {
+                anchor_old_size = line->size;
+            }
+        }
+
+        if (BufferIndentRows(first, last, unit, unit_len, &changed) == -1)
+        {
+            KillApp("BufferIndentRows");
+        }
+
+        if (changed == 0)
+        {
+            /* nothing but blank rows: nothing to indent, nothing to
+               take back */
+            free(blob);
+            SetStatusMessage("Nothing to indent");
+            return;
+        }
+
+        /* the cursor rides the shift of its own row */
+        if (cursor_old_size >= 0)
+        {
+            int new_size = vted_buffer.rows[vted_editor_config.cursor_y].size;
+
+            vted_editor_config.cursor_x =
+                ShiftForIndent(cursor_old_size, new_size,
+                               vted_editor_config.cursor_x);
+        }
+
+        /* and so does the anchor end of the selection, which lives on
+           to take the step back with Shift-Tab */
+        if (anchor_old_size >= 0)
+        {
+            int new_size = vted_buffer.rows[sel_anchor_y].size;
+
+            sel_anchor_x = ShiftForIndent(anchor_old_size, new_size,
+                                          sel_anchor_x);
+        }
+
+        {
+            int top;
+            int bottom;
+
+            EditSelectionRange(&top, &left, &bottom, &right);
+            ScreenSetSelection(top, left, bottom, right);
+        }
+    }
+
+    {
+        UndoEntry entry = {
+            .kind = UndoKindIndentRows,
+            .row = first,
+            .cx = last,
+            .bytes = blob,
+            .length = total,
+            .undo_y = before_y,
+            .undo_x = before_x,
+            .redo_y = vted_editor_config.cursor_y,
+            .redo_x = vted_editor_config.cursor_x,
+        };
+
+        UndoPush(&entry);
+    }
+
+    free(blob);
+
+    vted_buffer.dirty = 1;
+
+    SetStatusMessage("Indented %d line%s", changed, changed == 1 ? "" : "s");
+}
+
+void EditorOutdentSelection(void)
+{
+    /* Shift-Tab takes one indent step off every row the selection
+       spans — the tab a row starts with, or else up to the tab width
+       of its spaces — or off the row of the cursor when nothing is
+       selected. The whole span is one undo step, and the selection
+       and the cursor ride the text as it shrinks */
+
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    int had_selection = EditSelectionActive();
+    int first;
+    int last;
+    int left;
+    int right;
+    int changed;
+    int count;
+    int total;
+    int at;
+    int i;
+    char *blob;
+
+    if (vted_buffer.num_rows == 0 ||
+        vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        return; /* on the phantom row past the end: nothing to outdent */
+    }
+
+    /* the selection says which rows, whole ones whatever part of
+       them it covers; without one, the row of the cursor */
+    if (had_selection)
+    {
+        EditSelectionRange(&first, &left, &last, &right);
+    }
+    else
+    {
+        first = last = vted_editor_config.cursor_y;
+    }
+
+    if (last >= vted_buffer.num_rows)
+    {
+        last = vted_buffer.num_rows - 1;
+    }
+
+    /* the old texts of the span, joined by newlines the way the
+       undo entry wants them: a row never holds one itself. The sizes
+       of the rows the cursor and the anchor sit on are kept along
+       the way, so their columns can ride the shrink */
+    count = last - first + 1;
+    total = count - 1;
+
+    for (i = first; i <= last; i++)
+    {
+        total += vted_buffer.rows[i].size;
+    }
+
+    blob = malloc((size_t)(total > 0 ? total : 1));
+
+    if (blob == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    {
+        int cursor_old_size = -1;
+        int anchor_old_size = -1;
+
+        at = 0;
+        for (i = first; i <= last; i++)
+        {
+            vted_row_t *line = &vted_buffer.rows[i];
+
+            if (i > first)
+            {
+                blob[at++] = '\n';
+            }
+
+            memcpy(blob + at, line->chars, (size_t)line->size);
+            at += line->size;
+
+            if (i == vted_editor_config.cursor_y)
+            {
+                cursor_old_size = line->size;
+            }
+
+            if (i == sel_anchor_y)
+            {
+                anchor_old_size = line->size;
+            }
+        }
+
+        if (BufferOutdentRows(first, last, vted_editor_config.tab_width,
+                              &changed) == -1)
+        {
+            KillApp("BufferOutdentRows");
+        }
+
+        if (changed == 0)
+        {
+            /* no row of the span carries an indent: nothing to take
+               off, nothing to take back */
+            free(blob);
+            SetStatusMessage("Nothing to outdent");
+            return;
+        }
+
+        /* the cursor rides the shrink of its own row */
+        if (cursor_old_size >= 0)
+        {
+            int new_size = vted_buffer.rows[vted_editor_config.cursor_y].size;
+
+            vted_editor_config.cursor_x =
+                ShiftForOutdent(cursor_old_size - new_size,
+                                vted_editor_config.cursor_x);
+
+            if (vted_editor_config.cursor_x > new_size)
+            {
+                vted_editor_config.cursor_x = new_size;
+            }
+        }
+
+        /* and so does the anchor end of the selection, which lives on
+           to take the step in again with Tab */
+        if (anchor_old_size >= 0)
+        {
+            int new_size = vted_buffer.rows[sel_anchor_y].size;
+
+            sel_anchor_x = ShiftForOutdent(anchor_old_size - new_size,
+                                           sel_anchor_x);
+
+            if (sel_anchor_x > new_size)
+            {
+                sel_anchor_x = new_size;
+            }
+        }
+
+        {
+            int top;
+            int bottom;
+
+            EditSelectionRange(&top, &left, &bottom, &right);
+            ScreenSetSelection(top, left, bottom, right);
+        }
+    }
+
+    {
+        UndoEntry entry = {
+            .kind = UndoKindOutdentRows,
+            .row = first,
+            .cx = last,
+            .bytes = blob,
+            .length = total,
+            .undo_y = before_y,
+            .undo_x = before_x,
+            .redo_y = vted_editor_config.cursor_y,
+            .redo_x = vted_editor_config.cursor_x,
+        };
+
+        UndoPush(&entry);
+    }
+
+    free(blob);
+
+    vted_buffer.dirty = 1;
+
+    SetStatusMessage("Outdented %d line%s", changed, changed == 1 ? "" : "s");
+}
+
 /* replaces every non-overlapping occurrence of query in the buffer with
    replacement, one undoable step per occurrence, and returns the number
    of replacements made. query must not contain a line break; an empty
