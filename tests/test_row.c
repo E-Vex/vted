@@ -1204,6 +1204,139 @@ static void TestToggleCommentBounds(void)
     CHECK_STR(vted_buffer.rows[0].chars, "// a");
 }
 
+static void TestIndentRowsPutsAUnitInFront(void)
+{
+    const char *const texts[] = {"code", "    more", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentRows(0, 1, "\t", 1, &changed), 0);
+    CHECK_INT(changed, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "\tcode");
+    CHECK_STR(vted_buffer.rows[1].chars, "\t    more");
+
+    /* a unit of spaces goes in whole, whatever indent the row keeps */
+    {
+        const char *const plain[] = {"a", "b", NULL};
+
+        MakeBuffer(plain);
+
+        CHECK_INT(BufferIndentRows(0, 1, "    ", 4, &changed), 0);
+        CHECK_INT(changed, 2);
+        CHECK_STR(vted_buffer.rows[0].chars, "    a");
+        CHECK_STR(vted_buffer.rows[1].chars, "    b");
+    }
+}
+
+static void TestIndentRowsSkipsBlankRows(void)
+{
+    /* a row of only blanks keeps none of the unit, and a span of
+       nothing but them changes nothing at all */
+    const char *const texts[] = {"", "   ", "code", "", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentRows(0, 3, "\t", 1, &changed), 0);
+    CHECK_INT(changed, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "");
+    CHECK_STR(vted_buffer.rows[1].chars, "   ");
+    CHECK_STR(vted_buffer.rows[2].chars, "\tcode");
+    CHECK_STR(vted_buffer.rows[3].chars, "");
+
+    {
+        const char *const blanks[] = {"  ", NULL};
+
+        MakeBuffer(blanks);
+
+        CHECK_INT(BufferIndentRows(0, 0, "\t", 1, &changed), 0);
+        CHECK_INT(changed, 0);
+        CHECK_STR(vted_buffer.rows[0].chars, "  ");
+    }
+}
+
+static void TestIndentRowsBounds(void)
+{
+    /* a span wider than the buffer is cut down to it, and one that
+       names no row at all changes nothing */
+    const char *const texts[] = {"one", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentRows(-5, 9, "\t", 1, &changed), 0);
+    CHECK_INT(changed, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "\tone");
+
+    CHECK_INT(BufferIndentRows(3, 4, "\t", 1, &changed), 0);
+    CHECK_INT(changed, 0);
+}
+
+static void TestOutdentRowsTakesTheTab(void)
+{
+    const char *const texts[] = {"\tcode", "\t\tmore", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferOutdentRows(0, 1, 4, &changed), 0);
+    CHECK_INT(changed, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "code");
+    CHECK_STR(vted_buffer.rows[1].chars, "\tmore");
+}
+
+static void TestOutdentRowsTakesSpacesUpToTheWidth(void)
+{
+    const char *const texts[] = {"    code", "  more", "       last", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferOutdentRows(0, 2, 4, &changed), 0);
+    CHECK_INT(changed, 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "code");
+    CHECK_STR(vted_buffer.rows[1].chars, "more");
+    CHECK_STR(vted_buffer.rows[2].chars, "   last"); /* three spaces left */
+}
+
+static void TestOutdentRowsLeavesWhatHasNoIndent(void)
+{
+    /* a row without blanks to take, and a row of nothing but them,
+       keep as they are */
+    const char *const texts[] = {"code", "  ", "", " x", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferOutdentRows(0, 3, 4, &changed), 0);
+    CHECK_INT(changed, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "code");
+    CHECK_STR(vted_buffer.rows[1].chars, "  ");
+    CHECK_STR(vted_buffer.rows[2].chars, "");
+    CHECK_STR(vted_buffer.rows[3].chars, "x");
+}
+
+static void TestIndentOutdentRoundTrips(void)
+{
+    /* one step in and one step back bring back exactly what was
+       there, whatever the rows indented with before */
+    const char *const texts[] = {"one", "  two", NULL};
+    int changed;
+
+    MakeBuffer(texts);
+
+    CHECK_INT(BufferIndentRows(0, 1, "\t", 1, &changed), 0);
+    CHECK_INT(changed, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "\tone");
+    CHECK_STR(vted_buffer.rows[1].chars, "\t  two");
+
+    CHECK_INT(BufferOutdentRows(0, 1, 4, &changed), 0);
+    CHECK_INT(changed, 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "one");
+    CHECK_STR(vted_buffer.rows[1].chars, "  two");
+}
+
 static void TestBracketScanStopsAtTheLimit(void)
 {
     /* a row far past the scan limit: the match at its end counts as
@@ -2054,6 +2187,13 @@ int main(void)
     TestToggleCommentDirectionOfAMixedSpan();
     TestToggleCommentKnowsBothSpellings();
     TestToggleCommentBounds();
+    TestIndentRowsPutsAUnitInFront();
+    TestIndentRowsSkipsBlankRows();
+    TestIndentRowsBounds();
+    TestOutdentRowsTakesTheTab();
+    TestOutdentRowsTakesSpacesUpToTheWidth();
+    TestOutdentRowsLeavesWhatHasNoIndent();
+    TestIndentOutdentRoundTrips();
     TestBracketScanStopsAtTheLimit();
     TestWrapCount();
     TestWrapBreaksAtWordBoundaries();
