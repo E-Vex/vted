@@ -365,6 +365,33 @@ static void RestoreRowText(const UndoEntry *entry)
     }
 }
 
+/* puts the whole texts of the rows row through cx back the way they
+   were recorded: the lines were joined by '\n', which a row never
+   holds itself. The blob holds length bytes and no terminator, so it
+   is walked by its length, never by a string call running past it */
+static void RestoreRowTexts(const UndoEntry *entry)
+{
+    const char *blob = entry->bytes != NULL ? entry->bytes : "";
+    const char *blob_end = blob + entry->length;
+    const char *text = blob;
+    int row;
+
+    for (row = entry->row; row <= entry->cx; row++)
+    {
+        const char *line_end = memchr(text, '\n',
+                                      (size_t)(blob_end - text));
+        int length = line_end != NULL ? (int)(line_end - text)
+                                      : (int)(blob_end - text);
+
+        if (RowSetText(&vted_buffer.rows[row], text, length) == -1)
+        {
+            KillApp("RowSetText");
+        }
+
+        text = line_end != NULL ? line_end + 1 : blob_end;
+    }
+}
+
 /* replays a recorded change */
 static void Apply(const UndoEntry *entry)
 {
@@ -564,32 +591,10 @@ static void Revert(const UndoEntry *entry)
         break;
     }
     case UndoKindCommentRows:
-    {
-        /* the old texts come back one row at a time: the lines were
-           joined by '\n', which a row never holds itself. The blob
-           holds length bytes and no terminator, so it is walked by
-           its length, never by a string call running past it */
-        const char *blob = entry->bytes != NULL ? entry->bytes : "";
-        const char *blob_end = blob + entry->length;
-        const char *text = blob;
-        int row;
-
-        for (row = entry->row; row <= entry->cx; row++)
-        {
-            const char *line_end = memchr(text, '\n',
-                                          (size_t)(blob_end - text));
-            int length = line_end != NULL ? (int)(line_end - text)
-                                          : (int)(blob_end - text);
-
-            if (RowSetText(&vted_buffer.rows[row], text, length) == -1)
-            {
-                KillApp("RowSetText");
-            }
-
-            text = line_end != NULL ? line_end + 1 : blob_end;
-        }
+        /* the old texts come back one row at a time, out of the one
+           helper the row spans share */
+        RestoreRowTexts(entry);
         break;
-    }
     case UndoKindInsertText:
         if (RemoveText(entry->row, entry->cx,
                        entry->bytes != NULL ? entry->bytes : "",
