@@ -279,6 +279,10 @@ static int ParseCsiSequence(void)
             return ShiftEnd;
         }
         return EndKey;
+    case 'Z':
+        /* terminals spell Shift-Tab ESC [ Z, with or without the
+           modifier parameters ahead of the final byte */
+        return ShiftTab;
     case '~':
         switch (atoi(parameters))
         {

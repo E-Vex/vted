@@ -31,6 +31,8 @@ typedef enum
     ShiftArrowDown,
     ShiftHome,
     ShiftEnd,
+    ShiftTab, /* Shift-Tab: the rows the selection spans take an
+                   indent step back */
     BufferPrev, /* Alt-, : the buffer before the current one */
     BufferNext, /* Alt-. : the buffer after the current one */
     BufferSelect1, /* Alt-1..Alt-9: the buffer with that number */
