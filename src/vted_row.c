@@ -1496,6 +1496,34 @@ void RowSetTabWidth(int width)
     row_tab_stop = width;
 }
 
+/* the bytes one indent step is made of: a tab character, or a run of
+   spaces a tab stop wide, the same bytes the Tab key puts in front of
+   the cursor. insert_spaces picks between them; the unit is written
+   into out — a buffer of VTED_TAB_WIDTH_MAX bytes holds any of them —
+   and its length through *out_len */
+void RowIndentUnit(char *out, int *out_len, int insert_spaces)
+{
+    int i;
+
+    if (insert_spaces)
+    {
+        int width = row_tab_stop < VTED_TAB_WIDTH_MAX ? row_tab_stop
+                                                      : VTED_TAB_WIDTH_MAX;
+
+        for (i = 0; i < width; i++)
+        {
+            out[i] = ' ';
+        }
+
+        *out_len = width;
+    }
+    else
+    {
+        out[0] = '\t';
+        *out_len = 1;
+    }
+}
+
 void RowSetIgnoreCase(int fold)
 {
     find_fold_case = fold != 0;
@@ -1849,6 +1877,135 @@ int BufferToggleComment(int first, int last, const char *token,
 
             changed--;
         }
+    }
+
+    *out_changed = changed;
+    return 0;
+}
+
+int BufferIndentRows(int first, int last, const char *unit, int unit_len,
+                     int *out_changed)
+{
+    /* puts one indent unit in front of every row first through last
+       that is not all blanks — a row of only blanks keeps none, the
+       way it is never given a comment. How many rows changed is
+       reported through *out_changed. Returns 0, or -1 when memory
+       ran out half way */
+    int changed = 0;
+    int row;
+
+    *out_changed = 0;
+
+    if (unit == NULL || unit_len < 1 || vted_buffer.num_rows == 0)
+    {
+        return 0;
+    }
+
+    /* only the rows the span names that are really there */
+    if (first < 0)
+    {
+        first = 0;
+    }
+    if (last > vted_buffer.num_rows - 1)
+    {
+        last = vted_buffer.num_rows - 1;
+    }
+    if (first > last)
+    {
+        return 0;
+    }
+
+    for (row = first; row <= last; row++)
+    {
+        vted_row_t *line = &vted_buffer.rows[row];
+
+        if (RowIndentLength(line, line->size) == line->size)
+        {
+            continue; /* all blanks: nothing to indent */
+        }
+
+        if (RowInsertString(line, 0, unit, unit_len) == -1)
+        {
+            return -1;
+        }
+
+        changed++;
+    }
+
+    *out_changed = changed;
+    return 0;
+}
+
+int BufferOutdentRows(int first, int last, int tab_width, int *out_changed)
+{
+    /* takes one indent step off every row first through last: the tab
+       a row starts with, or else up to tab_width of the spaces it
+       starts with, whichever kind it opens with. A row of only blanks
+       keeps nothing to give, and a row without blanks to take keeps
+       as it is. How many rows changed is reported through
+       *out_changed. Returns 0, or -1 when memory ran out half way */
+    int changed = 0;
+    int row;
+
+    *out_changed = 0;
+
+    if (tab_width < 1 || vted_buffer.num_rows == 0)
+    {
+        return 0;
+    }
+
+    /* only the rows the span names that are really there */
+    if (first < 0)
+    {
+        first = 0;
+    }
+    if (last > vted_buffer.num_rows - 1)
+    {
+        last = vted_buffer.num_rows - 1;
+    }
+    if (first > last)
+    {
+        return 0;
+    }
+
+    for (row = first; row <= last; row++)
+    {
+        vted_row_t *line = &vted_buffer.rows[row];
+        int removing = 0;
+
+        if (line->size == 0 ||
+            RowIndentLength(line, line->size) == line->size)
+        {
+            continue; /* empty, or nothing but blanks */
+        }
+
+        if (line->chars[0] == '\t')
+        {
+            removing = 1; /* the tab a row starts with goes first */
+        }
+        else
+        {
+            while (removing < tab_width && removing < line->size &&
+                   line->chars[removing] == ' ')
+            {
+                removing++;
+            }
+        }
+
+        if (removing == 0)
+        {
+            continue; /* no indent to take off */
+        }
+
+        while (removing-- > 0)
+        {
+            if (RowRemoveChar(line, 0) == -1)
+            {
+                return -1;
+            }
+        }
+
+        changed++;
     }
 
     *out_changed = changed;

@@ -14,6 +14,10 @@
 /* a tab advances the text to the next multiple of this many cells */
 #define VTED_TAB_STOP 8
 
+/* the widest tab width the Ctrl-W prompt and the rc file take; the
+   buffer a RowIndentUnit() unit is written into holds this many */
+#define VTED_TAB_WIDTH_MAX 32
+
 /* how far the bracket match scan reaches, in bytes: a match beyond it
    counts as missing, so one keystroke on a huge file stays cheap */
 #define VTED_BRACKET_SCAN_BYTES (1 << 20)
@@ -277,6 +281,19 @@ int BufferDuplicateRows(int first, int last);
 int BufferToggleComment(int first, int last, const char *token,
                         const char *token2, int *out_changed);
 
+/* puts one indent unit — the bytes RowIndentUnit() builds — in front
+   of every row first through last that is not all blanks, and reports
+   how many rows changed through *out_changed. Returns 0, or -1 when
+   memory ran out half way */
+int BufferIndentRows(int first, int last, const char *unit, int unit_len,
+                     int *out_changed);
+
+/* takes one indent step off every row first through last — the tab a
+   row starts with, or else up to tab_width of the spaces it starts
+   with — and reports how many rows changed through *out_changed.
+   Returns 0, or -1 when memory ran out half way */
+int BufferOutdentRows(int first, int last, int tab_width, int *out_changed);
+
 /* counts the matches of query in the whole buffer, and how many of
    them start before (row, col): the place among them all of the
    match the cursor sits on. Matches are counted the way the search
@@ -290,6 +307,12 @@ void FreeBuffer(void);
 /* sets the tab stop in cells used by RowCharWidth(); VTED_TAB_STOP by
    default, clamped to at least one */
 void RowSetTabWidth(int width);
+
+/* the bytes one indent step is made of — a tab character, or a run of
+   spaces a tab stop wide, as insert_spaces picks — written into out,
+   a buffer of VTED_TAB_WIDTH_MAX bytes holds any of them, and its
+   length through *out_len */
+void RowIndentUnit(char *out, int *out_len, int insert_spaces);
 
 /* sets whether the search folds the case: 1 matches letters without
    regard to their case, 0 (the default) takes bytes as they stand */
