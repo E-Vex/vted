@@ -265,7 +265,13 @@ could not be used. A theme's name is made of letters, digits, `-` and
   theme in use, so Enter alone loads it again (handy
   while writing a theme file) and a name changes it |
 | Enter           | split the line at the cursor, keeping its indent |
-| Tab             | insert a tab, shown up to the next tab stop      |
+| Tab             | insert a tab, shown up to the next tab stop; with
+  a selection, every row the selection spans takes an indent
+  step in instead — the same bytes the lone Tab inserts     |
+| Shift-Tab       | outdent: one indent step comes off every row the
+  selection spans — the tab a row starts with, or up to the tab
+  width of its spaces — or off the row of the cursor when
+  nothing is selected                                       |
 | Backspace       | delete the character on the left, merge lines    |
 | Alt-Backspace   | delete the run of blanks the cursor sits behind
   and the word before them, one undo step — back to the word's own
@@ -363,6 +369,12 @@ does, and closing the last buffer starts a fresh empty one.
 
 New in 0.3.3:
 
+- Block indent: Tab indents every row the selection spans with the
+  same bytes it would insert alone — a tab character, or spaces up to
+  the next tab stop — and Shift-Tab takes one step back off them, off
+  the row of the cursor when nothing is selected. A row that is only
+  blanks keeps none of it, the whole span is one undo step, and the
+  selection and the cursor ride the text as it shifts
 - Word completion: Alt-/ completes the word before the cursor with
   the words of the open buffers, the way dabbrev-expand does in
   Emacs. The menu the Ctrl-B picker uses lists every distinct word

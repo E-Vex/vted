@@ -183,7 +183,16 @@ split the line at the cursor; the new line starts with the indent of
 the current one
 .TP
 .B Tab
-insert a tab character, shown up to the next tab stop (every 8 cells)
+insert a tab character, shown up to the next tab stop (every 8 cells);
+with a selection, every row the selection spans takes one indent step
+in instead — the same bytes the lone Tab inserts
+.TP
+.B Shift\-Tab
+take one indent step off every row the selection spans — the tab a
+row starts with, or up to the tab width of its spaces — or off the
+row of the cursor when nothing is selected; a row of only blanks
+keeps none, the whole span is one undo step, and the selection and
+the cursor ride the text as it shifts
 .TP
 .B Backspace
 delete the character to the left, merge lines at column zero
