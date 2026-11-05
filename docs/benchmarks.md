@@ -23,6 +23,26 @@ process starting to the first painted frame, and the time to a clean
 exit after one Ctrl-Q. The median of the runs is the answer, and the
 file is opened by its absolute path.
 
+`python3 bench/scroll.py ./vted FILE 3 30` starts the editor the same
+way on the hundred-megabyte file and takes four clocks per run: the
+first painted frame — told from the setup escapes by waiting for the
+bar of the opening view, so the load of the whole file is inside it —
+a go to line a screenful short of the million, timed to the frame
+that carries the bar of the deep line, and thirty Page Downs and
+thirty Page Ups from there, the walk crossing the million-line
+boundary so the gutter grows a digit inside it, each page one key
+timed from its write to the last byte of the frame it drew.
+
+`python3 bench/search.py ./vted FILE 3` types two queries into the
+search in one burst, the clock running from the write of the query to
+the frame that carries the count in the bar, so the incremental
+searches of its prefixes are inside the number: the seven-digit
+suffix of the last line — one match, the deepest row of the file,
+the search wrapping the whole buffer to land it — and "walrus", a
+word the file never carries. The search keeps its query, so the
+prompt is cleared with backspaces between the two, outside the
+clock.
+
 ## The numbers (0.3.4, taken 2026-11-06)
 
 | What                        | Result                                   |
@@ -35,12 +55,25 @@ file is opened by its absolute path.
 | undo the burst, 200 steps   | under 1 ms                               |
 | peak RSS over all of it     | 261,712 kB (about 255 MiB)               |
 | the binary, `-O2`           | 205 KB, 158 KB of it text                |
+| the 100 MB file, first frame | 482 ms median (482–507), the load inside it |
+| go to line, deep in it      | 0.3 ms median (0.3–0.5)                  |
+| page down, a viewportful    | 0.3 ms median (0.2–1.2) over 90 pages    |
+| page up, a viewportful      | 0.3 ms median (0.2–0.6) over 90 pages    |
+| a search hit, one burst     | 253 ms median (239–253)                  |
+| a search miss, one burst    | 455 ms median (445–469)                  |
 
 The startup walk opens the README, so the config parsing, the syntax
 coloring and the first frame all happen inside the number; the median
 over 15 runs is reported with the spread in the parentheses. The
 binary measured is the plain `make CFLAGS="-O2 ..."` one — the release
 packages carry the same source linked against musl, statically.
+
+The scroll and search walks run on the same hundred-megabyte file:
+the pages cross the million-line boundary, so the gutter grows a
+digit inside the walk — the page that grew it is the 1.2 ms max of
+the page-down spread — and the search numbers carry the incremental
+searches of every prefix of the query, the way the prompt runs them
+while the query is typed.
 
 ## The machine the walks ran on
 
@@ -54,6 +87,8 @@ page is for.
 ```sh
 make bench
 python3 bench/startup.py ./vted "$(pwd)/README.md" 15
+python3 bench/scroll.py ./vted /tmp/vted_bench_100mb.txt 3 30
+python3 bench/search.py ./vted /tmp/vted_bench_100mb.txt 3
 ```
 
 `make bench` writes `/tmp/vted_bench_100mb.txt` on its first run and
