@@ -12,6 +12,13 @@
 # and Ctrl-S saving it. The file left on disk is the proof the whole
 # interactive path worked.
 #
+# A third run walks the regex search the way a hand would: Ctrl-F
+# opening the search, Ctrl-T reading the query as a pattern, a bad
+# one telling so in the bar, a good one landing the cursor and the
+# count telling its place, Ctrl-R filling the escapes of a
+# replacement with the groups of the match, and the file saved to
+# disk carrying the proof the whole path worked.
+#
 #   python3 packaging/smoke-test.py ./vted
 #   python3 packaging/smoke-test.py dist/vted_0.3.3_amd64.deb-extracted
 import os
@@ -25,12 +32,18 @@ import time
 
 CTRL_Q = b'\x11'
 CTRL_S = b'\x13'
+CTRL_F = b'\x06'
+CTRL_R = b'\x12'
+CTRL_T = b'\x14'
+BACKSPACE = b'\x7f'
+ENTER = b'\r'
 ALT_DOT = b'\x1b.'    # Alt-.: the buffer after the current one
 ALT_SLASH = b'\x1b/'  # Alt-/: complete the word left of the cursor
 
 SMOKE = '/tmp/vted-smoke.txt'
 WORDS = '/tmp/vted-smoke-words.txt'  # the buffer the answers come from
 NOTE = '/tmp/vted-smoke-note.txt'    # the buffer the word is typed into
+DATE = '/tmp/vted-smoke-date.txt'    # the buffer the pattern runs in
 
 
 def spawn(binary, args):
@@ -156,6 +169,60 @@ def completion_smoke(binary):
     return 0
 
 
+def regex_smoke(binary):
+    """the regex run: a pattern searched with, a group replaced with,
+    and the text it became saved to disk"""
+    with open(DATE, 'w') as f:
+        f.write('date 2026-11-05\n')
+
+    pid, fd = spawn(binary, [DATE])
+    out = []
+    time.sleep(0.3)
+    drive(fd, CTRL_F, out)          # the find prompt
+    drive(fd, CTRL_T, out)          # Ctrl-T: read the query as a pattern
+    drive(fd, b'a(', out)           # a pattern that cannot stand
+    drive(fd, BACKSPACE * 2, out)   # take it apart again
+    drive(fd, b'([0-9]+)-([0-9]+)-([0-9]+)', out)  # a pattern that can
+    drive(fd, ENTER, out)           # Enter: keep the match it found
+    drive(fd, CTRL_R, out)          # Ctrl-R: the query stands already
+    drive(fd, ENTER, out)           # Enter: replace by the pattern
+    drive(fd, b'\\2/\\3/\\1', out)   # the groups written where they go
+    drive(fd, ENTER, out)           # Enter: lay it in
+    drive(fd, CTRL_S, out)          # Ctrl-S: save the date
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    # the prompt said what it reads: the bad pattern told its trouble
+    # in the bar, the dash before the compiler's own words
+    if b'Find (regex): a( \xe2\x80\x94 ' not in drew:
+        return fail('the search did not tell the bad pattern')
+
+    if b'1 of 1' not in drew:
+        return fail('the pattern did not say where its match stands')
+
+    if b'Replaced 1 occurrence' not in drew:
+        return fail('the replace did not say what it laid in')
+
+    # the groups of the match were written where their escapes stood
+    with open(DATE) as f:
+        date = f.read()
+    if date != 'date 11/05/2026\n':
+        return fail(f'the date reads {date!r}, '
+                    'not the groups of the match written out')
+
+    print('smoke: OK - searched a pattern, replaced by its groups '
+          'and saved')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -165,7 +232,8 @@ def main() -> int:
         print(f'smoke: {binary} is not executable', file=sys.stderr)
         return 2
 
-    return quit_smoke(binary) or completion_smoke(binary)
+    return quit_smoke(binary) or completion_smoke(binary) \
+        or regex_smoke(binary)
 
 
 if __name__ == '__main__':
