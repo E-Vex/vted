@@ -342,7 +342,9 @@ selection    |
   you type and the prompt counts them, arrows step between matches,
   a match that left the viewport lands mid-viewport, ESC restores;
   the search opens with the last query, so Enter alone keeps its
-  match                                                 |
+  match; Ctrl-T in the prompt reads the query as a regular
+  expression, the way grep -E speaks one, and back as the text
+  itself                                                 |
 | Ctrl-N          | show or hide the line numbers                    |
 | Ctrl-L          | wrap long lines over several screen lines,
   breaking at word boundaries                       |
@@ -439,6 +441,15 @@ New in 0.3.2:
   the letters of the query for either of their cases, in Ctrl-F, its
   match counting, the highlight on screen and Ctrl-R replace all,
   which undo puts back the bytes each match really had
+- The search reads its query as a POSIX extended regular expression
+  when asked: Ctrl-T inside the search turns the reading over and
+  `set search-regex on` opens every search that way. A pattern
+  matches within a row, `^` and `$` anchoring its head and its end,
+  every match standing on the boundaries of the characters, a match
+  of no bytes at all never counting; a pattern that cannot stand
+  says so in the bar and leaves the cursor where it was, and Ctrl-R
+  fills the escapes of the replacement with the groups of the match,
+  `\0` the whole match and `\1` through `\9` its parentheses
 - Alt-n / Alt-p repeat the last search without the prompt, the way n
   and N do in vi: the next match after, the one before, wrapping
   around the buffer, every match keeping its light until the next key
@@ -593,7 +604,9 @@ New in 0.3.0:
   them, a match that left the viewport lands it mid-viewport, the
   wrapped rows around it counted at their real heights; the search
   opens with the last query, so Enter alone keeps its match and the
-  arrows step through a search made earlier
+  arrows step through a search made earlier; Ctrl-T reads the query
+  as a POSIX extended regular expression instead of the text itself,
+  the matches lit the same way, each as long as the pattern finds it
 - Go to a line with Ctrl-G; a number past the end lands on the last
   line, and the line lands mid-viewport, the tall rows of wrapping
   counted at their real heights

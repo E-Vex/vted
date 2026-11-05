@@ -285,7 +285,12 @@ via an OSC 52 escape sequence
 .B Ctrl\-R
 search and replace every occurrence of a string; each replacement is one
 undo step; the prompts open with the last query and the last answer, so
-Enter alone repeats a replace as it stands
+Enter alone repeats a replace as it stands. Ctrl\-T in the question
+reads the query as a pattern the way the search does, and the
+replacement then fills its escapes with the groups of the match:
+\\0 the whole match, \\1 through \\9 the parentheses of the pattern,
+\\\\ a backslash of its own, and a group that took no part in the
+match writing nothing
 .TP
 .B Ctrl\-Z
 undo the last change and put the cursor back where it was; a run of
@@ -339,7 +344,13 @@ among them all, arrows jump between matches, a match that left
 the viewport lands mid-viewport with wrapping's tall rows counted,
 Enter keeps the cursor on the match, ESC restores the previous
 position; the search opens with the last query, searched at once the
-way a typed one is, so Enter alone keeps its match
+way a typed one is, so Enter alone keeps its match. Ctrl\-T in the
+prompt reads the query as a POSIX extended regular expression, the
+way grep \-E speaks one, and back as the text itself; a pattern
+matches within a row, ^ and $ anchoring its head and its end, every
+match standing on the boundaries of the characters, a match of no
+bytes at all never counting, and a pattern that cannot stand says so
+in the bar and leaves the cursor where it was
 .TP
 .B Ctrl\-N
 show or hide the line numbers
@@ -505,6 +516,13 @@ or
 .BR off
 (the search takes the letters of the query for either of their
 cases, and the replace follows),
+and
+.B "set search-regex on"
+or
+.BR off
+(the search reads its query as a POSIX extended regular expression,
+the way grep \-E speaks one, and Ctrl\-T turns it either way in the
+prompts),
 and
 .BI "set bracket-color " name
 (the background of the matching bracket's partner: red, green,
