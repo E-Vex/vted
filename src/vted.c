@@ -1824,9 +1824,10 @@ static const char *ReplacePromptLabel(void)
 
 static void EditorReplace(void)
 {
-    /* search and replace every occurrence: the replacement is applied
-       as one undoable step per occurrence, so the whole operation can
-       be walked back with Ctrl-Z */
+    /* search and replace, one match at a time: the walk asks about
+       each of them and every replacement is one undoable step, so the
+       whole operation can be walked back with Ctrl-Z, one occurrence
+       at a time */
     EditClearSelection();
     ScreenSetSelection(-1, 0, -1, 0);
 
@@ -1863,32 +1864,211 @@ static void EditorReplace(void)
 
     RememberAnswer(last_replacement, replacement);
 
-    int count;
+    /* the pattern is compiled the way the query stands before the
+       walk runs on it: a bad one turns the whole replace away,
+       the text left as it was */
+    if (search_regex_mode && RegexCompile(query) != 0)
+    {
+        SetStatusMessage("Bad pattern: %s — %s", query, RegexError());
+        free(query);
+        free(replacement);
+        return;
+    }
+
+    /* the walk asks about one match at a time, starting at the cursor
+       and wrapping around the buffer the way the search does: y takes
+       it, n leaves it, a takes it and every one after it without
+       asking again, q or ESC stops with what is done. Every match
+       keeps its light while the walk runs, the one being asked about
+       inverted, and the numbering of the bar counts every place a
+       match starts, the way the search prompt counts them */
+    int query_len = (int)strlen(query);
+    int total = 0;
+    int ignored_before = 0;
+    int replaced = 0;
+    int seen = 0;   /* the matches asked about or taken so far */
+    int asking = 1; /* a drops it for the rest of the walk */
+    int stopped = 0;
+    int pos_row = vted_editor_config.cursor_y;
+    int pos_col = vted_editor_config.cursor_x;
+
+    if (query_len == 0)
+    {
+        free(query);
+        free(replacement);
+        SetStatusMessage("Replaced 0 occurrences");
+        return;
+    }
 
     if (search_regex_mode)
     {
-        /* the pattern is compiled the way the query stands before the
-           walk runs on it: a bad one turns the whole replace away,
-           the text left as it was */
-        if (RegexCompile(query) != 0)
-        {
-            SetStatusMessage("Bad pattern: %s — %s", query, RegexError());
-            free(query);
-            free(replacement);
-            return;
-        }
-
-        count = BufferReplaceRegex(replacement);
+        CountMatchesRegex(pos_row, pos_col, &total, &ignored_before);
     }
     else
     {
-        count = BufferReplaceAll(query, replacement);
+        BufferCountMatches(query, query_len, pos_row, pos_col,
+                           &total, &ignored_before);
     }
+
+    if (total == 0)
+    {
+        SetStatusMessage("No matches: %s", query);
+        free(query);
+        free(replacement);
+        return;
+    }
+
+    ShowSearchOnScreen(query, query_len);
+
+    while (!stopped && seen < total)
+    {
+        int m_row;
+        int m_col;
+        int m_len = 0;
+        int take;
+        int written;
+
+        /* the next match from where the walk stands; a replacement
+           that took the rest of them away ends the walk here */
+        if (FindMatch(query, pos_row, pos_col, 1,
+                      &m_row, &m_col, &m_len) != 0)
+        {
+            break;
+        }
+
+        seen++;
+
+        /* drop the old light before the new one is painted */
+        if (vted_editor_config.match_row >= 0)
+        {
+            ScreenMarkRowDirty(vted_editor_config.match_row);
+        }
+
+        vted_editor_config.cursor_y = m_row;
+        vted_editor_config.cursor_x = m_col;
+
+        /* a match that left the viewport comes back mid-viewport, the
+           way a step of the search lands one */
+        ScreenCenterCursor();
+
+        vted_editor_config.match_row = m_row;
+        vted_editor_config.match_col = m_col;
+        vted_editor_config.match_len = m_len;
+        ScreenMarkRowDirty(m_row);
+
+        SetStatusMessage("Replace%s: %s (%d of %d) — y/n/a/q",
+                         search_regex_mode ? " (regex)" : "", query,
+                         seen, total);
+        RefreshScreen();
+
+        /* y takes it, n leaves it, a takes it and the rest, q or ESC
+           stops; anything else is ignored */
+        take = 0;
+        written = -1;
+
+        if (asking)
+        {
+            int answered = 0;
+
+            while (!answered)
+            {
+                int c = ReadKeyPress();
+
+                EditorSuspendIfAsked(c);
+
+                if (c == 0)
+                {
+                    /* idle read timeout: repaint, do not touch the
+                       walk — unless a signal asked the editor to
+                       leave, which the walk must not outwait */
+                    if (TerminalWantsExit())
+                    {
+                        stopped = 1;
+                        answered = 1;
+                    }
+
+                    continue;
+                }
+
+                if (c == 27 || c == 'q' || c == 'Q')
+                {
+                    stopped = 1;
+                    answered = 1;
+                }
+                else if (c == 'y' || c == 'Y')
+                {
+                    take = 1;
+                    answered = 1;
+                }
+                else if (c == 'n' || c == 'N')
+                {
+                    answered = 1;
+                }
+                else if (c == 'a' || c == 'A')
+                {
+                    asking = 0;
+                    take = 1;
+                    answered = 1;
+                }
+            }
+        }
+        else
+        {
+            take = 1;
+        }
+
+        if (stopped)
+        {
+            break;
+        }
+
+        if (take)
+        {
+            written = search_regex_mode
+                ? BufferReplaceSpanRegex(m_row, m_col, m_len, replacement)
+                : BufferReplaceSpan(m_row, m_col, m_len, replacement);
+
+            if (written >= 0)
+            {
+                replaced++;
+
+                /* the walk goes on past what went in, the way the
+                   replace-all continues after the new text */
+                pos_row = m_row;
+                pos_col = m_col + (written > 0 ? written : m_len);
+            }
+        }
+
+        if (!take || written < 0)
+        {
+            /* a match left behind is stepped past the way the counting
+               counts it: the next one may share its bytes, and every
+               place a match starts gets its own ask */
+            vted_row_t *row = &vted_buffer.rows[m_row];
+
+            pos_row = m_row;
+            pos_col = Utf8NextBoundary(row->chars, row->size, m_col);
+        }
+
+        /* the walk never starts past the end of the row it is on */
+        {
+            int row_size = vted_buffer.rows[pos_row].size;
+
+            if (pos_col > row_size)
+            {
+                pos_col = row_size;
+            }
+        }
+    }
+
+    /* leaving the walk clears the light */
+    ClearSearchHighlight();
 
     free(query);
     free(replacement);
 
-    SetStatusMessage("Replaced %d occurrence%s", count, count == 1 ? "" : "s");
+    SetStatusMessage("Replaced %d occurrence%s", replaced,
+                     replaced == 1 ? "" : "s");
 }
 
 /* gives back everything the editor holds: the undo history, the
@@ -2444,7 +2624,7 @@ int main(int argc, char *argv[])
             }
             else if (c_in == CTRL_KEY('r') || c_in == CTRL_KEY('R'))
             {
-                /* Ctrl-R searches and replaces every occurrence */
+                /* Ctrl-R searches and replaces, one match at a time */
                 EditorReplace();
             }
             else if (c_in == CTRL_KEY('g') || c_in == CTRL_KEY('G'))

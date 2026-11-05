@@ -188,6 +188,7 @@ def regex_smoke(binary):
     drive(fd, ENTER, out)           # Enter: replace by the pattern
     drive(fd, b'\\2/\\3/\\1', out)   # the groups written where they go
     drive(fd, ENTER, out)           # Enter: lay it in
+    drive(fd, b'a', out)            # a: take the match, the rest without asking
     drive(fd, CTRL_S, out)          # Ctrl-S: save the date
     for _ in range(3):
         drive(fd, CTRL_Q, out, pause=0.1)
