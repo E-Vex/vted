@@ -2615,6 +2615,7 @@ void ScreenFree(void)
 
     free(query_match_starts);
     query_match_starts = NULL;
+    free(query_match_ends);
     query_match_ends = NULL;
     query_match_capacity = 0;
 
