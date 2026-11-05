@@ -1975,16 +1975,20 @@ static void EditorReplace(void)
     /* the walk asks about one match at a time, starting at the cursor
        and wrapping around the buffer the way the search does: y takes
        it, n leaves it, a takes it and every one after it without
-       asking again, q or ESC stops with what is done. Every match
-       keeps its light while the walk runs, the one being asked about
-       inverted, and the numbering of the bar counts every place a
-       match starts, the way the search prompt counts them */
+       asking again and without stepping — the rest go in one pass,
+       the end of the walk painted once — q or ESC stops with what
+       is done. Every match keeps its light while the walk runs, the
+       one being asked about inverted, and the numbering of the bar
+       counts every place a match starts, the way the search prompt
+       counts them */
     int query_len = (int)strlen(query);
     int total = 0;
     int ignored_before = 0;
     int replaced = 0;
-    int seen = 0;   /* the matches asked about or taken so far */
-    int asking = 1; /* a drops it for the rest of the walk */
+    int seen = 0;    /* the matches asked about or taken so far */
+    int asking = 1;  /* a drops it for the rest of the walk */
+    int instant = 0; /* a also drops the frame per match: the rest go
+                        in one pass, the replace-all of it all */
     int stopped = 0;
     int pos_row = vted_editor_config.cursor_y;
     int pos_col = vted_editor_config.cursor_x;
@@ -2035,31 +2039,44 @@ static void EditorReplace(void)
 
         seen++;
 
-        /* drop the old light before the new one is painted */
-        if (vted_editor_config.match_row >= 0)
+        if (instant)
         {
-            ScreenMarkRowDirty(vted_editor_config.match_row);
+            /* the a answer turned the walk into a replace-all: no
+               frame per match. The cursor tracks the walk all the
+               same, so it ends where the walk would have, and the
+               row that takes a replacement is marked below for the
+               one repaint that shows them all */
+            vted_editor_config.cursor_y = m_row;
+            vted_editor_config.cursor_x = m_col;
+        }
+        else
+        {
+            /* drop the old light before the new one is painted */
+            if (vted_editor_config.match_row >= 0)
+            {
+                ScreenMarkRowDirty(vted_editor_config.match_row);
+            }
+
+            vted_editor_config.cursor_y = m_row;
+            vted_editor_config.cursor_x = m_col;
+
+            /* a match that left the viewport comes back mid-viewport,
+               the way a step of the search lands one */
+            ScreenCenterCursor();
+
+            vted_editor_config.match_row = m_row;
+            vted_editor_config.match_col = m_col;
+            vted_editor_config.match_len = m_len;
+            ScreenMarkRowDirty(m_row);
+
+            SetStatusMessage("Replace%s: %s (%d of %d) — y/n/a/q",
+                             search_regex_mode ? " (regex)" : "", query,
+                             seen, total);
+            RefreshScreen();
         }
 
-        vted_editor_config.cursor_y = m_row;
-        vted_editor_config.cursor_x = m_col;
-
-        /* a match that left the viewport comes back mid-viewport, the
-           way a step of the search lands one */
-        ScreenCenterCursor();
-
-        vted_editor_config.match_row = m_row;
-        vted_editor_config.match_col = m_col;
-        vted_editor_config.match_len = m_len;
-        ScreenMarkRowDirty(m_row);
-
-        SetStatusMessage("Replace%s: %s (%d of %d) — y/n/a/q",
-                         search_regex_mode ? " (regex)" : "", query,
-                         seen, total);
-        RefreshScreen();
-
-        /* y takes it, n leaves it, a takes it and the rest, q or ESC
-           stops; anything else is ignored */
+        /* y takes it, n leaves it, a takes it and the rest in one
+           pass, q or ESC stops; anything else is ignored */
         take = 0;
         written = -1;
 
@@ -2104,6 +2121,7 @@ static void EditorReplace(void)
                 else if (c == 'a' || c == 'A')
                 {
                     asking = 0;
+                    instant = 1;
                     take = 1;
                     answered = 1;
                 }
@@ -2128,6 +2146,11 @@ static void EditorReplace(void)
             if (written >= 0)
             {
                 replaced++;
+
+                /* the row the text went into repaints with it: the
+                   walk paints it in the next frame, the instant pass
+                   holds it for the one at the end */
+                ScreenMarkRowDirty(m_row);
 
                 /* the walk goes on past what went in, the way the
                    replace-all continues after the new text */
@@ -2156,6 +2179,14 @@ static void EditorReplace(void)
                 pos_col = row_size;
             }
         }
+    }
+
+    /* the instant pass ends where the walk would have: the viewport
+       around the last of them, the whole of it painted in the one
+       frame the caller draws */
+    if (instant)
+    {
+        ScreenCenterCursor();
     }
 
     /* leaving the walk clears the light */
