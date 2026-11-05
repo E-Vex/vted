@@ -1893,3 +1893,81 @@ int BufferReplaceRegex(const char *replacement)
 
     return count;
 }
+
+/* replaces the old_len bytes the row holds at `at` with new_text, one
+   undoable step: the bytes that were there go into the step, taken
+   from the row, so undo puts back exactly what the span held. Returns
+   the number of bytes written — 0 when the new text is empty and the
+   span is deleted — or -1 when the span sits outside the row */
+int BufferReplaceSpan(int row_index, int at, int old_len,
+                      const char *new_text)
+{
+    vted_row_t *row;
+    int new_len;
+
+    if (row_index < 0 || row_index >= vted_buffer.num_rows)
+    {
+        return -1;
+    }
+
+    row = &vted_buffer.rows[row_index];
+
+    if (at < 0 || old_len < 1 || at + old_len > row->size)
+    {
+        return -1;
+    }
+
+    new_len = (int)strlen(new_text);
+
+    ReplaceSpanInRow(row_index, at, old_len, new_text, new_len);
+
+    vted_buffer.dirty = 1;
+    return new_len;
+}
+
+/* the same splice for the pattern that stands compiled in the regex
+   module: the groups of the match that starts at `at` come from the
+   row again, so the walk that asks about one match at a time writes
+   each one with the groups of its own — the match the caller walked
+   there is the one that stands at `at`, the finder being the same.
+   Returns the number of bytes written, or -1 when no match starts
+   there or the span sits outside the row */
+int BufferReplaceSpanRegex(int row_index, int at, int match_len,
+                           const char *replacement)
+{
+    vted_row_t *row;
+    vted_regex_group_t groups[VTED_REGEX_GROUPS];
+    int found_len = 0;
+    int hit;
+    char *text;
+    int text_len;
+
+    if (row_index < 0 || row_index >= vted_buffer.num_rows)
+    {
+        return -1;
+    }
+
+    row = &vted_buffer.rows[row_index];
+
+    if (at < 0 || match_len < 1 || at + match_len > row->size)
+    {
+        return -1;
+    }
+
+    hit = RegexFindNext(row->chars, at, row->size, &found_len, groups);
+
+    if (hit != at)
+    {
+        return -1;
+    }
+
+    text = ExpandReplacement(replacement, row->chars, groups);
+    text_len = (int)strlen(text);
+
+    ReplaceSpanInRow(row_index, at, match_len, text, text_len);
+
+    free(text);
+
+    vted_buffer.dirty = 1;
+    return text_len;
+}

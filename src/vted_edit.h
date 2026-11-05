@@ -103,4 +103,21 @@ int BufferReplaceAll(const char *query, const char *replacement);
    replacements made comes back */
 int BufferReplaceRegex(const char *replacement);
 
+/* replaces the old_len bytes the row holds at `at` with new_text, one
+   undoable step: the bytes that were there go into the step, taken
+   from the row, so undo puts back exactly what the span held. Returns
+   the number of bytes written — 0 when the new text is empty and the
+   span is deleted — or -1 when the span sits outside the row */
+int BufferReplaceSpan(int row_index, int at, int old_len,
+                      const char *new_text);
+
+/* the same splice for the pattern that stands compiled in the regex
+   module: the groups of the match that starts at `at` fill the escapes
+   of the replacement, so a walk that asks about one match at a time
+   writes each one with the groups of its own. Returns the number of
+   bytes written, or -1 when no match starts there or the span sits
+   outside the row */
+int BufferReplaceSpanRegex(int row_index, int at, int match_len,
+                           const char *replacement);
+
 #endif

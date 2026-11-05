@@ -914,6 +914,98 @@ static void TestBufferReplaceRegexOfNothing(void)
     RegexForget();
 }
 
+static void TestBufferReplaceSpan(void)
+{
+    Begin("one foo, two foo");
+
+    /* the span in the middle comes out and the new text goes in,
+       one undoable step */
+    CHECK_INT(BufferReplaceSpan(0, 4, 3, "bar"), 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "one bar, two foo");
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "one foo, two foo");
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "one bar, two foo");
+}
+
+static void TestBufferReplaceSpanAtTheEdges(void)
+{
+    /* a span at the head of the row */
+    Begin("abc");
+    CHECK_INT(BufferReplaceSpan(0, 0, 1, "X"), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "Xbc");
+
+    /* a span at its end */
+    Begin("abc");
+    CHECK_INT(BufferReplaceSpan(0, 2, 1, "X"), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abX");
+
+    /* an empty new text deletes the span, nothing written */
+    Begin("axb");
+    CHECK_INT(BufferReplaceSpan(0, 1, 1, ""), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+}
+
+static void TestBufferReplaceSpanOutsideTheRow(void)
+{
+    Begin("abc");
+
+    /* a span that runs past the row, one that starts past it, a row
+       that is not there, one before the start: nothing changes */
+    CHECK_INT(BufferReplaceSpan(0, 2, 4, "X"), -1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(BufferReplaceSpan(0, 7, 1, "X"), -1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(BufferReplaceSpan(3, 0, 1, "X"), -1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(BufferReplaceSpan(-1, 0, 1, "X"), -1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(vted_buffer.dirty, 0);
+}
+
+static void TestBufferReplaceSpanRegex(void)
+{
+    Begin("2026-11-05");
+
+    /* the groups of the match that starts at `at` fill the escapes,
+       the way the replace-all fills them */
+    CHECK_INT(RegexCompile("([0-9]+)-([0-9]+)-([0-9]+)"), 0);
+    CHECK_INT(BufferReplaceSpanRegex(0, 0, 10, "\\3.\\2.\\1"), 10);
+    CHECK_STR(vted_buffer.rows[0].chars, "05.11.2026");
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    /* the undo puts the bytes that were there back, one step */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "2026-11-05");
+    RegexForget();
+}
+
+static void TestBufferReplaceSpanRegexEachMatchWithItsOwn(void)
+{
+    /* two matches in a row: each is written with the groups of the
+       match it is told to replace, not the other one's */
+    Begin("one cat, two cats");
+
+    CHECK_INT(RegexCompile("cat(s?)"), 0);
+
+    /* the first, a cat of no s: its group wrote nothing */
+    CHECK_INT(BufferReplaceSpanRegex(0, 4, 3, "dog\\1"), 3);
+    CHECK_STR(vted_buffer.rows[0].chars, "one dog, two cats");
+
+    /* the second, an s of its own: the group of the match that
+       starts there carries it */
+    CHECK_INT(BufferReplaceSpanRegex(0, 13, 4, "dog\\1"), 4);
+    CHECK_STR(vted_buffer.rows[0].chars, "one dog, two dogs");
+
+    /* no match starts there: nothing changes */
+    CHECK_INT(BufferReplaceSpanRegex(0, 2, 3, "X"), -1);
+    CHECK_STR(vted_buffer.rows[0].chars, "one dog, two dogs");
+    RegexForget();
+}
+
 static void TestInsertTextInsideALine(void)
 {
     Begin("abcd");
@@ -1613,6 +1705,11 @@ int main(void)
     TestBufferReplaceRegexFoldsCase();
     TestBufferReplaceRegexAcrossRows();
     TestBufferReplaceRegexOfNothing();
+    TestBufferReplaceSpan();
+    TestBufferReplaceSpanAtTheEdges();
+    TestBufferReplaceSpanOutsideTheRow();
+    TestBufferReplaceSpanRegex();
+    TestBufferReplaceSpanRegexEachMatchWithItsOwn();
     TestInsertTextInsideALine();
     TestInsertTextSeveralLines();
     TestInsertTextAddsNoIndent();
