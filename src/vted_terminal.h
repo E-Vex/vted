@@ -33,6 +33,12 @@ void DisableBracketedPaste(void);
 void EnableMouseTracking(void);
 void DisableMouseTracking(void);
 
+/* switches between the alternate screen buffer the editor draws on
+   and the main screen the shell had: entering saves the shell's
+   screen whole, leaving gives it back with its scrollback */
+void EnterToAlternateScreenBuffer(void);
+void ExitAlternateScreenBuffer(void);
+
 /* ask the editor to leave on the next loop turn: SIGHUP, SIGINT and
    SIGTERM all do this, and the terminal is then restored the usual
    way (through the exit handlers) */

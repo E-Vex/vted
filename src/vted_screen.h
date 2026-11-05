@@ -43,9 +43,6 @@ extern vted_editor_Config_t vted_editor_config;
 int GetWindowSize(int *rows, int *cols);
 int RefreshWindowSize(void);
 
-void EnterToAlternateScreenBuffer(void);
-void ExitAlternateScreenBuffer(void);
-
 void MoveCursor(int key);
 
 /* scrolls the viewport so the cursor is on screen: whole rows, and

@@ -1618,14 +1618,6 @@ void SetStatusMessage(const char *format, ...)
     vsnprintf(vted_editor_config.status_message, sizeof(vted_editor_config.status_message), format, args);
     va_end(args);
 }
-void EnterToAlternateScreenBuffer(void)
-{
-    write(STDOUT_FILENO, "\x1b[?1049h", 8);
-}
-void ExitAlternateScreenBuffer(void)
-{
-    write(STDOUT_FILENO, "\x1b[?1049l", 8);
-}
 
 /* where a vertical aim lands when it would fall inside the row's
    leading indent: past it, on the first non-blank glyph, so the

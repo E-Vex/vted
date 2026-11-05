@@ -203,6 +203,19 @@ void DisableMouseTracking(void)
     }
 }
 
+/* the editor draws on the alternate screen buffer: the screen the
+   shell had keeps its scrollback and comes back whole when the
+   editor leaves */
+void EnterToAlternateScreenBuffer(void)
+{
+    write(STDOUT_FILENO, "\x1b[?1049h", 8);
+}
+
+void ExitAlternateScreenBuffer(void)
+{
+    write(STDOUT_FILENO, "\x1b[?1049l", 8);
+}
+
 void SetupExitSignals(void)
 {
     struct sigaction action;
