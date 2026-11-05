@@ -41,6 +41,11 @@ static char last_replacement[PROMPT_MAX + 1];
    one left it */
 static int search_regex_mode = 0;
 
+/* the prompt that holds a pattern asks this how its label reads with
+   the mode turned over: the search's own prompt answers for itself,
+   and the replace installs the answer while its question is open */
+static const char *(*PromptModeToggle)(void) = NULL;
+
 /* keeps a copy of the answer for the next prompt to open with */
 static void RememberAnswer(char *slot, const char *answer)
 {
@@ -68,6 +73,10 @@ static char *EditorPrompt(const char *label, const char *initial)
        confirms an empty answer */
     char *answer = malloc(PROMPT_MAX + 1);
     int length = 0;
+
+    /* the label the prompt carries until Ctrl-T asks the search's
+       mode to turn and the turned label comes back */
+    const char *shown = label;
 
     if (answer == NULL)
     {
@@ -98,7 +107,7 @@ static char *EditorPrompt(const char *label, const char *initial)
 
     while (1)
     {
-        SetStatusMessage("%s%s", label, answer);
+        SetStatusMessage("%s%s", shown, answer);
         RefreshScreen();
 
         int c = ReadKeyPress();
@@ -142,6 +151,16 @@ static char *EditorPrompt(const char *label, const char *initial)
             char *exact = realloc(answer, (size_t)length + 1);
 
             return exact != NULL ? exact : answer;
+        }
+
+        if (c == 20) /* Ctrl-T turns the reading of the query over */
+        {
+            if (PromptModeToggle != NULL)
+            {
+                shown = PromptModeToggle();
+            }
+
+            continue;
         }
 
         if (c == 127) /* Backspace removes one whole character */
@@ -1588,20 +1607,23 @@ static void EditorFind(void)
 
             if (total > 0)
             {
-                SetStatusMessage("Find%s: %s (%d of %d, ESC cancel, Enter keep, arrows next/prev)",
+                SetStatusMessage("Find%s: %s (%d of %d, Ctrl-T %s, ESC cancel, Enter keep, arrows next/prev)",
                                  search_regex_mode ? " (regex)" : "", query,
-                                 before + 1, total);
+                                 before + 1, total,
+                                 search_regex_mode ? "text" : "regex");
             }
             else
             {
-                SetStatusMessage("Find%s: %s (no matches, ESC cancel, Enter keep, arrows next/prev)",
-                                 search_regex_mode ? " (regex)" : "", query);
+                SetStatusMessage("Find%s: %s (no matches, Ctrl-T %s, ESC cancel, Enter keep, arrows next/prev)",
+                                 search_regex_mode ? " (regex)" : "", query,
+                                 search_regex_mode ? "text" : "regex");
             }
         }
         else
         {
-            SetStatusMessage("Find%s: %s (ESC cancel, Enter keep, arrows next/prev)",
-                             search_regex_mode ? " (regex)" : "", query);
+            SetStatusMessage("Find%s: %s (Ctrl-T %s, ESC cancel, Enter keep, arrows next/prev)",
+                             search_regex_mode ? " (regex)" : "", query,
+                             search_regex_mode ? "text" : "regex");
         }
         RefreshScreen();
 
@@ -1653,6 +1675,12 @@ static void EditorFind(void)
                 last_match_row = -1; /* restart from the cursor */
                 query_changed = 1;
             }
+        }
+        else if (c == 20) /* Ctrl-T reads the query the other way */
+        {
+            search_regex_mode = !search_regex_mode;
+            last_match_row = -1; /* the other reading searches afresh */
+            query_changed = 1;
         }
         else if (c >= 32 && c <= 126 && query_len < 63)
         {
@@ -1782,6 +1810,16 @@ static void EditorSearchRepeat(int direction)
                      last_query);
 }
 
+/* the label the replace prompt carries with the mode turned over:
+   the replacement line takes no pattern, so only the question the
+   pattern is typed into changes its words */
+static const char *ReplacePromptLabel(void)
+{
+    search_regex_mode = !search_regex_mode;
+
+    return search_regex_mode ? "Replace (regex): " : "Replace: ";
+}
+
 static void EditorReplace(void)
 {
     /* search and replace every occurrence: the replacement is applied
@@ -1790,7 +1828,16 @@ static void EditorReplace(void)
     EditClearSelection();
     ScreenSetSelection(-1, 0, -1, 0);
 
-    char *query = EditorPrompt("Replace: ", last_query);
+    /* Ctrl-T turns the reading of the query over while it is asked
+       for, the way it does inside the search */
+    const char *query_label =
+        search_regex_mode ? "Replace (regex): " : "Replace: ";
+
+    PromptModeToggle = ReplacePromptLabel;
+
+    char *query = EditorPrompt(query_label, last_query);
+
+    PromptModeToggle = NULL;
 
     if (query == NULL)
     {
@@ -1833,6 +1880,7 @@ static void FreeEditorState(void)
     SyntaxFree();
     ScreenFree();
     BuffersFreeOthers();
+    RegexForget();
     FreeBuffer();
 }
 
