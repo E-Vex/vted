@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
@@ -29,6 +30,11 @@
 /* how many screen lines one notch of the wheel scrolls, the way a
    terminal of its own scrolls a page the mouse is over */
 #define MOUSE_WHEEL_LINES 3
+
+/* how many milliseconds a second press may follow the one before it
+   and still count as a double click, the way a desktop tells them
+   apart */
+#define DOUBLE_CLICK_MS 400
 
 /* the answer the search prompts keep, so the next one opens with
    it: Enter alone repeats the search as it stands */
@@ -304,6 +310,22 @@ static void EditorJumpToBracket(void)
    selection follows the cursor from the anchor the press left */
 static int mouse_dragging = 0;
 
+/* when the last left press went down, in milliseconds the editor has
+   been up: a second one inside DOUBLE_CLICK_MS of it is a double
+   click. -1 when there was none, and a press of another button puts
+   the chain back to none */
+static long mouse_last_press_ms = -1;
+
+/* the clock a double click is told from: the monotonic one, so the
+   wall clock moving under it changes nothing */
+static long NowMs(void)
+{
+    struct timespec now;
+
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (long)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
 static void EditorHandleMouse(int key)
 {
     int hit_y;
@@ -356,8 +378,52 @@ static void EditorHandleMouse(int key)
            right button arrive unbound */
         if (MouseLastButton() != 0)
         {
+            /* a press of another button breaks the chain the double
+               click is told from */
+            mouse_last_press_ms = -1;
             return;
         }
+
+        /* the second press inside DOUBLE_CLICK_MS of the one before
+           it selects the word it lands in: the run of the class of
+           the glyph under it, the way the word moves cross it. The
+           anchor takes the near end and the cursor the far one, and
+           a drag after carries the selection on from there; a press
+           past the end of the row, where no word is, falls back to
+           the plain click below */
+        long now = NowMs();
+
+        if (mouse_last_press_ms >= 0 &&
+            now - mouse_last_press_ms <= DOUBLE_CLICK_MS &&
+            hit_y < vted_buffer.num_rows)
+        {
+            vted_row_t *row = &vted_buffer.rows[hit_y];
+            int start;
+            int end;
+
+            RowWordSpan(row, hit_x, &start, &end);
+
+            if (start < end)
+            {
+                int top;
+                int left;
+                int bottom;
+                int right;
+
+                EditSetAnchor(hit_y, start);
+                vted_editor_config.cursor_y = hit_y;
+                vted_editor_config.cursor_x = end;
+
+                EditSelectionRange(&top, &left, &bottom, &right);
+                ScreenSetSelection(top, left, bottom, right);
+
+                mouse_last_press_ms = now;
+                mouse_dragging = 1;
+                return;
+            }
+        }
+
+        mouse_last_press_ms = now;
 
         EditClearSelection();
         ScreenSetSelection(-1, 0, -1, 0);
