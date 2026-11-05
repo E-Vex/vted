@@ -5,6 +5,7 @@
 #include "src/vted_screen.h"
 #include "src/vted_row.h"
 #include "src/vted_edit.h"
+#include "src/vted_regex.h"
 #include "src/vted_syntax.h"
 #include "src/vted_undo.h"
 /*===============================*/
@@ -811,6 +812,108 @@ static void TestMoveLineAtTheEdgesDoesNothing(void)
     CHECK_INT(EditorRedo(), 0);
 }
 
+
+static void TestBufferReplaceRegexWholeMatches(void)
+{
+    Begin("one cat, two cats");
+
+    CHECK_INT(RegexCompile("cat") , 0);
+    CHECK_INT(BufferReplaceRegex("dog"), 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "one dog, two dogs");
+
+    /* the walk that ran left the pattern behind: it is taken down so
+       a later replace of nothing stands for nothing */
+    RegexForget();
+    Begin("abc");
+    CHECK_INT(RegexCompile("b"), 0);
+    CHECK_INT(BufferReplaceRegex("X"), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "aXc");
+    RegexForget();
+}
+
+static void TestBufferReplaceRegexGroups(void)
+{
+    Begin("2026-11-05");
+
+    /* the groups of the match are written where their escapes stand */
+    CHECK_INT(RegexCompile("([0-9]+)-([0-9]+)-([0-9]+)"), 0);
+    CHECK_INT(BufferReplaceRegex("\\3.\\2.\\1"), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "05.11.2026");
+
+    /* the whole match is group 0 */
+    Begin("ab cd");
+    CHECK_INT(RegexCompile("[a-z]+"), 0);
+    CHECK_INT(BufferReplaceRegex("[\\0]"), 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "[ab] [cd]");
+
+    /* a group that took no part writes nothing, and two slashes
+       stand for one */
+    Begin("b and c");
+    CHECK_INT(RegexCompile("(a|b) and (a|c)"), 0);
+    CHECK_INT(BufferReplaceRegex("\\1\\\\\\2"), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "b\\c");
+    RegexForget();
+
+    /* a group that took no part in the match writes nothing at all,
+       the way an optional group left aside stays empty */
+    Begin("b and c");
+    CHECK_INT(RegexCompile("b (x)?and (a|c)"), 0);
+    CHECK_INT(BufferReplaceRegex("[\\1][\\2]"), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "[][c]");
+    RegexForget();
+}
+
+static void TestBufferReplaceRegexFoldsCase(void)
+{
+    Begin("Foo and FOO");
+
+    RegexSetIgnoreCase(1);
+    CHECK_INT(RegexCompile("foo"), 0);
+    CHECK_INT(BufferReplaceRegex("bar"), 2);
+    CHECK_STR(vted_buffer.rows[0].chars, "bar and bar");
+    RegexSetIgnoreCase(0);
+    RegexForget();
+}
+
+static void TestBufferReplaceRegexAcrossRows(void)
+{
+    FreeBuffer();
+    UndoReset();
+
+    AppendRow("a1 b2", 5, VTED_EOL_LF);
+    AppendRow("c3 d4", 5, VTED_EOL_LF);
+
+    CHECK_INT(RegexCompile("[a-z][0-9]"), 0);
+    CHECK_INT(BufferReplaceRegex("<\\0>"), 4);
+    CHECK_STR(vted_buffer.rows[0].chars, "<a1> <b2>");
+    CHECK_STR(vted_buffer.rows[1].chars, "<c3> <d4>");
+
+    /* the replacements undo in reverse order, the way the literal
+       replace lays its steps down */
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[1].chars, "<c3> d4");
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[1].chars, "c3 d4");
+    RegexForget();
+}
+
+static void TestBufferReplaceRegexOfNothing(void)
+{
+    Begin("abc");
+
+    /* no pattern standing, or one the row never matches, replaces
+       nothing */
+    RegexForget();
+    CHECK_INT(BufferReplaceRegex("x"), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+
+    CHECK_INT(RegexCompile("zzz"), 0);
+    CHECK_INT(BufferReplaceRegex("x"), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "abc");
+    CHECK_INT(vted_buffer.dirty, 0);
+    RegexForget();
+}
+
 static void TestInsertTextInsideALine(void)
 {
     Begin("abcd");
@@ -1505,6 +1608,11 @@ int main(void)
     TestBufferReplaceAllAcrossRows();
     TestBufferReplaceAllEmptyQueryDoesNothing();
     TestBufferReplaceAllFoldsCase();
+    TestBufferReplaceRegexWholeMatches();
+    TestBufferReplaceRegexGroups();
+    TestBufferReplaceRegexFoldsCase();
+    TestBufferReplaceRegexAcrossRows();
+    TestBufferReplaceRegexOfNothing();
     TestInsertTextInsideALine();
     TestInsertTextSeveralLines();
     TestInsertTextAddsNoIndent();

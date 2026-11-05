@@ -6,6 +6,7 @@
 #include "vted_screen.h"
 #include "vted_keyboard.h"
 #include "vted_row.h"
+#include "vted_regex.h"
 #include "vted_utf8.h"
 #include "vted_syntax.h"
 #include "vted_edit.h"
@@ -1756,6 +1757,164 @@ int BufferReplaceAll(const char *query, const char *replacement)
 
             count++;
             start = hit + replacement_len; /* continue after the new text */
+        }
+    }
+
+    if (count > 0)
+    {
+        vted_buffer.dirty = 1;
+    }
+
+    return count;
+}
+
+/* writes the replacement out with the groups of the match in place
+   of their escapes: \0 through \9 name the groups, \\ a backslash
+   of its own, and any other letter behind a slash stands for itself.
+   A group that took no part in the match writes nothing. The text
+   comes back in a heap buffer the caller frees */
+static char *ExpandReplacement(const char *replacement, const char *chars,
+                               const vted_regex_group_t *groups)
+{
+    size_t room = strlen(replacement) + 1;
+    int i;
+
+    for (i = 0; i < VTED_REGEX_GROUPS; i++)
+    {
+        if (groups[i].start >= 0)
+        {
+            room += (size_t)(groups[i].end - groups[i].start);
+        }
+    }
+
+    char *out = malloc(room);
+
+    if (out == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    size_t at = 0;
+
+    for (i = 0; replacement[i] != '\0'; i++)
+    {
+        if (replacement[i] != '\\')
+        {
+            out[at++] = replacement[i];
+            continue;
+        }
+
+        i++; /* the letter the escape speaks of */
+
+        if (replacement[i] == '\0')
+        {
+            out[at++] = '\\'; /* a slash at the end stands alone */
+            break;
+        }
+
+        if (replacement[i] >= '0' && replacement[i] <= '9')
+        {
+            int group = replacement[i] - '0';
+
+            if (groups[group].start >= 0)
+            {
+                size_t len =
+                    (size_t)(groups[group].end - groups[group].start);
+
+                memcpy(out + at, chars + groups[group].start, len);
+                at += len;
+            }
+        }
+        else
+        {
+            out[at++] = replacement[i];
+        }
+    }
+
+    out[at] = '\0';
+    return out;
+}
+
+/* replaces every match of the pattern that stands compiled in the
+   regex module with the replacement written out, the escapes of it
+   filled with the groups of the match they name, one undoable step
+   per occurrence, and returns the number of replacements made */
+int BufferReplaceRegex(const char *replacement)
+{
+    int count = 0;
+    int row_index;
+
+    if (!RegexHasPattern())
+    {
+        return 0;
+    }
+
+    for (row_index = 0; row_index < vted_buffer.num_rows; row_index++)
+    {
+        vted_row_t *row = &vted_buffer.rows[row_index];
+        int start = 0; /* keep searching after the last replacement */
+
+        for (;;)
+        {
+            int match_len = 0;
+            vted_regex_group_t groups[VTED_REGEX_GROUPS];
+            int hit = RegexFindNext(row->chars, start, row->size,
+                                    &match_len, groups);
+
+            if (hit < 0)
+            {
+                break;
+            }
+
+            char *text = ExpandReplacement(replacement, row->chars, groups);
+            int text_len = (int)strlen(text);
+
+            /* the bytes the match stood for go into the undo step,
+               taken from the row: a folded pattern matches letters of
+               either case, and undo has to put back the very bytes
+               that were there */
+            char *old_text = malloc((size_t)match_len);
+
+            if (old_text == NULL)
+            {
+                KillApp("malloc");
+            }
+
+            memcpy(old_text, row->chars + hit, (size_t)match_len);
+
+            UndoEntry entry = {
+                .kind = UndoKindReplaceBytes,
+                .row = row_index,
+                .cx = hit,
+                .bytes = old_text,
+                .length = match_len,
+                .new_bytes = text,
+                .new_length = text_len,
+                .undo_y = row_index,
+                .undo_x = hit,
+                .redo_y = row_index,
+                .redo_x = hit + text_len,
+            };
+
+            UndoPush(&entry);
+
+            free(old_text);
+
+            { /* remove the old text at hit */
+                int i;
+
+                for (i = 0; i < match_len; i++)
+                {
+                    RowRemoveChar(row, hit);
+                }
+            }
+
+            RowInsertString(row, hit, text, text_len);
+
+            free(text);
+
+            count++;
+            start = hit + text_len; /* continue after the new text */
         }
     }
 

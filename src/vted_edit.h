@@ -96,4 +96,11 @@ void EditorCut(void);
    replacements made. query must not contain a line break */
 int BufferReplaceAll(const char *query, const char *replacement);
 
+/* the same walk for the pattern that stands compiled in the regex
+   module: the escapes of the replacement are filled with the groups
+   of the match they name, \0 the whole match and \1 through \9 its
+   parentheses, one undoable step per occurrence, and the number of
+   replacements made comes back */
+int BufferReplaceRegex(const char *replacement);
+
 #endif

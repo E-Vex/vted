@@ -1859,7 +1859,27 @@ static void EditorReplace(void)
 
     RememberAnswer(last_replacement, replacement);
 
-    int count = BufferReplaceAll(query, replacement);
+    int count;
+
+    if (search_regex_mode)
+    {
+        /* the pattern is compiled the way the query stands before the
+           walk runs on it: a bad one turns the whole replace away,
+           the text left as it was */
+        if (RegexCompile(query) != 0)
+        {
+            SetStatusMessage("Bad pattern: %s — %s", query, RegexError());
+            free(query);
+            free(replacement);
+            return;
+        }
+
+        count = BufferReplaceRegex(replacement);
+    }
+    else
+    {
+        count = BufferReplaceAll(query, replacement);
+    }
 
     free(query);
     free(replacement);
