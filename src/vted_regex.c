@@ -225,21 +225,31 @@ int RegexFindNext(const char *chars, int from, int to, int *match_len,
             return -1;
         }
 
-        int start = at + (int)m[0].rm_so;
+        int raw_start = at + (int)m[0].rm_so;
         int end = at + (int)m[0].rm_eo;
 
-        if (start >= to)
+        if (raw_start >= to)
         {
             return -1; /* the matches only start later and later */
         }
 
-        if (end == start)
+        if (end == raw_start)
         {
-            at = start + 1; /* a match of no bytes is not a match */
+            at = raw_start + 1; /* a match of no bytes is not a match */
             continue;
         }
 
-        start = AlignStart(chars, start);
+        /* the boundaries may pull the head of the match back before
+           the byte the search asked from: such a match stands where
+           the search came from, and the step past it is taken */
+        int start = AlignStart(chars, raw_start);
+
+        if (start < from)
+        {
+            at = raw_start + 1;
+            continue;
+        }
+
         end = AlignEnd(chars, size, end);
 
         *match_len = end - start;

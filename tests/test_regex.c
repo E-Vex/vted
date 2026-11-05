@@ -201,6 +201,11 @@ static void TestUtf8Boundaries(void)
        still the next the search finds */
     CHECK(Find("\xc3\xa9\xc3\xa9!", 2, 5, &len) == 2);
     CHECK_INT(len, 2);
+
+    /* a search that opens inside a letter is not pulled back onto
+       the letter it sits in: the step past it is taken */
+    CHECK(Find("\xc3\xa9\xc3\xa9!", 1, 5, &len) == 2);
+    CHECK_INT(len, 2);
 }
 
 static void TestCache(void)
