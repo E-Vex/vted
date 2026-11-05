@@ -1679,6 +1679,55 @@ void EditorOutdentSelection(void)
     SetStatusMessage("Outdented %d line%s", changed, changed == 1 ? "" : "s");
 }
 
+/* splices one occurrence into a row: the bytes the match stood for go
+   into the undo step, taken from the row — a folded search matches
+   letters of either case, and undo has to put back the very bytes
+   that were there — then the old text comes out and the new goes in
+   its place. Both replaces walk their matches through here, one
+   undoable step per occurrence */
+static void ReplaceSpanInRow(int row_index, int at, int old_len,
+                             const char *new_text, int new_len)
+{
+    vted_row_t *row = &vted_buffer.rows[row_index];
+    char *old_text = malloc((size_t)old_len);
+
+    if (old_text == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    memcpy(old_text, row->chars + at, (size_t)old_len);
+
+    UndoEntry entry = {
+        .kind = UndoKindReplaceBytes,
+        .row = row_index,
+        .cx = at,
+        .bytes = old_text,
+        .length = old_len,
+        .new_bytes = (char *)new_text,
+        .new_length = new_len,
+        .undo_y = row_index,
+        .undo_x = at,
+        .redo_y = row_index,
+        .redo_x = at + new_len,
+    };
+
+    UndoPush(&entry);
+
+    free(old_text);
+
+    { /* remove the old text at `at` */
+        int i;
+
+        for (i = 0; i < old_len; i++)
+        {
+            RowRemoveChar(row, at);
+        }
+    }
+
+    RowInsertString(row, at, new_text, new_len);
+}
+
 /* replaces every non-overlapping occurrence of query in the buffer with
    replacement, one undoable step per occurrence, and returns the number
    of replacements made. query must not contain a line break; an empty
@@ -1711,49 +1760,8 @@ int BufferReplaceAll(const char *query, const char *replacement)
                 break;
             }
 
-            {
-                /* the bytes the match stood for go into the undo step,
-                   taken from the row: a folded search matches letters
-                   of either case, and undo has to put back the very
-                   bytes that were there */
-                char *old_text = malloc((size_t)query_len);
-
-                if (old_text == NULL)
-                {
-                    KillApp("malloc");
-                }
-
-                memcpy(old_text, &row->chars[hit], (size_t)query_len);
-
-                UndoEntry entry = {
-                    .kind = UndoKindReplaceBytes,
-                    .row = row_index,
-                    .cx = hit,
-                    .bytes = old_text,
-                    .length = query_len,
-                    .new_bytes = (char *)replacement,
-                    .new_length = replacement_len,
-                    .undo_y = row_index,
-                    .undo_x = hit,
-                    .redo_y = row_index,
-                    .redo_x = hit + replacement_len,
-                };
-
-                UndoPush(&entry);
-
-                free(old_text);
-
-                { /* remove the old text at hit */
-                    int i;
-
-                    for (i = 0; i < query_len; i++)
-                    {
-                        RowRemoveChar(row, hit);
-                    }
-                }
-
-                RowInsertString(row, hit, replacement, replacement_len);
-            }
+            ReplaceSpanInRow(row_index, hit, query_len, replacement,
+                             replacement_len);
 
             count++;
             start = hit + replacement_len; /* continue after the new text */
@@ -1869,47 +1877,7 @@ int BufferReplaceRegex(const char *replacement)
             char *text = ExpandReplacement(replacement, row->chars, groups);
             int text_len = (int)strlen(text);
 
-            /* the bytes the match stood for go into the undo step,
-               taken from the row: a folded pattern matches letters of
-               either case, and undo has to put back the very bytes
-               that were there */
-            char *old_text = malloc((size_t)match_len);
-
-            if (old_text == NULL)
-            {
-                KillApp("malloc");
-            }
-
-            memcpy(old_text, row->chars + hit, (size_t)match_len);
-
-            UndoEntry entry = {
-                .kind = UndoKindReplaceBytes,
-                .row = row_index,
-                .cx = hit,
-                .bytes = old_text,
-                .length = match_len,
-                .new_bytes = text,
-                .new_length = text_len,
-                .undo_y = row_index,
-                .undo_x = hit,
-                .redo_y = row_index,
-                .redo_x = hit + text_len,
-            };
-
-            UndoPush(&entry);
-
-            free(old_text);
-
-            { /* remove the old text at hit */
-                int i;
-
-                for (i = 0; i < match_len; i++)
-                {
-                    RowRemoveChar(row, hit);
-                }
-            }
-
-            RowInsertString(row, hit, text, text_len);
+            ReplaceSpanInRow(row_index, hit, match_len, text, text_len);
 
             free(text);
 
