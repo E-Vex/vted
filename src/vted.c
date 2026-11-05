@@ -237,6 +237,10 @@ static void ApplySettings(const vted_settings_t *settings)
     RowSetIgnoreCase(settings->ignore_case);
     RegexSetIgnoreCase(settings->ignore_case);
 
+    /* the way a search opens reading its query comes from the
+       setting too, and Ctrl-T turns it either way from there */
+    search_regex_mode = settings->search_regex != 0;
+
     /* the width reaches every buffer open at startup, so they all
        begin with it; Ctrl-W later sets the live one's alone */
     BuffersSetTabWidth(settings->tab_width);

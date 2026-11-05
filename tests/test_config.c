@@ -236,6 +236,23 @@ static void TestIgnoreCase(void)
     CHECK_INT(settings.ignore_case, 0);
 }
 
+static void TestSearchRegex(void)
+{
+    /* the search opens reading the text itself unless told otherwise */
+    vted_settings_t settings = SettingsDefaults();
+    CHECK_INT(settings.search_regex, 0);
+
+    CHECK_INT(LoadLines("set search-regex on\n", &settings), 0);
+    CHECK_INT(settings.search_regex, 1);
+
+    CHECK_INT(LoadLines("set search-regex off\n", &settings), 0);
+    CHECK_INT(settings.search_regex, 0);
+
+    /* anything else is not a setting */
+    CHECK_INT(LoadLines("set search-regex maybe\n", &settings), 1);
+    CHECK_INT(settings.search_regex, 0);
+}
+
 static void TestBracketColor(void)
 {
     vted_settings_t settings;
@@ -408,6 +425,7 @@ int main(void)
     TestWrapIndent();
     TestIndentGuides();
     TestIgnoreCase();
+    TestSearchRegex();
     TestBracketColor();
     TestParseBracketColor();
     TestBracketColorName();

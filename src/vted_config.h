@@ -33,6 +33,9 @@ typedef struct
                               1 to 7 name a color */
     int ignore_case;       /* 1: the search matches letters without
                               regard to their case */
+    int search_regex;      /* 1: the search reads its query as a
+                              regular expression, the way grep -E
+                              speaks one */
     char theme[33];        /* the name of the color theme: a theme file
                               in the themes directory or a built-in
                               one; "default" is the built-in colors */

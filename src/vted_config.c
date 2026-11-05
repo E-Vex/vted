@@ -22,6 +22,7 @@ vted_settings_t SettingsDefaults(void)
     settings.indent_guides = 0;
     settings.bracket_color = 0;
     settings.ignore_case = 0;
+    settings.search_regex = 0;
     strcpy(settings.theme, "default");
 
     return settings;
@@ -297,6 +298,21 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->ignore_case = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "search-regex"))
+        {
+            /* the search reads its query as a pattern the way grep -E
+               speaks one; Ctrl-T turns it either way in the prompts */
+            int on_off = ParseOnOff(value, value_len);
+
+            if (on_off == -1)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->search_regex = on_off;
             }
         }
         else if (TextIs(key, key_len, "bracket-color"))
