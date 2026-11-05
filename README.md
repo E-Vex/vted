@@ -643,6 +643,7 @@ New in 0.3.0:
 - [docs/architecture.md](docs/architecture.md) — module lifecycle and the edit loop
 - [docs/rendering.md](docs/rendering.md) — how a frame reaches the terminal
 - [docs/terminal-modes.md](docs/terminal-modes.md) — raw mode and the alternate screen
+- [docs/benchmarks.md](docs/benchmarks.md) — what the editor costs to run
 - [docs/vted.1](docs/vted.1) — the manual page source
 
 | Module            | Responsibility                              |
