@@ -22,6 +22,12 @@
 #   python3 packaging/smoke-test.py ./vted
 #   python3 packaging/smoke-test.py dist/vted_0.3.3_amd64.deb-extracted
 #
+# A fourth run walks the replace-all the way a hand would: Ctrl-R
+# asking about one match at a time, n leaving the first, a taking the
+# second and the third with it in the same pass — no ask for the
+# third, no frame per match — and the file saved to disk carrying
+# the proof the pass laid the rest in at once.
+#
 # A mouse run walks the double click the way a hand would: two presses
 # of the left button inside the double click time, the word under them
 # selected, a letter typed over it taking the word in its place, and
@@ -55,6 +61,7 @@ WORDS = '/tmp/vted-smoke-words.txt'  # the buffer the answers come from
 NOTE = '/tmp/vted-smoke-note.txt'    # the buffer the word is typed into
 DATE = '/tmp/vted-smoke-date.txt'    # the buffer the pattern runs in
 CONFIRM = '/tmp/vted-smoke-confirm.txt'  # the buffer the answers walk in
+ALL = '/tmp/vted-smoke-all.txt'      # the buffer the one a takes in
 DBLCLICK = '/tmp/vted-smoke-dblclick.txt'  # the buffer the clicks land in
 MIDDLE = '/tmp/vted-smoke-middle.txt'  # the buffer the paste lands in
 
@@ -289,6 +296,61 @@ def confirm_smoke(binary):
     return 0
 
 
+def all_smoke(binary):
+    """the replace-all run: n leaving the first of three, a taking the
+    second and — the escape hatch of it — the third in the same pass,
+    no ask for it and no frame per match, and the file saved to disk
+    carrying the proof the pass laid the rest in at once"""
+    with open(ALL, 'w') as f:
+        f.write('one red fox, two red hens, three red cars\n')
+
+    pid, fd = spawn(binary, [ALL])
+    out = []
+    time.sleep(0.3)
+    drive(fd, CTRL_R, out)          # Ctrl-R: the replace prompt
+    drive(fd, b'red', out)          # the query
+    drive(fd, ENTER, out)           # Enter: the query stands
+    drive(fd, b'green', out)        # the answer
+    drive(fd, ENTER, out)           # Enter: the walk starts, the first asked
+    drive(fd, b'n', out)            # n: the first stays, the second asked
+    drive(fd, b'a', out)            # a: the second goes, the third with it
+    drive(fd, CTRL_S, out)          # Ctrl-S: save what was answered
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    # the walk asked about the first two; the third went in unasked,
+    # the pass it was taken in never drawing an ask of its own
+    for ask in (b'Replace: red (1 of 3', b'Replace: red (2 of 3'):
+        if ask not in drew:
+            return fail(f'the walk never asked {ask!r}')
+
+    if b'Replace: red (3 of 3' in drew:
+        return fail('the a answer stepped the rest instead of '
+                    'taking them in one pass')
+
+    if b'Replaced 2 occurrences' not in drew:
+        return fail('the pass did not say what it laid in')
+
+    # the answers landed where they were given: the first kept, the
+    # second and the third taken by the one a
+    with open(ALL) as f:
+        text = f.read()
+    if text != 'one red fox, two green hens, three green cars\n':
+        return fail(f'the text reads {text!r}, not the pass laid in')
+
+    print('smoke: OK - took the rest of the replace with one a '
+          'and saved')
+    return 0
+
+
 def dblclick_smoke(binary):
     """the double click run: two presses inside the double click time
     select the word under them, a letter typed over it takes the word,
@@ -388,6 +450,7 @@ def main() -> int:
 
     return quit_smoke(binary) or completion_smoke(binary) \
         or regex_smoke(binary) or confirm_smoke(binary) \
+        or all_smoke(binary) \
         or dblclick_smoke(binary) or middleclick_smoke(binary)
 
 
