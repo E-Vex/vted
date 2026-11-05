@@ -203,6 +203,68 @@ static void TestWordMovementEmptyRow(void)
     CHECK_INT(RowWordLeft(&row, 0), 0);
 }
 
+static void TestWordSpan(void)
+{
+    int start;
+    int end;
+    vted_row_t row = MakeRow("foo bar  baz");
+
+    RowWordSpan(&row, 1, &start, &end);   /* inside foo */
+    CHECK_INT(start, 0);
+    CHECK_INT(end, 3);
+
+    RowWordSpan(&row, 0, &start, &end);   /* its first glyph */
+    CHECK_INT(start, 0);
+    CHECK_INT(end, 3);
+
+    RowWordSpan(&row, 3, &start, &end);   /* the blank run is a span */
+    CHECK_INT(start, 3);
+    CHECK_INT(end, 4);
+
+    RowWordSpan(&row, 5, &start, &end);   /* inside bar */
+    CHECK_INT(start, 4);
+    CHECK_INT(end, 7);
+
+    RowWordSpan(&row, 7, &start, &end);   /* the two blanks: one span */
+    CHECK_INT(start, 7);
+    CHECK_INT(end, 9);
+
+    RowWordSpan(&row, 10, &start, &end);  /* inside baz */
+    CHECK_INT(start, 9);
+    CHECK_INT(end, 12);
+
+    RowWordSpan(&row, 12, &start, &end);  /* at the row end: nothing */
+    CHECK_INT(start, 12);
+    CHECK_INT(end, 12);
+
+    RowWordSpan(&row, 99, &start, &end);  /* past it: nothing either */
+    CHECK_INT(start, 12);
+    CHECK_INT(end, 12);
+
+    row = MakeRow("a->b_c");
+    RowWordSpan(&row, 2, &start, &end);   /* the -> run, not the words */
+    CHECK_INT(start, 1);
+    CHECK_INT(end, 3);
+
+    RowWordSpan(&row, 4, &start, &end);   /* b_c is one word */
+    CHECK_INT(start, 3);
+    CHECK_INT(end, 6);
+
+    row = MakeRow("");
+    RowWordSpan(&row, 0, &start, &end);   /* an empty row spans nothing */
+    CHECK_INT(start, 0);
+    CHECK_INT(end, 0);
+
+    row = MakeRow("h\xC3\xA9llo w\xC3\xB6rld");
+    RowWordSpan(&row, 1, &start, &end);   /* \xC3\xA9 never splits the word */
+    CHECK_INT(start, 0);
+    CHECK_INT(end, 6);
+
+    RowWordSpan(&row, 8, &start, &end);   /* inside the second word */
+    CHECK_INT(start, 7);
+    CHECK_INT(end, 13);
+}
+
 /* collects the completions of a buffer at one cursor spot and checks
    they are the given words, in order */
 static void CheckCompletions(const char *const *texts, int cy, int cx,
@@ -2139,6 +2201,7 @@ int main(void)
     TestIndentLength();
     TestWordRight();
     TestWordLeft();
+    TestWordSpan();
     TestWordMovementUtf8();
     TestWordMovementEmptyRow();
     TestCompletionsExtendTheWordLeftOfTheCursor();
