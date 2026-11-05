@@ -2149,6 +2149,7 @@ static void FreeEditorState(void)
     ScreenFree();
     BuffersFreeOthers();
     RegexForget();
+    EditFreeKeptCopy();
     FreeBuffer();
 }
 

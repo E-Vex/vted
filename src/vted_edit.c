@@ -1032,6 +1032,33 @@ void EditDeleteSelection(void)
     EditClearSelection();
 }
 
+/* the copy the editor keeps: the last text that went out to the
+   clipboard, held on to so a paste of its own can come from it — the
+   middle button pastes it where it is clicked. Only a copy or a cut
+   fills it; a paste from the terminal does not */
+static char *kept_copy = NULL;
+static int kept_copy_length = 0;
+
+/* swaps the kept copy for the text going out, so a paste of its own
+   pastes what the last copy or cut carried; a copy that cannot be
+   kept still goes out to the terminal */
+static void KeepCopy(const char *text, int length)
+{
+    char *copy = malloc((size_t)length + 1);
+
+    if (copy == NULL)
+    {
+        return;
+    }
+
+    memcpy(copy, text, (size_t)length);
+    copy[length] = '\0';
+
+    free(kept_copy);
+    kept_copy = copy;
+    kept_copy_length = length;
+}
+
 void EditorCopy(void)
 {
     /* copies the selection to the clipboard; with nothing selected,
@@ -1061,6 +1088,7 @@ void EditorCopy(void)
         text[length] = '\0';
     }
 
+    KeepCopy(text, length);
     TerminalCopy(text, length);
     free(text);
 
@@ -1076,6 +1104,7 @@ void EditorCut(void)
 
         if (text != NULL)
         {
+            KeepCopy(text, length);
             TerminalCopy(text, length);
             free(text);
         }
@@ -1106,12 +1135,37 @@ void EditorCut(void)
         text[row->size] = '\n';
         text[length] = '\0';
 
+        KeepCopy(text, length);
         TerminalCopy(text, length);
         free(text);
 
         EditorDeleteLine();
         SetStatusMessage("Cut %d bytes", length);
     }
+}
+
+/* pastes the copy the editor kept at the cursor, the way a paste
+   from the terminal arrives: the text goes in as it is, the whole
+   of it one undo step. Returns the number of bytes laid in — 0
+   when no copy has been kept yet */
+int EditorPasteKeptCopy(void)
+{
+    if (kept_copy == NULL)
+    {
+        return 0;
+    }
+
+    EditorInsertText(kept_copy, kept_copy_length);
+    return kept_copy_length;
+}
+
+/* gives the kept copy back on the way out, the way the exit handlers
+   give the rest of the editor state */
+void EditFreeKeptCopy(void)
+{
+    free(kept_copy);
+    kept_copy = NULL;
+    kept_copy_length = 0;
 }
 
 /* how a column rides the comment toggle of its row: the text past

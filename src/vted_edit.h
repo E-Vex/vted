@@ -87,9 +87,20 @@ char *EditCopyText(int *out_length);
 void EditDeleteSelection(void);
 
 /* copies or cuts the selection (or the current line) to the terminal
-   clipboard with an OSC 52 escape sequence */
+   clipboard with an OSC 52 escape sequence; the text of it is kept,
+   so a paste of its own can come from it */
 void EditorCopy(void);
 void EditorCut(void);
+
+/* pastes the copy the editor kept from its last copy or cut at the
+   cursor, the way a paste from the terminal arrives: the text goes
+   in as it is, the whole of it one undo step. Returns the number of
+   bytes laid in — 0 when no copy has been kept yet */
+int EditorPasteKeptCopy(void);
+
+/* gives the kept copy back, the way the exit handlers give the rest
+   of the editor state */
+void EditFreeKeptCopy(void);
 
 /* replaces every occurrence of query in the buffer with replacement,
    one undoable step per occurrence, and returns the number of
