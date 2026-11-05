@@ -195,6 +195,13 @@ int BufferIndentEdges(int row, int *edges, int max);
 int RowWordRight(const vted_row_t *row, int cx);
 int RowWordLeft(const vted_row_t *row, int cx);
 
+/* the run of the class the glyph at cx is in, from its first byte
+   index to one past its last: the same runs the word moves cross,
+   taken as a span instead of a jump, so a blank run or a run of
+   punctuation is a span of its own. A cx at or past the end of the
+   row spans nothing — both indexes come back the end of the row */
+void RowWordSpan(const vted_row_t *row, int cx, int *start, int *end);
+
 /* word completion, the way dabbrev-expand in Emacs works: collects
    the distinct words of the buffer being edited that start with the
    word left of the cursor at (cy, cx), so a menu can offer them. A

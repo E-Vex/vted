@@ -954,6 +954,59 @@ int RowWordLeft(const vted_row_t *row, int cx)
     return at;
 }
 
+/* the run of the class of the glyph at cx, from its first byte index
+   to one past its last: the runs the word moves jump over, taken as
+   a span instead, so a double click can lift the word it lands in
+   off it. A blank run or a run of punctuation is a span of its own,
+   the way it is a word of its own for the moves; a cx at or past the
+   end of the row spans nothing */
+void RowWordSpan(const vted_row_t *row, int cx, int *start, int *end)
+{
+    int at = cx;
+    int prev;
+
+    if (at < 0)
+    {
+        at = 0;
+    }
+
+    if (at >= row->size)
+    {
+        *start = row->size;
+        *end = row->size;
+        return;
+    }
+
+    /* forward over the run the glyph sits in, to one past its end */
+    {
+        Utf8Class run = RowClassAt(row, at);
+
+        while (at < row->size && RowClassAt(row, at) == run)
+        {
+            at = Utf8NextBoundary(row->chars, row->size, at);
+        }
+
+        *end = at;
+    }
+
+    /* and back over it again, to its first glyph */
+    at = cx;
+
+    while (at > 0)
+    {
+        prev = Utf8PrevBoundary(row->chars, at);
+
+        if (RowClassAt(row, prev) != RowClassAt(row, cx))
+        {
+            break;
+        }
+
+        at = prev;
+    }
+
+    *start = at;
+}
+
 /* the words collected so far and what they are matched against: one
    array of fixed lines the scanners fill, the prefix they extend */
 typedef struct
