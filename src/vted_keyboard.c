@@ -492,6 +492,15 @@ int ParseArrowKey(void)
         return WordComplete;
     }
 
+    /* Alt-z stops the editor and hands the terminal to the shell,
+       the way Ctrl-Z used to: raw mode turned the signal generation
+       off, so the shell's own Ctrl-Z never arrives and the z goes
+       with Alt */
+    if (introducer == 'z')
+    {
+        return SuspendEditor;
+    }
+
     /* Alt-1 through Alt-9 land on the buffer with that number; the
        digits above nine would need two keystrokes and are not bound */
     if (introducer >= '1' && introducer <= '9')

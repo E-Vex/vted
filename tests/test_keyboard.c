@@ -306,6 +306,18 @@ static void TestWordCompleteKey(void)
     CHECK_INT(ReadKeyPress(), '/');
 }
 
+static void TestSuspendKey(void)
+{
+    /* Alt-z stops the editor and hands the terminal to the shell,
+       the way Ctrl-Z used to before the terminal went raw */
+    FeedInput("\x1bz");
+    CHECK_INT(ReadKeyPress(), SuspendEditor);
+
+    /* a plain z is still text */
+    FeedInput("z");
+    CHECK_INT(ReadKeyPress(), 'z');
+}
+
 static void TestCommentToggleKey(void)
 {
     /* Ctrl-/ arrives as the byte 0x1F, the one Ctrl-_ has always
@@ -529,6 +541,7 @@ int main(void)
     TestSearchRepeatKeys();
     TestWordDeleteKeys();
     TestWordCompleteKey();
+    TestSuspendKey();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();
     TestCtrlUpDownMoveLines();

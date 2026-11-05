@@ -65,6 +65,9 @@ typedef enum
     DeleteWordRight, /* Alt-d: the word right of the cursor */
     WordComplete,    /* Alt-/: the word left of the cursor, completed
                         from the words of the buffer */
+    SuspendEditor,   /* Alt-z: hand the terminal back to the shell and
+                        stop, the way Ctrl-Z did before the terminal
+                        went raw */
     MousePress,      /* a mouse button went down over the screen */
     MouseRelease,    /* the button came back up */
     MouseDrag,       /* the mouse moved with a button held down */
