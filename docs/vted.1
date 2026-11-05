@@ -365,6 +365,15 @@ later starts with the width the live one uses
 .B Ctrl\-Q
 quit; unsaved changes in any of the open buffers require three
 additional confirmations
+.TP
+.B Alt\-z
+suspend to the shell: the alternate screen, the cooked keys, the
+paste markers and the mouse reporting all go back the shell's way
+and the editor stops the way Ctrl\-Z did before the terminal went
+raw, so the shell reports a stopped job and B fg brings it back
+with the screen drawn whole again. A SIGTSTP that comes from
+outside (B kill \-TSTP) lands the same way, on the next turn of
+the loop, from inside a prompt or not
 .SH TEXT HANDLING
 The cursor moves and deletes by whole UTF\-8 characters, never into
 the middle of a multibyte sequence. Wide characters (CJK, emoji) take

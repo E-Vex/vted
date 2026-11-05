@@ -351,6 +351,11 @@ selection    |
   prompt opens with the width in place, so Enter keeps it and only
   the digits change it                       |
 | Ctrl-Q          | quit (three extra presses when modified)         |
+| Alt-z           | suspend to the shell: the screen, the keys, the
+  paste and the mouse all go back the shell's way and
+  the editor stops the way Ctrl-Z used to — `fg`
+  brings it back, the screen whole again. A SIGTSTP
+  from outside (kill -TSTP) lands the same way  |
 
 With several buffers open, Ctrl-B lists them with their numbers and
 names (a `+` marks unsaved changes): the arrows wrap around the list,
@@ -369,6 +374,11 @@ does, and closing the last buffer starts a fresh empty one.
 
 New in 0.3.3:
 
+- Suspend to the shell: Alt-z hands the terminal back the shell's way
+  (screen, cooked keys, paste and mouse) and stops the editor the way
+  Ctrl-Z did before the terminal went raw; fg brings it back with the
+  screen drawn whole again, and a SIGTSTP from outside lands the same
+  way
 - Block indent: Tab indents every row the selection spans with the
   same bytes it would insert alone — a tab character, or spaces up to
   the next tab stop — and Shift-Tab takes one step back off them, off
