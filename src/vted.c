@@ -389,8 +389,6 @@ static void EditorHandleMouse(int key)
                 EditDeleteSelection();
             }
 
-            ScreenSetSelection(-1, 0, -1, 0);
-
             vted_editor_config.cursor_y = hit_y;
             vted_editor_config.cursor_x = hit_x;
 

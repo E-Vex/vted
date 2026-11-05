@@ -83,7 +83,9 @@ void EditSelectionRange(int *top, int *left, int *bottom, int *right);
 char *EditCopyText(int *out_length);
 
 /* deletes the selection as one undoable change; the cursor lands at
-   the top/left end of what was selected */
+   the top/left end of what was selected, and the light the frame
+   drew it with goes out, so whatever lands in the span's place is
+   not lit as if still selected */
 void EditDeleteSelection(void);
 
 /* copies or cuts the selection (or the current line) to the terminal

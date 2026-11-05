@@ -942,6 +942,11 @@ void EditDeleteSelection(void)
         return;
     }
 
+    /* the light goes out with the selection: the callers that delete
+       one mid-keystroke — a paste, a typed letter, a cut — would
+       otherwise leave the span lit over whatever lands in its place */
+    ScreenSetSelection(-1, 0, -1, 0);
+
     for (row = top; row <= bottom; row++)
     {
         int start = (row == top) ? left : 0;
