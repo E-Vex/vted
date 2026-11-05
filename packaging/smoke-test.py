@@ -21,6 +21,12 @@
 #
 #   python3 packaging/smoke-test.py ./vted
 #   python3 packaging/smoke-test.py dist/vted_0.3.3_amd64.deb-extracted
+#
+# A mouse run walks the double click the way a hand would: two presses
+# of the left button inside the double click time, the word under them
+# selected, a letter typed over it taking the word in its place, and
+# the file saved to disk carrying the proof the click landed where
+# the frame draws it.
 import os
 import pty
 import select
@@ -45,6 +51,7 @@ WORDS = '/tmp/vted-smoke-words.txt'  # the buffer the answers come from
 NOTE = '/tmp/vted-smoke-note.txt'    # the buffer the word is typed into
 DATE = '/tmp/vted-smoke-date.txt'    # the buffer the pattern runs in
 CONFIRM = '/tmp/vted-smoke-confirm.txt'  # the buffer the answers walk in
+DBLCLICK = '/tmp/vted-smoke-dblclick.txt'  # the buffer the clicks land in
 
 
 def spawn(binary, args):
@@ -277,6 +284,46 @@ def confirm_smoke(binary):
     return 0
 
 
+def dblclick_smoke(binary):
+    """the double click run: two presses inside the double click time
+    select the word under them, a letter typed over it takes the word,
+    and the file saved to disk carrying the proof the click landed
+    where the frame draws it"""
+    with open(DBLCLICK, 'w') as f:
+        f.write('one two three\nfour five six\n')
+
+    pid, fd = spawn(binary, [DBLCLICK])
+    out = []
+    time.sleep(0.3)
+    # 'w' of "two" is drawn at terminal column 10, row 1: the gutter
+    # of a two-row file is four cells, and the w is the fifth text
+    # cell of the first row. The three reports go in one write, so
+    # the second press lands inside the double click time of the first
+    drive(fd, b'\x1b[<0;10;1M\x1b[<0;10;1m\x1b[<0;10;1M', out)
+    drive(fd, b'X', out)     # typing over the selection takes the word
+    drive(fd, CTRL_S, out)   # Ctrl-S: save what the click selected
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    # the word under the click is what the typing replaced: the
+    # second row never touched, the first carrying the one letter
+    with open(DBLCLICK) as f:
+        text = f.read()
+    if text != 'one X three\nfour five six\n':
+        return fail(f'the text reads {text!r}, '
+                    'not the word the double click took')
+
+    print('smoke: OK - selected a word with a double click '
+          'and typed over it')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -287,7 +334,8 @@ def main() -> int:
         return 2
 
     return quit_smoke(binary) or completion_smoke(binary) \
-        or regex_smoke(binary) or confirm_smoke(binary)
+        or regex_smoke(binary) or confirm_smoke(binary) \
+        or dblclick_smoke(binary)
 
 
 if __name__ == '__main__':
