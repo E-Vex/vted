@@ -125,6 +125,8 @@ check: all $(TEST_BINS)
 	@for test_bin in $(TEST_BINS); do ./$$test_bin || exit 1; done
 	@printf "$(CYAN)Smoke testing the editor over a pty:$(RESET)\n"
 	python3 packaging/smoke-test.py ./$(TARGET)
+	@printf "$(CYAN)Suspend round trip through a job-control shell:$(RESET)\n"
+	python3 packaging/suspend-check.py ./$(TARGET)
 	@printf "$(GREEN)$(BOLD)✓ Unit tests and smoke test passed$(RESET)\n"
 
 # Benchmark: loading, saving and editing a ~100 MB file.
