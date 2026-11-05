@@ -1370,7 +1370,7 @@ static int FindMatch(const char *query, int start_row, int start_col,
    afresh from where the search started, so it refines the match in
    place. Returns the row of the match it left the cursor on, -1
    when the query has none */
-static int SearchStep(const char *query, int query_len, int direction,
+static int SearchStep(const char *query, int direction,
                       int last_match_row, int saved_y, int saved_x)
 {
     int search_row;
@@ -1476,7 +1476,7 @@ static void EditorFind(void)
         /* a remembered query searches at once, so its matches light
            up the way they do while it is being typed */
         ScreenSetSearchQuery(query, query_len);
-        last_match_row = SearchStep(query, query_len, direction,
+        last_match_row = SearchStep(query, direction,
                                     last_match_row, saved_y, saved_x);
     }
 
@@ -1581,7 +1581,7 @@ static void EditorFind(void)
            match the cursor sits on, so every match on a line is
            reachable; a changed query searches afresh from where the
            search started, so it refines the match in place */
-        last_match_row = SearchStep(query, query_len, direction,
+        last_match_row = SearchStep(query, direction,
                                     last_match_row, saved_y, saved_x);
     }
 
