@@ -326,8 +326,15 @@ menu a click takes the line drawn under it, the wheel stepping the
 selection a line at a notch. Hold Shift for the terminal's own
 selection    |
 | Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
-| Ctrl-R          | search and replace every occurrence; the
-  prompts open with the last query and answer              |
+| Ctrl-R          | search and replace, one match at a time: the
+  walk starts at the cursor and wraps around the buffer, every
+  match lit the way the search lights them, the one being asked
+  about inverted, the bar counting where it stands ("2 of 17");
+  y replaces it, n leaves it, a replaces it and the rest without
+  asking again, q or ESC stops with what is done; each
+  replacement one undo step; the prompts open with the last
+  query and answer, so Enter alone repeats a replace as it
+  stands                       |
 | Ctrl-Z          | undo (a typing burst is one change)              |
 | Ctrl-Y          | redo the last undone change                      |
 | typing          | insert at the cursor (replaces the selection)    |
@@ -373,6 +380,20 @@ unsaved changes ask for three more presses first, the way Ctrl-Q
 does, and closing the last buffer starts a fresh empty one.
 
 ## Features
+
+New in 0.3.4:
+
+- Replace with confirmation: Ctrl-R asks about one match at a time
+  instead of laying every occurrence in at once. The walk starts at
+  the cursor and wraps around the buffer the way the search does,
+  every match lit while it runs and the one being asked about
+  inverted, the bar counting where it stands ("2 of 17") the way the
+  search prompt counts. y replaces the match, n leaves it, a
+  replaces it and every one after it without asking again — the
+  replace-all of before in one key — and q or ESC stops with what
+  is done. Each replacement is one undo step, as before, so Ctrl-Z
+  walks the whole thing back one occurrence at a time; a query with
+  no matches says so in the bar instead of reporting zero
 
 New in 0.3.3:
 
