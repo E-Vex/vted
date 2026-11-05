@@ -155,6 +155,29 @@ int RegexHasPattern(void)
     return has_pattern;
 }
 
+/* the match a pattern that opens with ^ leaves at the head of the
+   row: the only place it can leave one, the same for the way there
+   and the way back */
+static int HeadMatch(const char *chars, int size, int *match_len,
+                     vted_regex_group_t *groups)
+{
+    regmatch_t m[VTED_REGEX_GROUPS];
+
+    if (regexec(&compiled, chars, VTED_REGEX_GROUPS, m, 0) != 0)
+    {
+        return -1;
+    }
+
+    if (m[0].rm_so != 0 || m[0].rm_eo == 0)
+    {
+        return -1; /* an empty match at the head is not a match */
+    }
+
+    *match_len = AlignEnd(chars, size, (int)m[0].rm_eo);
+    FillGroups(m, 0, chars, size, groups);
+    return 0;
+}
+
 int RegexFindNext(const char *chars, int from, int to, int *match_len,
                   vted_regex_group_t *groups)
 {
@@ -175,30 +198,20 @@ int RegexFindNext(const char *chars, int from, int to, int *match_len,
         to = size;
     }
 
-    regmatch_t m[VTED_REGEX_GROUPS];
-
     /* a pattern that opens with ^ pins every match of it to the head
        of the row: either the head itself matches or the row holds
        nothing for this window */
     if (compiled_pattern[0] == '^')
     {
-        if (from > 0 || to <= 0 ||
-            regexec(&compiled, chars, VTED_REGEX_GROUPS, m, 0) != 0)
+        if (from > 0 || to <= 0)
         {
             return -1;
         }
 
-        if (m[0].rm_so != 0 || m[0].rm_eo == 0)
-        {
-            return -1; /* an empty match at the head is not one */
-        }
-
-        int end = AlignEnd(chars, size, (int)m[0].rm_eo);
-
-        *match_len = end;
-        FillGroups(m, 0, chars, size, groups);
-        return 0;
+        return HeadMatch(chars, size, match_len, groups);
     }
+
+    regmatch_t m[VTED_REGEX_GROUPS];
 
     /* the engine reads the tail of the row that starts at from, so
        its leftmost match is the first one of the whole row that
@@ -235,4 +248,97 @@ int RegexFindNext(const char *chars, int from, int to, int *match_len,
     }
 
     return -1;
+}
+
+int RegexFindPrev(const char *chars, int from, int to, int *match_len,
+                  vted_regex_group_t *groups)
+{
+    if (!has_pattern || chars == NULL || match_len == NULL)
+    {
+        return -1;
+    }
+
+    int size = (int)strlen(chars);
+
+    if (from < 0)
+    {
+        from = 0;
+    }
+
+    if (to > size)
+    {
+        to = size;
+    }
+
+    /* the head of the row is the only place a ^ match can start, the
+       same one the way back finds */
+    if (compiled_pattern[0] == '^')
+    {
+        if (from > 0 || to <= 0)
+        {
+            return -1;
+        }
+
+        return HeadMatch(chars, size, match_len, groups);
+    }
+
+    regmatch_t m[VTED_REGEX_GROUPS];
+
+    /* the engine has no way back of its own, so the row is walked
+       from its head and the last match that starts inside the window
+       is the one kept; the walk steps past the first byte of every
+       match it meets, so the ones that share bytes each get their
+       turn, the way the search steps through them */
+    int best = -1;
+    int best_len = 0;
+    vted_regex_group_t best_groups[VTED_REGEX_GROUPS];
+    int at = 0;
+
+    while (at < to)
+    {
+        if (regexec(&compiled, chars + at, VTED_REGEX_GROUPS, m, 0) != 0)
+        {
+            break;
+        }
+
+        int raw_start = at + (int)m[0].rm_so;
+        int raw_end = at + (int)m[0].rm_eo;
+
+        if (raw_start >= to)
+        {
+            break; /* the matches only start later and later */
+        }
+
+        if (raw_end == raw_start)
+        {
+            at = raw_start + 1; /* a match of no bytes is not one */
+            continue;
+        }
+
+        int start = AlignStart(chars, raw_start);
+        int end = AlignEnd(chars, size, raw_end);
+
+        if (start >= from)
+        {
+            best = start;
+            best_len = end - start;
+            FillGroups(m, at, chars, size, best_groups);
+        }
+
+        at = raw_start + 1;
+    }
+
+    if (best < 0)
+    {
+        return -1;
+    }
+
+    *match_len = best_len;
+
+    if (groups != NULL)
+    {
+        memcpy(groups, best_groups, sizeof(best_groups));
+    }
+
+    return best;
 }

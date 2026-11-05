@@ -222,6 +222,72 @@ static void TestCache(void)
     CHECK(Find("one two", 0, 7, NULL) == -1);
 }
 
+static void TestBackwardFind(void)
+{
+    int len = 0;
+
+    CHECK(RegexCompile("ab") == 0);
+
+    /* the last match that starts inside the window is the one the
+       way back lands on */
+    CHECK(RegexFindPrev("abab", 0, 4, &len, NULL) == 2);
+    CHECK_INT(len, 2);
+    CHECK(RegexFindPrev("abab", 0, 2, &len, NULL) == 0);
+    CHECK(RegexFindPrev("abab", 1, 4, &len, NULL) == 2);
+    CHECK(RegexFindPrev("abab", 3, 4, &len, NULL) == -1);
+
+    /* a match that starts inside the window but runs past its edge
+       still counts, the way the literal search counts it */
+    CHECK(RegexFindPrev("abab", 0, 1, &len, NULL) == 0);
+    CHECK_INT(len, 2);
+
+    /* the matches that share bytes each get their turn, the way the
+       literal search steps through them */
+    CHECK(RegexCompile("aa") == 0);
+    CHECK(RegexFindPrev("aaa", 0, 3, &len, NULL) == 1);
+    CHECK_INT(len, 2);
+    CHECK(RegexFindPrev("aaa", 0, 2, &len, NULL) == 1);
+    CHECK(RegexFindPrev("aaa", 2, 3, &len, NULL) == -1);
+
+    /* $ holds at the end of the row on the way back too */
+    CHECK(RegexCompile("b$") == 0);
+    CHECK(RegexFindPrev("abab", 0, 4, &len, NULL) == 3);
+    CHECK_INT(len, 1);
+    CHECK(RegexFindPrev("abab", 0, 3, &len, NULL) == -1);
+
+    /* a ^ pattern finds the head of the row from the other end the
+       same way it does going forward */
+    CHECK(RegexCompile("^ab") == 0);
+    CHECK(RegexFindPrev("abab", 0, 4, &len, NULL) == 0);
+    CHECK(RegexFindPrev("abab", 1, 4, &len, NULL) == -1);
+
+    /* empty matches are not matches on the way back either */
+    CHECK(RegexCompile("a*") == 0);
+    CHECK(RegexFindPrev("bab", 0, 3, &len, NULL) == 1);
+    CHECK_INT(len, 1);
+    CHECK(RegexFindPrev("bb", 0, 2, &len, NULL) == -1);
+
+    /* the groups come back with the match they belong to */
+    CHECK(RegexCompile("(a+)b") == 0);
+    vted_regex_group_t groups[VTED_REGEX_GROUPS];
+    CHECK(RegexFindPrev("aab ab", 0, 6, &len, groups) == 4);
+    CHECK_INT(len, 2);
+    CHECK_INT(groups[1].start, 4);
+    CHECK_INT(groups[1].end, 5);
+
+    /* on the way back the walk may step inside an earlier match: the
+       ab at 1 starts after the aab at 0, so it is the last one in a
+       window that holds them both */
+    CHECK(RegexFindPrev("aab ab", 0, 4, &len, groups) == 1);
+    CHECK_INT(len, 2);
+    CHECK_INT(groups[1].start, 1);
+    CHECK_INT(groups[1].end, 2);
+    CHECK(RegexFindPrev("aab ab", 0, 1, &len, groups) == 0);
+    CHECK_INT(len, 3);
+    CHECK_INT(groups[1].start, 0);
+    CHECK_INT(groups[1].end, 2);
+}
+
 int main(void)
 {
     TestCompile();
@@ -233,6 +299,7 @@ int main(void)
     TestFoldCase();
     TestUtf8Boundaries();
     TestCache();
+    TestBackwardFind();
 
     return TestSummary("regex");
 }

@@ -54,4 +54,11 @@ int RegexHasPattern(void);
 int RegexFindNext(const char *chars, int from, int to, int *match_len,
                   vted_regex_group_t *groups);
 
+/* the last match of the pattern that starts inside [from, to), the
+   same answers through the other end of the window: the row is walked
+   from its head, so the ^ of the pattern keeps its meaning and the
+   matches that overlap each other each get their turn */
+int RegexFindPrev(const char *chars, int from, int to, int *match_len,
+                  vted_regex_group_t *groups);
+
 #endif
