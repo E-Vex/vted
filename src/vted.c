@@ -11,6 +11,7 @@
 #include "vted_keyboard.h"
 #include "vted_screen.h"
 #include "vted_row.h"
+#include "vted_regex.h"
 #include "vted_edit.h"
 #include "vted_undo.h"
 #include "vted_file.h"
@@ -33,6 +34,12 @@
    it: Enter alone repeats the search as it stands */
 static char last_query[PROMPT_MAX + 1];
 static char last_replacement[PROMPT_MAX + 1];
+
+/* the way the search reads its query: 1 reads it as a regular
+   expression the way grep -E speaks one, 0 as the text itself. The
+   search prompt flips it and the next search opens the way the last
+   one left it */
+static int search_regex_mode = 0;
 
 /* keeps a copy of the answer for the next prompt to open with */
 static void RememberAnswer(char *slot, const char *answer)
@@ -206,8 +213,10 @@ static void ApplySettings(const vted_settings_t *settings)
     SyntaxSetBracketColor(settings->bracket_color);
 
     /* the search takes its case from the setting, and the replace
-       follows, both through the row module the search runs in */
+       follows, both through the row module the search runs in; the
+       regex one takes it in at the compile of its pattern */
     RowSetIgnoreCase(settings->ignore_case);
+    RegexSetIgnoreCase(settings->ignore_case);
 
     /* the width reaches every buffer open at startup, so they all
        begin with it; Ctrl-W later sets the live one's alone */
@@ -1227,6 +1236,47 @@ static void ClearSearchHighlight(void)
     search_highlight_on = 0;
 }
 
+/* counts the matches of the pattern in the buffer, and how many of
+   them sit before the cursor: the same bookkeeping the literal count
+   keeps in the row module, walked through the regex one instead. The
+   walk steps to the next character after every match it counts, so
+   the same match is never counted twice */
+static void CountMatchesRegex(int row, int col, int *total, int *before)
+{
+    int total_count = 0;
+    int before_count = 0;
+    int i;
+
+    for (i = 0; i < vted_buffer.num_rows; i++)
+    {
+        const vted_row_t *scan_row = &vted_buffer.rows[i];
+        int at = 0;
+
+        for (;;)
+        {
+            int len = 0;
+            int hit = RegexFindNext(scan_row->chars, at, scan_row->size,
+                                    &len, NULL);
+
+            if (hit < 0)
+            {
+                break;
+            }
+
+            if (i < row || (i == row && hit < col))
+            {
+                before_count++;
+            }
+
+            total_count++;
+            at = Utf8NextBoundary(scan_row->chars, scan_row->size, hit);
+        }
+    }
+
+    *total = total_count;
+    *before = before_count;
+}
+
 /* one row of the search: the first match of the query in the window
    [from, to) going forward, the last one before `to` going backward.
    Returns the byte the match starts at, -1 when the row holds none,
@@ -1236,6 +1286,20 @@ static int FindInRow(const vted_row_t *row, int from, int to,
                      int direction, const char *query, int query_len,
                      int *hit_len)
 {
+    if (search_regex_mode)
+    {
+        /* a pattern that stands compiled answers for the row; a bad
+           one answers nothing, the way an empty query does */
+        if (!RegexHasPattern())
+        {
+            return -1;
+        }
+
+        return direction > 0
+                   ? RegexFindNext(row->chars, from, to, hit_len, NULL)
+                   : RegexFindPrev(row->chars, from, to, hit_len, NULL);
+    }
+
     *hit_len = query_len;
 
     return direction > 0
@@ -1435,6 +1499,7 @@ static void EditorFind(void)
     int direction = 1; /* 1 forward, -1 backward */
     int last_match_row = -1;
     int query_changed = 0;
+    int pattern_ok = 1; /* the pattern of the regex mode stands */
 
     /* remember where we were, ESC puts everything back */
     int saved_x = vted_editor_config.cursor_x;
@@ -1473,9 +1538,22 @@ static void EditorFind(void)
         query[seed_len] = '\0';
         query_len = seed_len;
 
+        /* a remembered pattern is compiled before the first step runs
+           on it, so the search opens the way it left */
+        if (search_regex_mode)
+        {
+            pattern_ok = RegexCompile(query) == 0;
+        }
+
         /* a remembered query searches at once, so its matches light
-           up the way they do while it is being typed */
-        ScreenSetSearchQuery(query, query_len);
+           up the way they do while it is being typed; the passive
+           light stays off for a pattern until the screen knows to
+           read one */
+        if (!search_regex_mode)
+        {
+            ScreenSetSearchQuery(query, query_len);
+        }
+
         last_match_row = SearchStep(query, direction,
                                     last_match_row, saved_y, saved_x);
     }
@@ -1485,30 +1563,45 @@ static void EditorFind(void)
         /* the prompt says where the match the cursor sits on stands
            among all of them, so typing tells at a glance whether the
            query is any good before a single arrow is pressed */
-        if (query_len > 0)
+        if (query_len > 0 && search_regex_mode && !pattern_ok)
+        {
+            SetStatusMessage("Find (regex): %s — %s", query, RegexError());
+        }
+        else if (query_len > 0)
         {
             int total;
             int before;
 
-            BufferCountMatches(query, query_len,
-                               vted_editor_config.cursor_y,
-                               vted_editor_config.cursor_x,
-                               &total, &before);
-
-            if (total > 0)
+            if (search_regex_mode)
             {
-                SetStatusMessage("Find: %s (%d of %d, ESC cancel, Enter keep, arrows next/prev)",
-                                 query, before + 1, total);
+                CountMatchesRegex(vted_editor_config.cursor_y,
+                                  vted_editor_config.cursor_x,
+                                  &total, &before);
             }
             else
             {
-                SetStatusMessage("Find: %s (no matches, ESC cancel, Enter keep, arrows next/prev)",
-                                 query);
+                BufferCountMatches(query, query_len,
+                                   vted_editor_config.cursor_y,
+                                   vted_editor_config.cursor_x,
+                                   &total, &before);
+            }
+
+            if (total > 0)
+            {
+                SetStatusMessage("Find%s: %s (%d of %d, ESC cancel, Enter keep, arrows next/prev)",
+                                 search_regex_mode ? " (regex)" : "", query,
+                                 before + 1, total);
+            }
+            else
+            {
+                SetStatusMessage("Find%s: %s (no matches, ESC cancel, Enter keep, arrows next/prev)",
+                                 search_regex_mode ? " (regex)" : "", query);
             }
         }
         else
         {
-            SetStatusMessage("Find: %s (ESC cancel, Enter keep, arrows next/prev)", query);
+            SetStatusMessage("Find%s: %s (ESC cancel, Enter keep, arrows next/prev)",
+                             search_regex_mode ? " (regex)" : "", query);
         }
         RefreshScreen();
 
@@ -1570,10 +1663,21 @@ static void EditorFind(void)
         }
 
         /* the query changed: every match of it lights up from here
-           on, the one the cursor is on inverted as before */
+           on, the one the cursor is on inverted as before; in the
+           regex mode the pattern is compiled the way it stands, and
+           a bad one leaves the cursor where it is until it is fixed */
         if (query_changed)
         {
-            ScreenSetSearchQuery(query, query_len);
+            if (search_regex_mode)
+            {
+                pattern_ok = query_len == 0 || RegexCompile(query) == 0;
+                ScreenSetSearchQuery(NULL, 0);
+            }
+            else
+            {
+                ScreenSetSearchQuery(query, query_len);
+            }
+
             query_changed = 0;
         }
 
@@ -1618,6 +1722,16 @@ static void EditorSearchRepeat(int direction)
         return;
     }
 
+    /* the pattern of the regex mode is asked for again before the
+       step runs on it: it stands from the search that left it, but
+       the case setting may have turned since */
+    if (search_regex_mode && RegexCompile(last_query) != 0)
+    {
+        ClearSearchHighlight();
+        SetStatusMessage("Bad pattern: %s — %s", last_query, RegexError());
+        return;
+    }
+
     /* the cursor may rest on the phantom row past the end */
     if (search_row >= vted_buffer.num_rows)
     {
@@ -1655,10 +1769,17 @@ static void EditorSearchRepeat(int direction)
     vted_editor_config.match_len = match_len;
     ScreenMarkRowDirty(match_row);
 
-    ScreenSetSearchQuery(last_query, query_len);
+    /* the matches of a literal query keep their light; a pattern
+       keeps it once the screen reads one */
+    if (!search_regex_mode)
+    {
+        ScreenSetSearchQuery(last_query, query_len);
+    }
+
     search_highlight_on = 1;
 
-    SetStatusMessage("Find: %s", last_query);
+    SetStatusMessage("Find%s: %s", search_regex_mode ? " (regex)" : "",
+                     last_query);
 }
 
 static void EditorReplace(void)
