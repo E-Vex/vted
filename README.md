@@ -316,7 +316,11 @@ could not be used. A theme's name is made of letters, digits, `-` and
 | mouse           | a click places the cursor at the position drawn
 under it — the gutter counting as the first text cell of its row, a
 wrapped line as a screen line of its own, the tildes below the text
-as the row past the end; holding the left button down and moving the
+as the row past the end; a double click selects
+the word under it, a blank run or a run of punctuation a word of
+its own; the middle button pastes at the click what the last copy
+or cut kept, a selection giving way first the way every paste
+replaces one; holding the left button down and moving the
 mouse selects from where the click went down — a pointer that runs
 onto the bars at the bottom scrolling the viewport a screen line
 along at a report — and the wheel scrolls
@@ -325,7 +329,8 @@ scroll one; over the Ctrl-B buffer list and the Alt-/ completion
 menu a click takes the line drawn under it, the wheel stepping the
 selection a line at a notch. Hold Shift for the terminal's own
 selection    |
-| Ctrl-C / Ctrl-X | copy or cut the selection (or the current line)  |
+| Ctrl-C / Ctrl-X | copy or cut the selection (or the current line);
+  the text is kept, and the middle button pastes it at the click  |
 | Ctrl-R          | search and replace, one match at a time: the
   walk starts at the cursor and wraps around the buffer, every
   match lit the way the search lights them, the one being asked
@@ -438,7 +443,12 @@ New in 0.3.3:
   click went down (Ctrl-C, Ctrl-X, Ctrl-/ and typing take it the way
   they take the shift selections), a pointer that runs onto the bars
   scrolling the viewport a screen line along at a report, and the
-  wheel scrolls the viewport three screen lines at a notch. The
+  wheel scrolls the viewport three screen lines at a notch. A
+  double click selects the word under it, a blank run and a run of
+  punctuation words of their own; the middle button pastes at the
+  click what the last copy or cut kept, a selection giving way
+  first, the way every paste replaces one — "Nothing copied yet"
+  in the bar when nothing has been. The
   Ctrl-B buffer list takes a left click on the buffer drawn under
   it, the wheel stepping its selection a buffer at a notch. The
   terminal is asked for the reports at startup and gives them back

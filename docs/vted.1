@@ -276,11 +276,16 @@ viewport three screen lines at a notch, the way Alt\-e and Alt\-y
 scroll one; over the Ctrl\-B buffer list and the Alt\-/ completion
 menu a left click takes the line drawn under it, the wheel stepping
 the selection a line at a notch. Clicks on the bars at the bottom
-place nothing, and the middle and the right button are not bound
+place nothing; a double click selects the word under it, a blank
+run and a run of punctuation words of their own; the middle button
+pastes at the click what the last copy or cut kept, a selection
+giving way first the way every paste replaces one; and the right
+button is not bound
 .TP
 .B Ctrl\-C / Ctrl\-X
 copy or cut the selection (or the current line) to the system clipboard
-via an OSC 52 escape sequence
+via an OSC 52 escape sequence, the text kept so the middle button
+can paste it at the click
 .TP
 .B Ctrl\-R
 search and replace, one match at a time: the walk starts at the cursor
