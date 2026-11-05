@@ -40,6 +40,18 @@ static void RememberAnswer(char *slot, const char *answer)
     snprintf(slot, PROMPT_MAX + 1, "%s", answer);
 }
 
+/* carries a suspend request out where it arrives: Alt-z asks for it
+   while editing, and a kill -TSTP from outside leaves only a flag
+   behind. Every read loop answers it right after reading a key, so
+   no prompt keeps the process awake when the shell wants it back */
+static void EditorSuspendIfAsked(int c)
+{
+    if (c == SuspendEditor || TerminalSuspendRequested())
+    {
+        TerminalSuspend();
+    }
+}
+
 static char *EditorPrompt(const char *label, const char *initial)
 {
     /* asks for one line of text in the message bar, opening with the
@@ -83,6 +95,8 @@ static char *EditorPrompt(const char *label, const char *initial)
         RefreshScreen();
 
         int c = ReadKeyPress();
+
+        EditorSuspendIfAsked(c);
 
         if (c == 0)
         {
@@ -769,6 +783,8 @@ static void EditorPickBuffer(void)
 
         int c = ReadKeyPress();
 
+        EditorSuspendIfAsked(c);
+
         if (c == 0)
         {
             /* idle read timeout: just repaint the menu — unless a
@@ -1092,6 +1108,8 @@ static void EditorCompleteWord(void)
         RefreshScreen();
 
         int c = ReadKeyPress();
+
+        EditorSuspendIfAsked(c);
 
         if (c == 0)
         {
@@ -1465,6 +1483,8 @@ static void EditorFind(void)
 
         int c = ReadKeyPress();
 
+        EditorSuspendIfAsked(c);
+
         if (c == 0)
         {
             /* idle read timeout: repaint the prompt, do not touch
@@ -1730,6 +1750,7 @@ int main(int argc, char *argv[])
     EnableTerminalRawMode();
     SetupExitSignals();
     SetupResizeSignal();
+    SetupSuspendSignal();
     EnterToAlternateScreenBuffer();
     EnableBracketedPaste();
     EnableMouseTracking();
@@ -1801,6 +1822,8 @@ int main(int argc, char *argv[])
     while (1)
     {
         int c_in = ReadKeyPress();
+
+        EditorSuspendIfAsked(c_in);
 
         if (c_in == 0)
         {
