@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 /*===============================*/
 #include "tests/vted_test.h"
 #include "src/vted_terminal.h"
@@ -73,9 +74,49 @@ static void TestBracketedPasteSequences(void)
     CHECK_STR(out, "");
 }
 
+static void TestSuspendHandoverSequences(void)
+{
+    char out[96];
+
+    /* the handover only writes for the modes the editor had: switch
+       both on first, the way the editor runs */
+    CaptureOutput(EnableBracketedPaste, out, sizeof(out));
+    CaptureOutput(EnableMouseTracking, out, sizeof(out));
+
+    /* the shell gets its screen, its pastes and its mouse back */
+    CaptureOutput(TerminalGiveToShell, out, sizeof(out));
+    CHECK_STR(out, "\x1b[?1049l\x1b[?2004l\x1b[?1000l\x1b[?1002l\x1b[?1006l");
+
+    /* the editor comes back asking for every mode again */
+    CaptureOutput(TerminalTakeFromShell, out, sizeof(out));
+    CHECK_STR(out, "\x1b[?1049h\x1b[?2004h\x1b[?1000h\x1b[?1002h\x1b[?1006h");
+
+    /* the test leaves the modes as it found them */
+    CaptureOutput(DisableBracketedPaste, out, sizeof(out));
+    CaptureOutput(DisableMouseTracking, out, sizeof(out));
+}
+
+static void TestSuspendRequestFlag(void)
+{
+    /* a suspend that comes from outside is only noted: the process
+       lives on and the main loop carries the request out */
+    SetupSuspendSignal();
+
+    CHECK_INT(TerminalSuspendRequested(), 0);
+
+    raise(SIGTSTP);
+
+    CHECK_INT(TerminalSuspendRequested(), 1);
+
+    /* a request is answered once: the next query is quiet again */
+    CHECK_INT(TerminalSuspendRequested(), 0);
+}
+
 int main(void)
 {
     TestBracketedPasteSequences();
+    TestSuspendHandoverSequences();
+    TestSuspendRequestFlag();
 
     return TestSummary("terminal");
 }

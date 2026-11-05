@@ -48,9 +48,29 @@ void SetupExitSignals(void);
    repaints at the new size */
 void SetupResizeSignal(void);
 
+/* note a suspend that comes from outside (kill -TSTP): the request
+   is carried out on the next loop turn, with the terminal restored
+   the usual way before the process stops */
+void SetupSuspendSignal(void);
+
 /* queries */
-int TerminalWantsExit(void);   /* 1 when the editor should leave */
-int TerminalSizeChanged(void); /* 1 once after a resize, then 0 */
+int TerminalWantsExit(void);        /* 1 when the editor should leave */
+int TerminalSizeChanged(void);      /* 1 once after a resize, then 0 */
+int TerminalSuspendRequested(void); /* 1 once after a suspend ask, then 0 */
+
+/* hands the screen to the shell for a suspend: the shell's screen
+   comes back whole, pastes and the mouse work the shell's way
+   again. The keys stay raw until TerminalSuspend() */
+void TerminalGiveToShell(void);
+
+/* takes the screen back when the editor continues: the alternate
+   screen, paste and mouse reporting, and a whole-screen repaint */
+void TerminalTakeFromShell(void);
+
+/* the whole suspend: the terminal goes to the shell (screen,
+   cooked keys), the process stops the ordinary way, and when it is
+   continued everything is asked for again */
+void TerminalSuspend(void);
 
 /* the descriptor keys are read from and the terminal modes are
    managed on: standard input when it is a terminal, /dev/tty

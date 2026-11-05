@@ -10,6 +10,7 @@
 #include <fcntl.h>
 /*===============================*/
 #include "vted_terminal.h"
+#include "vted_screen.h"
 /*===============================*/
 
 struct termios old_terminal_settings;
@@ -26,6 +27,10 @@ static volatile sig_atomic_t vted_wants_exit = 0;
 /* set by SIGWINCH: the next frame repaints at the new terminal size */
 static volatile sig_atomic_t vted_terminal_resized = 0;
 
+/* set by SIGTSTP: the editor hands the terminal to the shell and
+   stops on the next loop turn */
+static volatile sig_atomic_t vted_suspend_requested = 0;
+
 static void OnExitSignal(int signo)
 {
     (void)signo;
@@ -36,6 +41,12 @@ static void OnResizeSignal(int signo)
 {
     (void)signo;
     vted_terminal_resized = 1;
+}
+
+static void OnSuspendSignal(int signo)
+{
+    (void)signo;
+    vted_suspend_requested = 1;
 }
 
 /* set once old_terminal_settings holds a real snapshot; KillApp must
@@ -244,6 +255,20 @@ void SetupResizeSignal(void)
     sigaction(SIGWINCH, &action, NULL);
 }
 
+void SetupSuspendSignal(void)
+{
+    struct sigaction action;
+
+    /* a suspend that comes from outside (kill -TSTP) is only noted:
+       carrying it out belongs to the main loop, which restores the
+       terminal the usual way before the process stops. The stop
+       itself happens with the default disposition, in
+       TerminalSuspend() */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = OnSuspendSignal;
+    sigaction(SIGTSTP, &action, NULL);
+}
+
 int TerminalWantsExit(void)
 {
     return vted_wants_exit;
@@ -255,6 +280,14 @@ int TerminalSizeChanged(void)
 
     vted_terminal_resized = 0;
     return changed;
+}
+
+int TerminalSuspendRequested(void)
+{
+    int requested = vted_suspend_requested;
+
+    vted_suspend_requested = 0;
+    return requested;
 }
 
 
@@ -277,6 +310,58 @@ void RestoreTerminalSettings(void)
     {
         KillApp("tcsetattr");
     }
+}
+
+/* hands the screen to the shell for a suspend: the screen the shell
+   had comes back whole, pastes wrap and the mouse selects the
+   shell's way again. The keys stay raw until TerminalSuspend() puts
+   the cooked settings back — the two steps are separate so the
+   writes alone can be tested */
+void TerminalGiveToShell(void)
+{
+    ExitAlternateScreenBuffer();
+
+    /* both stay quiet when the editor never had them */
+    DisableBracketedPaste();
+    DisableMouseTracking();
+}
+
+/* takes everything back when the editor continues: the alternate
+   screen (empty, until the next frame fills it), paste and mouse
+   reporting, and a whole-screen repaint. The raw keys are switched
+   on by TerminalSuspend(), which alone knows the terminal settings */
+void TerminalTakeFromShell(void)
+{
+    EnterToAlternateScreenBuffer();
+    EnableBracketedPaste();
+    EnableMouseTracking();
+
+    /* every row repaints: nothing of what was on the alternate
+       screen survived the time away */
+    ScreenMarkAllDirty();
+}
+
+void TerminalSuspend(void)
+{
+    /* cooked keys for the shell, the way they were before the
+       editor touched anything: the same path an exit takes, and
+       running it after TerminalGiveToShell() is harmless — the two
+       disables are already done and stay quiet */
+    TerminalGiveToShell();
+    RestoreTerminalSettings();
+
+    /* stop the honest way: the default disposition is what tells
+       the shell's job control the process stopped and the terminal
+       is its own again. raise() only comes back when the editor is
+       continued, and SIGCONT then runs the lines below */
+    signal(SIGTSTP, SIG_DFL);
+    raise(SIGTSTP);
+
+    /* back from the cold: the terminal holds whatever the shell
+       left it, so every mode is asked for again */
+    signal(SIGTSTP, OnSuspendSignal);
+    EnableTerminalRawMode();
+    TerminalTakeFromShell();
 }
 
 /* the Base64 alphabet, RFC 4648 */
