@@ -26,7 +26,10 @@
 # of the left button inside the double click time, the word under them
 # selected, a letter typed over it taking the word in its place, and
 # the file saved to disk carrying the proof the click landed where
-# the frame draws it.
+# the frame draws it. Another pastes with the middle button what the
+# last copy kept: the word copied with Ctrl-C, the paste laid in at
+# the far end of the row below, the selection giving way first the
+# way every paste replaces one, and the bar saying what came in.
 import os
 import pty
 import select
@@ -38,6 +41,7 @@ import time
 
 CTRL_Q = b'\x11'
 CTRL_S = b'\x13'
+CTRL_C = b'\x03'
 CTRL_F = b'\x06'
 CTRL_R = b'\x12'
 CTRL_T = b'\x14'
@@ -52,6 +56,7 @@ NOTE = '/tmp/vted-smoke-note.txt'    # the buffer the word is typed into
 DATE = '/tmp/vted-smoke-date.txt'    # the buffer the pattern runs in
 CONFIRM = '/tmp/vted-smoke-confirm.txt'  # the buffer the answers walk in
 DBLCLICK = '/tmp/vted-smoke-dblclick.txt'  # the buffer the clicks land in
+MIDDLE = '/tmp/vted-smoke-middle.txt'  # the buffer the paste lands in
 
 
 def spawn(binary, args):
@@ -324,6 +329,54 @@ def dblclick_smoke(binary):
     return 0
 
 
+def middleclick_smoke(binary):
+    """the middle click run: the word double-clicked and copied, the
+    middle button pasting it at the click — the selection giving way
+    first, the way every paste replaces one — and the file saved to
+    disk carrying the proof"""
+    with open(MIDDLE, 'w') as f:
+        f.write('one two three\nfour five six\n')
+
+    pid, fd = spawn(binary, [MIDDLE])
+    out = []
+    time.sleep(0.3)
+    # the double click on 'w' of "two" as before, then Ctrl-C: the
+    # copy goes out to the terminal and one is kept
+    drive(fd, b'\x1b[<0;10;1M\x1b[<0;10;1m\x1b[<0;10;1M', out)
+    drive(fd, CTRL_C, out)
+    # the middle button at terminal column 71, row 2: past the last
+    # glyph of "four five six", so the paste lands after "six". The
+    # press and its release in one write
+    drive(fd, b'\x1b[<1;71;2M\x1b[<1;71;2m', out)
+    drive(fd, CTRL_S, out)
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    # the bar said what the paste laid in
+    if b'Pasted 3 bytes' not in drew:
+        return fail('the bar did not say what the paste laid in')
+
+    # the word came back at the click: the selection gave way first —
+    # "two" left the first row — and the paste landed after "six"
+    with open(MIDDLE) as f:
+        text = f.read()
+    if text != 'one  three\nfour five sixtwo\n':
+        return fail(f'the text reads {text!r}, '
+                    'not the paste laid in at the click')
+
+    print('smoke: OK - copied a double-clicked word, '
+          'pasted it with the middle button')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -335,7 +388,7 @@ def main() -> int:
 
     return quit_smoke(binary) or completion_smoke(binary) \
         or regex_smoke(binary) or confirm_smoke(binary) \
-        or dblclick_smoke(binary)
+        or dblclick_smoke(binary) or middleclick_smoke(binary)
 
 
 if __name__ == '__main__':
