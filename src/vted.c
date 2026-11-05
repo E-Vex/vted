@@ -1239,6 +1239,16 @@ static void EditorCompleteWord(void)
    leaving of the search itself does */
 static int search_highlight_on = 0;
 
+/* tells the screen what the search looks for and how it reads it:
+   the query itself for the literal mode, and the way the mode stands
+   either way, so a pattern has its matches drawn as long as the
+   pattern itself finds them */
+static void ShowSearchOnScreen(const char *query, int len)
+{
+    ScreenSetSearchRegex(search_regex_mode);
+    ScreenSetSearchQuery(query, len);
+}
+
 /* takes the light off every match and drops the inverted one: the
    rows it stood on repaint without it */
 static void ClearSearchHighlight(void)
@@ -1251,7 +1261,7 @@ static void ClearSearchHighlight(void)
     vted_editor_config.match_row = -1;
     vted_editor_config.match_len = 0;
 
-    ScreenSetSearchQuery(NULL, 0);
+    ShowSearchOnScreen(NULL, 0);
     search_highlight_on = 0;
 }
 
@@ -1565,13 +1575,8 @@ static void EditorFind(void)
         }
 
         /* a remembered query searches at once, so its matches light
-           up the way they do while it is being typed; the passive
-           light stays off for a pattern until the screen knows to
-           read one */
-        if (!search_regex_mode)
-        {
-            ScreenSetSearchQuery(query, query_len);
-        }
+           up the way they do while it is being typed */
+        ShowSearchOnScreen(query, query_len);
 
         last_match_row = SearchStep(query, direction,
                                     last_match_row, saved_y, saved_x);
@@ -1699,13 +1704,9 @@ static void EditorFind(void)
             if (search_regex_mode)
             {
                 pattern_ok = query_len == 0 || RegexCompile(query) == 0;
-                ScreenSetSearchQuery(NULL, 0);
-            }
-            else
-            {
-                ScreenSetSearchQuery(query, query_len);
             }
 
+            ShowSearchOnScreen(query, query_len);
             query_changed = 0;
         }
 
@@ -1797,12 +1798,9 @@ static void EditorSearchRepeat(int direction)
     vted_editor_config.match_len = match_len;
     ScreenMarkRowDirty(match_row);
 
-    /* the matches of a literal query keep their light; a pattern
-       keeps it once the screen reads one */
-    if (!search_regex_mode)
-    {
-        ScreenSetSearchQuery(last_query, query_len);
-    }
+    /* the matches of the query keep their light, the text as it is
+       or the places the pattern finds */
+    ShowSearchOnScreen(last_query, query_len);
 
     search_highlight_on = 1;
 

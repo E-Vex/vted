@@ -100,6 +100,12 @@ void ScreenSetBracketMatch(int row, int col);
    empty one, turns the highlighting off */
 void ScreenSetSearchQuery(const char *query, int len);
 
+/* tells the screen the search reads its query as a pattern: the
+   matches come from the compiled one then, each as long as it finds
+   them, and the borrowed text stands idle. 0 puts the text back in
+   charge */
+void ScreenSetSearchRegex(int on);
+
 /* shows a menu of lines over the bottom of the viewport: the line at
    the selected index is drawn inverted, and lines beyond what fits
    are the last ones. The lines are borrowed, not copied, and have to

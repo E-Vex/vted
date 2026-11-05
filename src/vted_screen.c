@@ -10,6 +10,7 @@
 #include "vted_keyboard.h"
 #include "vted_screen.h"
 #include "vted_row.h"
+#include "vted_regex.h"
 #include "vted_syntax.h"
 #include "vted_utf8.h"
 #include "vted_buffers.h"
@@ -744,13 +745,20 @@ static const unsigned char *ClassesOfRow(int buffer_row, int size)
 
 /* the text being searched for, borrowed from the editor core while
    the search runs: every match of it is drawn with the HlMatch
-   background, the one the cursor sits on inverted as before */
+   background, the one the cursor sits on inverted as before. When
+   the search reads a pattern instead, the text stands idle and the
+   compiled pattern answers where the matches are */
 static const char *search_query;
 static int search_query_len;
+static int search_is_regex = 0;
 
 /* the byte the matches of the query start at in the row being drawn,
-   in order, kept between frames so that drawing does not allocate */
+   in order, kept between frames so that drawing does not allocate;
+   the byte each of them ends at walks beside them, for a match of a
+   pattern is as long as the pattern finds it, not as long as the
+   query is typed */
 static int *query_match_starts;
+static int *query_match_ends;
 static int query_match_capacity;
 
 void ScreenSetSearchQuery(const char *query, int len)
@@ -773,10 +781,20 @@ void ScreenSetSearchQuery(const char *query, int len)
     search_query_len = query != NULL ? len : 0;
 }
 
-/* collects where the search query matches in the row, in order:
-   matches may overlap the way the search steps through them, and
-   there can be no more of them than the row has bytes. Returns NULL
-   when there are none */
+void ScreenSetSearchRegex(int on)
+{
+    if (search_is_regex != (on != 0))
+    {
+        ScreenMarkAllDirty();
+    }
+
+    search_is_regex = on != 0;
+}
+
+/* collects where the search matches in the row, in order: matches
+   may overlap the way the search steps through them, and there can
+   be no more of them than the row has bytes. Returns NULL when there
+   are none */
 static const int *QueryMatchesOfRow(const vted_row_t *row, int *count)
 {
     int found = 0;
@@ -784,30 +802,64 @@ static const int *QueryMatchesOfRow(const vted_row_t *row, int *count)
 
     if (row->size > query_match_capacity)
     {
-        int *grown = realloc(query_match_starts,
-                             (size_t)row->size * sizeof(int));
+        int *grown_starts = realloc(query_match_starts,
+                                    (size_t)row->size * sizeof(int));
+        int *grown_ends = realloc(query_match_ends,
+                                  (size_t)row->size * sizeof(int));
 
-        if (grown == NULL)
+        if (grown_starts == NULL || grown_ends == NULL)
         {
             KillApp("realloc");
         }
 
-        query_match_starts = grown;
+        query_match_starts = grown_starts;
+        query_match_ends = grown_ends;
         query_match_capacity = row->size;
     }
 
-    while (found < row->size)
+    if (search_is_regex)
     {
-        at = RowFindNext(row, at, row->size, search_query,
-                         search_query_len);
-
-        if (at < 0)
+        /* the compiled pattern answers where the matches are, each as
+           long as it turns out to be; the walk steps to the next
+           character after every one of them, so none is met twice */
+        for (;;)
         {
-            break;
-        }
+            int len = 0;
+            int hit = RegexFindNext(row->chars, at, row->size, &len, NULL);
 
-        query_match_starts[found++] = at;
-        at++; /* the next match may share bytes with this one */
+            if (hit < 0)
+            {
+                break;
+            }
+
+            query_match_starts[found] = hit;
+            query_match_ends[found] = hit + len;
+            found++;
+            at = Utf8NextBoundary(row->chars, row->size, hit);
+
+            if (found >= row->size)
+            {
+                break;
+            }
+        }
+    }
+    else
+    {
+        while (found < row->size)
+        {
+            at = RowFindNext(row, at, row->size, search_query,
+                             search_query_len);
+
+            if (at < 0)
+            {
+                break;
+            }
+
+            query_match_starts[found] = at;
+            query_match_ends[found] = at + search_query_len;
+            found++;
+            at++; /* the next match may share bytes with this one */
+        }
     }
 
     *count = found;
@@ -1010,7 +1062,7 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
     /* the matches of the search query in this row, when a search is
        on: they are walked along with the glyphs, which are in order
        too, so each match is only looked at once */
-    if (search_query != NULL)
+    if (search_query != NULL || (search_is_regex && RegexHasPattern()))
     {
         query_matches = QueryMatchesOfRow(row, &query_match_count);
     }
@@ -1101,7 +1153,7 @@ static void DrawRowText(append_buffer_t *ab, int buffer_row, const vted_row_t *r
                one left, when it starts at or before the glyph, holds
                it */
             while (next_query_match < query_match_count &&
-                   query_matches[next_query_match] + search_query_len <= glyph_at)
+                   query_match_ends[next_query_match] <= glyph_at)
             {
                 next_query_match++;
             }
@@ -2563,6 +2615,7 @@ void ScreenFree(void)
 
     free(query_match_starts);
     query_match_starts = NULL;
+    query_match_ends = NULL;
     query_match_capacity = 0;
 
     free(dirty_rows);
@@ -2583,6 +2636,7 @@ void ScreenFree(void)
     /* and so does the search query */
     search_query = NULL;
     search_query_len = 0;
+    search_is_regex = 0;
 }
 
 void RefreshScreen(void)
@@ -2794,6 +2848,7 @@ void InitVtedEditor(void)
     /* and no query for the search highlight either */
     search_query = NULL;
     search_query_len = 0;
+    search_is_regex = 0;
 
     /* and no matching bracket until the cursor lands on one */
     bracket_row = -1;
