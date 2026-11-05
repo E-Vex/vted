@@ -335,11 +335,11 @@ selection    |
   walk starts at the cursor and wraps around the buffer, every
   match lit the way the search lights them, the one being asked
   about inverted, the bar counting where it stands ("2 of 17");
-  y replaces it, n leaves it, a replaces it and the rest without
-  asking again, q or ESC stops with what is done; each
-  replacement one undo step; the prompts open with the last
-  query and answer, so Enter alone repeats a replace as it
-  stands                       |
+  y replaces it, n leaves it, a replaces it and the rest in one
+  pass, without asking and without stepping, q or ESC stops with
+  what is done; each replacement one undo step; the prompts open
+  with the last query and answer, so Enter alone repeats a
+  replace as it stands                       |
 | Ctrl-Z          | undo (a typing burst is one change)              |
 | Ctrl-Y          | redo the last undone change                      |
 | typing          | insert at the cursor (replaces the selection)    |
@@ -394,9 +394,10 @@ New in 0.3.4:
   every match lit while it runs and the one being asked about
   inverted, the bar counting where it stands ("2 of 17") the way the
   search prompt counts. y replaces the match, n leaves it, a
-  replaces it and every one after it without asking again — the
-  replace-all of before in one key — and q or ESC stops with what
-  is done. Each replacement is one undo step, as before, so Ctrl-Z
+  replaces it and every one after it in one pass, without asking
+  and without stepping — the replace-all of before in one key —
+  and q or ESC stops with what is done. Each replacement is one
+  undo step, as before, so Ctrl-Z
   walks the whole thing back one occurrence at a time; a query with
   no matches says so in the bar instead of reporting zero
 

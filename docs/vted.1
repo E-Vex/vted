@@ -292,8 +292,9 @@ search and replace, one match at a time: the walk starts at the cursor
 and wraps around the buffer the way the search does, every match lit
 while it runs, the one being asked about inverted and the bar counting
 where it stands ("2 of 17") the way the search prompt counts. y replaces
-the match, n leaves it, a replaces it and every one after it without
-asking again, and q or ESC stops with what is done; each replacement is
+the match, n leaves it, a replaces it and every one after it in one
+pass, without asking and without stepping, and q or ESC stops with what
+is done; each replacement is
 one undo step. The prompts open with the last query and the last answer,
 so Enter alone repeats a replace as it stands. Ctrl\-T in the question
 reads the query as a pattern the way the search does, and the
