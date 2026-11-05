@@ -44,6 +44,7 @@ SMOKE = '/tmp/vted-smoke.txt'
 WORDS = '/tmp/vted-smoke-words.txt'  # the buffer the answers come from
 NOTE = '/tmp/vted-smoke-note.txt'    # the buffer the word is typed into
 DATE = '/tmp/vted-smoke-date.txt'    # the buffer the pattern runs in
+CONFIRM = '/tmp/vted-smoke-confirm.txt'  # the buffer the answers walk in
 
 
 def spawn(binary, args):
@@ -224,6 +225,58 @@ def regex_smoke(binary):
     return 0
 
 
+def confirm_smoke(binary):
+    """the confirmed run: a replace that asks about one match at a
+    time, n leaving one, y taking the next, q stopping at the last,
+    and the file saved to disk carrying the proof the answers landed
+    where they were given"""
+    with open(CONFIRM, 'w') as f:
+        f.write('one red fox, two red hens, three red cars\n')
+
+    pid, fd = spawn(binary, [CONFIRM])
+    out = []
+    time.sleep(0.3)
+    drive(fd, CTRL_R, out)          # Ctrl-R: the replace prompt
+    drive(fd, b'red', out)          # the query
+    drive(fd, ENTER, out)           # Enter: the query stands
+    drive(fd, b'green', out)        # the answer
+    drive(fd, ENTER, out)           # Enter: the walk starts
+    drive(fd, b'n', out)            # n: the first stays
+    drive(fd, b'y', out)            # y: the second goes green
+    drive(fd, b'q', out)            # q: the third is never asked in
+    drive(fd, CTRL_S, out)          # Ctrl-S: save what was answered
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    # the bar asked about each of them in turn, the count telling
+    # where the match stood
+    for ask in (b'Replace: red (1 of 3', b'Replace: red (2 of 3',
+                 b'Replace: red (3 of 3'):
+        if ask not in drew:
+            return fail(f'the walk never asked {ask!r}')
+
+    if b'Replaced 1 occurrence' not in drew:
+        return fail('the answers did not say what they laid in')
+
+    # the answers landed where they were given: the first kept, the
+    # second taken, the third left alone by the stop
+    with open(CONFIRM) as f:
+        text = f.read()
+    if text != 'one red fox, two green hens, three red cars\n':
+        return fail(f'the text reads {text!r}, not the answers laid in')
+
+    print('smoke: OK - answered a replace one match at a time and saved')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -234,7 +287,7 @@ def main() -> int:
         return 2
 
     return quit_smoke(binary) or completion_smoke(binary) \
-        or regex_smoke(binary)
+        or regex_smoke(binary) or confirm_smoke(binary)
 
 
 if __name__ == '__main__':
