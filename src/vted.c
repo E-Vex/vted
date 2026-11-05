@@ -1227,8 +1227,25 @@ static void ClearSearchHighlight(void)
     search_highlight_on = 0;
 }
 
+/* one row of the search: the first match of the query in the window
+   [from, to) going forward, the last one before `to` going backward.
+   Returns the byte the match starts at, -1 when the row holds none,
+   and its length in bytes through *hit_len — the length of the query
+   itself while the search runs on its literal path */
+static int FindInRow(const vted_row_t *row, int from, int to,
+                     int direction, const char *query, int query_len,
+                     int *hit_len)
+{
+    *hit_len = query_len;
+
+    return direction > 0
+               ? RowFindNext(row, from, to, query, query_len)
+               : RowFindPrev(row, from, to, query, query_len);
+}
+
 static int FindMatch(const char *query, int start_row, int start_col,
-                     int direction, int *match_row, int *match_col)
+                     int direction, int *match_row, int *match_col,
+                     int *match_len)
 {
     /* forward finds the first match at or after (start_row, start_col),
        backward the last one before it; both scan the whole buffer row
@@ -1237,6 +1254,7 @@ static int FindMatch(const char *query, int start_row, int start_col,
     int query_len = (int)strlen(query);
     int row;
     int hit;
+    int hit_len = 0;
 
     if (row_count == 0 || query_len == 0)
     {
@@ -1251,81 +1269,93 @@ static int FindMatch(const char *query, int start_row, int start_col,
 
     if (direction > 0)
     {
-        hit = RowFindNext(&vted_buffer.rows[start_row], start_col,
-                          vted_buffer.rows[start_row].size, query, query_len);
+        hit = FindInRow(&vted_buffer.rows[start_row], start_col,
+                        vted_buffer.rows[start_row].size, direction, query,
+                        query_len, &hit_len);
         if (hit >= 0)
         {
             *match_row = start_row;
             *match_col = hit;
+            *match_len = hit_len;
             return 0;
         }
 
         for (row = start_row + 1; row < row_count; row++)
         {
-            hit = RowFindNext(&vted_buffer.rows[row], 0,
-                              vted_buffer.rows[row].size, query, query_len);
+            hit = FindInRow(&vted_buffer.rows[row], 0,
+                            vted_buffer.rows[row].size, direction, query,
+                            query_len, &hit_len);
             if (hit >= 0)
             {
                 *match_row = row;
                 *match_col = hit;
+                *match_len = hit_len;
                 return 0;
             }
         }
 
         for (row = 0; row < start_row; row++)
         {
-            hit = RowFindNext(&vted_buffer.rows[row], 0,
-                              vted_buffer.rows[row].size, query, query_len);
+            hit = FindInRow(&vted_buffer.rows[row], 0,
+                            vted_buffer.rows[row].size, direction, query,
+                            query_len, &hit_len);
             if (hit >= 0)
             {
                 *match_row = row;
                 *match_col = hit;
+                *match_len = hit_len;
                 return 0;
             }
         }
 
         /* the head of the starting row: a match before the one the
            search started from */
-        hit = RowFindNext(&vted_buffer.rows[start_row], 0, start_col,
-                          query, query_len);
+        hit = FindInRow(&vted_buffer.rows[start_row], 0, start_col,
+                        direction, query, query_len, &hit_len);
         if (hit >= 0)
         {
             *match_row = start_row;
             *match_col = hit;
+            *match_len = hit_len;
             return 0;
         }
     }
     else
     {
-        hit = RowFindPrev(&vted_buffer.rows[start_row], 0, start_col,
-                          query, query_len);
+        hit = FindInRow(&vted_buffer.rows[start_row], 0, start_col,
+                        direction, query, query_len, &hit_len);
         if (hit >= 0)
         {
             *match_row = start_row;
             *match_col = hit;
+            *match_len = hit_len;
             return 0;
         }
 
         for (row = start_row - 1; row >= 0; row--)
         {
-            hit = RowFindPrev(&vted_buffer.rows[row], 0,
-                              vted_buffer.rows[row].size, query, query_len);
+            hit = FindInRow(&vted_buffer.rows[row], 0,
+                            vted_buffer.rows[row].size, direction, query,
+                            query_len, &hit_len);
             if (hit >= 0)
             {
                 *match_row = row;
                 *match_col = hit;
+                *match_len = hit_len;
                 return 0;
             }
         }
 
         for (row = row_count - 1; row > start_row; row--)
         {
-            hit = RowFindPrev(&vted_buffer.rows[row], 0,
-                              vted_buffer.rows[row].size, query, query_len);
+            hit = FindInRow(&vted_buffer.rows[row], 0,
+                            vted_buffer.rows[row].size, direction, query,
+                            query_len, &hit_len);
             if (hit >= 0)
             {
                 *match_row = row;
                 *match_col = hit;
+                *match_len = hit_len;
                 return 0;
             }
         }
@@ -1347,6 +1377,7 @@ static int SearchStep(const char *query, int query_len, int direction,
     int search_col;
     int match_row;
     int match_col;
+    int match_len = 0;
 
     if (last_match_row >= 0)
     {
@@ -1360,7 +1391,7 @@ static int SearchStep(const char *query, int query_len, int direction,
     }
 
     if (FindMatch(query, search_row, search_col, direction,
-                  &match_row, &match_col) == 0)
+                  &match_row, &match_col, &match_len) == 0)
     {
         /* drop the old highlight before the new one is painted */
         if (vted_editor_config.match_row >= 0)
@@ -1380,7 +1411,7 @@ static int SearchStep(const char *query, int query_len, int direction,
         /* highlight the match on screen */
         vted_editor_config.match_row = match_row;
         vted_editor_config.match_col = match_col;
-        vted_editor_config.match_len = query_len;
+        vted_editor_config.match_len = match_len;
 
         ScreenMarkRowDirty(match_row);
         return match_row;
@@ -1579,6 +1610,7 @@ static void EditorSearchRepeat(int direction)
     int search_col = vted_editor_config.cursor_x;
     int match_row;
     int match_col;
+    int match_len = 0;
 
     if (query_len == 0)
     {
@@ -1597,7 +1629,7 @@ static void EditorSearchRepeat(int direction)
     search_col += direction > 0 ? 1 : 0;
 
     if (FindMatch(last_query, search_row, search_col, direction,
-                  &match_row, &match_col) != 0)
+                  &match_row, &match_col, &match_len) != 0)
     {
         ClearSearchHighlight();
         SetStatusMessage("No matches: %s", last_query);
@@ -1620,7 +1652,7 @@ static void EditorSearchRepeat(int direction)
 
     vted_editor_config.match_row = match_row;
     vted_editor_config.match_col = match_col;
-    vted_editor_config.match_len = query_len;
+    vted_editor_config.match_len = match_len;
     ScreenMarkRowDirty(match_row);
 
     ScreenSetSearchQuery(last_query, query_len);
