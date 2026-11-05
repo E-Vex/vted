@@ -374,12 +374,45 @@ static void EditorHandleMouse(int key)
     {
         /* the left button places the cursor and anchors a selection
            there — empty until a drag carries the cursor away from
-           it, so a plain click selects nothing. The middle and the
-           right button arrive unbound */
+           it, so a plain click selects nothing */
+        if (MouseLastButton() == 1)
+        {
+            /* the middle button pastes the kept copy where it is
+               clicked, the way the primary selection pastes elsewhere
+               in the terminal: a selection gives way first — the way
+               every paste replaces one — the cursor lands at the
+               click, and the kept copy arrives at it */
+            int laid;
+
+            if (EditSelectionActive())
+            {
+                EditDeleteSelection();
+            }
+
+            ScreenSetSelection(-1, 0, -1, 0);
+
+            vted_editor_config.cursor_y = hit_y;
+            vted_editor_config.cursor_x = hit_x;
+
+            laid = EditorPasteKeptCopy();
+
+            if (laid > 0)
+            {
+                SetStatusMessage("Pasted %d bytes", laid);
+            }
+            else
+            {
+                SetStatusMessage("Nothing copied yet");
+            }
+
+            mouse_last_press_ms = -1;
+            return;
+        }
+
         if (MouseLastButton() != 0)
         {
-            /* a press of another button breaks the chain the double
-               click is told from */
+            /* the right button arrives unbound, and a press of it
+               breaks the chain the double click is told from */
             mouse_last_press_ms = -1;
             return;
         }
