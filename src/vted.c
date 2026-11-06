@@ -119,6 +119,22 @@ static int search_regex_mode = 0;
    and the replace installs the answer while its question is open */
 static const char *(*PromptModeToggle)(void) = NULL;
 
+/* the Alt-o a prompt took opened a file: an answer of NULL is then
+   no cancel but the open, and the callers that say why a prompt
+   came back empty stay quiet, so the open's own message keeps the
+   bar */
+static int prompt_opened = 0;
+
+/* says why a prompt came back empty, unless its Alt-o opened a file
+   and the open's own message keeps the bar */
+static void PromptCancelled(const char *why)
+{
+    if (!prompt_opened)
+    {
+        SetStatusMessage("%s", why);
+    }
+}
+
 /* keeps a copy of the answer for the next prompt to open with */
 static void RememberAnswer(char *slot, const char *answer)
 {
@@ -344,12 +360,15 @@ static int EditorOpenNamed(const char *name, int line, int column,
    given answer when there is one: Enter takes it as it stands and a
    backspace takes it apart. Returns it in a heap buffer the caller
    frees, or NULL when the person cancels with ESC or confirms an
-   empty answer */
+   empty answer — or when its Alt-o opened the file the answer
+   names, which prompt_opened then says */
 static char *EditorPromptEx(const char *label, const char *initial,
                             int completes_paths)
 {
     char *answer = malloc(PROMPT_MAX + 1);
     int length = 0;
+
+    prompt_opened = 0;
 
     /* the label the prompt carries until Ctrl-T asks the search's
        mode to turn and the turned label comes back */
@@ -613,6 +632,55 @@ static char *EditorPromptEx(const char *label, const char *initial,
                 shown = PromptModeToggle();
             }
 
+            continue;
+        }
+
+        if (c == OpenFileAtCursor)
+        {
+            /* Alt-o opens the file the answer names, the way it does
+               at the cursor: the answer as it stands, its tail naming
+               the spot, the same beside-first standing it takes there.
+               A name that opens no file says so in the notice while
+               the prompt stands; an empty answer says there is
+               nothing to open */
+            int jump_line;
+            int jump_column;
+            int name_len = RowNameTail(answer, &jump_line, &jump_column);
+            char message[PATH_MAX + 64];
+            char beyond;
+            int opened;
+
+            if (name_len == 0)
+            {
+                snprintf(notice, sizeof(notice),
+                         "No file name in the answer");
+                ScreenShowMenu(NULL, 0, 0);
+                match_count = 0;
+                continue;
+            }
+
+            beyond = answer[name_len];
+            answer[name_len] = '\0';
+
+            opened = EditorOpenNamed(answer, jump_line, jump_column,
+                                     message, sizeof(message));
+
+            answer[name_len] = beyond; /* the tail goes back on */
+
+            if (opened)
+            {
+                /* the open ends the prompt the way ESC does, the bar
+                   saying where it landed */
+                ScreenShowMenu(NULL, 0, 0);
+                SetStatusMessage("%s", message);
+                prompt_opened = 1;
+                free(answer);
+                return NULL;
+            }
+
+            snprintf(notice, sizeof(notice), "%s", message);
+            ScreenShowMenu(NULL, 0, 0);
+            match_count = 0;
             continue;
         }
 
@@ -1000,7 +1068,7 @@ static void EditorSetTabWidth(void)
 
     if (answer == NULL)
     {
-        SetStatusMessage("Tab width unchanged");
+        PromptCancelled("Tab width unchanged");
         return;
     }
 
@@ -1045,7 +1113,7 @@ static void EditorSetBracketColor(void)
 
     if (answer == NULL)
     {
-        SetStatusMessage("Bracket color unchanged");
+        PromptCancelled("Bracket color unchanged");
         return;
     }
 
@@ -1110,7 +1178,7 @@ static void EditorSetTheme(void)
 
     if (answer == NULL)
     {
-        SetStatusMessage("Theme unchanged");
+        PromptCancelled("Theme unchanged");
         return;
     }
 
@@ -1149,7 +1217,7 @@ static void EditorSave(void)
 
         if (name == NULL)
         {
-            SetStatusMessage("Save cancelled");
+            PromptCancelled("Save cancelled");
             return;
         }
 
@@ -1188,7 +1256,7 @@ static void EditorOpenFile(void)
 
     if (path == NULL)
     {
-        SetStatusMessage("Open cancelled");
+        PromptCancelled("Open cancelled");
         return;
     }
 
@@ -2200,6 +2268,10 @@ static void EditorFind(void)
     int last_match_row = -1;
     int query_changed = 0;
     int pattern_ok = 1; /* the pattern of the regex mode stands */
+    char notice[128]; /* what the last Alt-o said, standing until a
+                         real key answers it the way a prompt's does */
+    int opened = 0; /* Alt-o opened the query's file: the bar keeps
+                       the open's own message */
 
     /* remember where we were, ESC puts everything back */
     int saved_x = vted_editor_config.cursor_x;
@@ -2213,6 +2285,7 @@ static void EditorFind(void)
     int saved_col_offset = vted_editor_config.col_offset;
 
     query[0] = '\0';
+    notice[0] = '\0';
 
     /* the search opens with the last query, so Enter alone keeps its
        match and the arrows step through its matches without a single
@@ -2256,8 +2329,15 @@ static void EditorFind(void)
     {
         /* the prompt says where the match the cursor sits on stands
            among all of them, so typing tells at a glance whether the
-           query is any good before a single arrow is pressed */
-        if (query_len > 0 && search_regex_mode && !pattern_ok)
+           query is any good before a single arrow is pressed — unless
+           a notice stands, saying what the last Alt-o left */
+        if (notice[0] != '\0')
+        {
+            SetStatusMessage("Find%s: %s — %s",
+                             search_regex_mode ? " (regex)" : "",
+                             query, notice);
+        }
+        else if (query_len > 0 && search_regex_mode && !pattern_ok)
         {
             SetStatusMessage("Find (regex): %s — %s", query, RegexError());
         }
@@ -2320,6 +2400,9 @@ static void EditorFind(void)
             continue;
         }
 
+        /* a real key answers the notice the last Alt-o left */
+        notice[0] = '\0';
+
         if (c == 27) /* ESC: cancel and restore the previous position */
         {
             vted_editor_config.cursor_x = saved_x;
@@ -2332,6 +2415,48 @@ static void EditorFind(void)
         if (c == '\r' || c == '\n') /* Enter: keep the current position */
         {
             break;
+        }
+
+        if (c == OpenFileAtCursor)
+        {
+            /* Alt-o opens the file the query names, the way it does
+               at the cursor: the query as it stands, its tail naming
+               the spot, the same beside-first standing it takes
+               there. A name that opens no file says so in the notice
+               while the search stands */
+            int jump_line;
+            int jump_column;
+            int name_len = RowNameTail(query, &jump_line, &jump_column);
+            char message[PATH_MAX + 64];
+            char beyond;
+            int came_open;
+
+            if (name_len == 0)
+            {
+                snprintf(notice, sizeof(notice),
+                         "No file name in the query");
+                continue;
+            }
+
+            beyond = query[name_len];
+            query[name_len] = '\0';
+
+            came_open = EditorOpenNamed(query, jump_line, jump_column,
+                                        message, sizeof(message));
+
+            query[name_len] = beyond; /* the tail goes back on */
+
+            if (came_open)
+            {
+                /* the open ends the search, the bar saying where it
+                   landed */
+                SetStatusMessage("%s", message);
+                opened = 1;
+                break;
+            }
+
+            snprintf(notice, sizeof(notice), "%s", message);
+            continue;
         }
 
         if (c == ArrowRight)
@@ -2438,7 +2563,12 @@ static void EditorFind(void)
     /* leaving the search clears the highlight */
     ClearSearchHighlight();
 
-    SetStatusMessage("");
+    /* the bar goes quiet — unless the Alt-o that ended the search
+       left the open's own message standing */
+    if (!opened)
+    {
+        SetStatusMessage("");
+    }
 }
 
 /* Alt-n and Alt-p step the cursor to the match after and before the
@@ -2550,7 +2680,7 @@ static void EditorReplace(void)
 
     if (query == NULL)
     {
-        SetStatusMessage("Replace cancelled");
+        PromptCancelled("Replace cancelled");
         return;
     }
 
@@ -2566,7 +2696,7 @@ static void EditorReplace(void)
     if (replacement == NULL)
     {
         free(query);
-        SetStatusMessage("Replace cancelled");
+        PromptCancelled("Replace cancelled");
         return;
     }
 
