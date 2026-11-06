@@ -221,6 +221,125 @@ static void PromptShowPathMenu(const vted_path_match_t *matches,
     ScreenShowMenu(shown_lines, shown, selection - first);
 }
 
+/* says whether the path names a file that is there to open: stat
+   answers for a regular file, and everything else — a directory, a
+   name that is not there — is no file to go to */
+static int RegularFileThere(const char *path)
+{
+    struct stat info;
+
+    return path != NULL && stat(path, &info) == 0 && S_ISREG(info.st_mode);
+}
+
+/* lands the cursor on the line and column a jump names — the tail a
+   name carries, or the answer Ctrl-G takes: a line past the end
+   lands on the last one, a column past a row's end on that row's
+   end, and the spot lands mid-viewport */
+static void EditorLandJump(int line, int column)
+{
+    vted_row_t *row;
+
+    if (line < 1 || vted_buffer.num_rows == 0)
+    {
+        return;
+    }
+
+    if (line > vted_buffer.num_rows)
+    {
+        line = vted_buffer.num_rows;
+    }
+
+    vted_editor_config.cursor_y = line - 1;
+
+    /* the column counts the cells the bar shows, so the spot it names
+       is where it lands; a row's end is as far as it goes */
+    row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    vted_editor_config.cursor_x = column > 0
+                                      ? RowRxToCx(row, column - 1)
+                                      : 0;
+
+    ScreenCenterCursor();
+}
+
+/* opens the name the way the Alt-o keys do: a relative name stands
+   beside the file being edited first — the way an #include does —
+   and as it stands, in the working directory, when that one does
+   not answer. A file that is already open just comes back into
+   view, and a name that is no file at all says so instead: gf goes
+   to a file that is there, it does not start one. The line and
+   column name the spot the open lands on. Says what happened in
+   message — "Opened ..." or the reason no file came open — for the
+   caller to put in the bar. Returns 1 when a file came open, 0
+   when the name answered as none */
+static int EditorOpenNamed(const char *name, int line, int column,
+                            char *message, size_t message_size)
+{
+    char beside[PATH_MAX];
+    const char *dir = NULL; /* the spelling beside the file being edited */
+    const char *open;
+    struct stat info;
+
+    /* a relative name beside a file that has a directory of its own:
+       the directory the file was opened from answers for it */
+    if (name[0] != '/' && vted_buffer.filename != NULL)
+    {
+        int dir_span = PromptDirSpan(vted_buffer.filename);
+
+        if (dir_span > 0 &&
+            snprintf(beside, sizeof(beside), "%.*s%s",
+                     dir_span, vted_buffer.filename, name) < (int)sizeof(beside))
+        {
+            dir = beside;
+        }
+    }
+
+    /* gf goes to a file that is there: beside the file being edited
+       first, then as it stands */
+    if (RegularFileThere(dir))
+    {
+        open = dir;
+    }
+    else if (RegularFileThere(name))
+    {
+        open = name;
+    }
+    else
+    {
+        /* a name that answered, but as no file: a directory; one that
+           answered nowhere is simply not there */
+        if (stat(name, &info) == 0 || (dir != NULL && stat(dir, &info) == 0))
+        {
+            snprintf(message, message_size,
+                     "A directory, not a file: %s", name);
+        }
+        else
+        {
+            snprintf(message, message_size, "No such file: %s", name);
+        }
+
+        return 0;
+    }
+
+    if (BuffersOpen(open) == -1)
+    {
+        int saved_errno = errno;
+
+        snprintf(message, message_size, "Could not open: %s",
+                 saved_errno != 0 ? strerror(saved_errno)
+                                  : "not a regular file");
+        return 0;
+    }
+
+    /* the line and column name the spot the open lands on, in the
+       buffer that just came into view */
+    EditorLandJump(line, column);
+
+    snprintf(message, message_size, "Opened %s (buffer %d of %d)",
+             vted_buffer.filename, BuffersCurrent() + 1,
+             BuffersCount());
+    return 1;
+}
+
 /* asks for one line of text in the message bar, opening with the
    given answer when there is one: Enter takes it as it stands and a
    backspace takes it apart. Returns it in a heap buffer the caller
@@ -1093,46 +1212,6 @@ static void EditorOpenFile(void)
     free(path);
 }
 
-/* says whether the path names a file that is there to open: stat
-   answers for a regular file, and everything else — a directory, a
-   name that is not there — is no file to go to */
-static int RegularFileThere(const char *path)
-{
-    struct stat info;
-
-    return path != NULL && stat(path, &info) == 0 && S_ISREG(info.st_mode);
-}
-
-/* lands the cursor on the line and column a jump names — the tail a
-   name carries, or the answer Ctrl-G takes: a line past the end
-   lands on the last one, a column past a row's end on that row's
-   end, and the spot lands mid-viewport */
-static void EditorLandJump(int line, int column)
-{
-    vted_row_t *row;
-
-    if (line < 1 || vted_buffer.num_rows == 0)
-    {
-        return;
-    }
-
-    if (line > vted_buffer.num_rows)
-    {
-        line = vted_buffer.num_rows;
-    }
-
-    vted_editor_config.cursor_y = line - 1;
-
-    /* the column counts the cells the bar shows, so the spot it names
-       is where it lands; a row's end is as far as it goes */
-    row = &vted_buffer.rows[vted_editor_config.cursor_y];
-    vted_editor_config.cursor_x = column > 0
-                                      ? RowRxToCx(row, column - 1)
-                                      : 0;
-
-    ScreenCenterCursor();
-}
-
 /* the number a run of digits spells, one past its last digit coming
    back: it comes out saturated near a thousand million, the way a
    jump tail's digits do, so an absurd answer still lands somewhere
@@ -1197,85 +1276,6 @@ static void EditorGoToLine(void)
     free(answer);
 
     EditorLandJump(line, column);
-}
-
-/* opens the name the way the Alt-o keys do: a relative name stands
-   beside the file being edited first — the way an #include does —
-   and as it stands, in the working directory, when that one does
-   not answer. A file that is already open just comes back into
-   view, and a name that is no file at all says so instead: gf goes
-   to a file that is there, it does not start one. The line and
-   column name the spot the open lands on. Says what happened in
-   message — "Opened ..." or the reason no file came open — for the
-   caller to put in the bar. Returns 1 when a file came open, 0
-   when the name answered as none */
-static int EditorOpenNamed(const char *name, int line, int column,
-                            char *message, size_t message_size)
-{
-    char beside[PATH_MAX];
-    const char *dir = NULL; /* the spelling beside the file being edited */
-    const char *open;
-    struct stat info;
-
-    /* a relative name beside a file that has a directory of its own:
-       the directory the file was opened from answers for it */
-    if (name[0] != '/' && vted_buffer.filename != NULL)
-    {
-        int dir_span = PromptDirSpan(vted_buffer.filename);
-
-        if (dir_span > 0 &&
-            snprintf(beside, sizeof(beside), "%.*s%s",
-                     dir_span, vted_buffer.filename, name) < (int)sizeof(beside))
-        {
-            dir = beside;
-        }
-    }
-
-    /* gf goes to a file that is there: beside the file being edited
-       first, then as it stands */
-    if (RegularFileThere(dir))
-    {
-        open = dir;
-    }
-    else if (RegularFileThere(name))
-    {
-        open = name;
-    }
-    else
-    {
-        /* a name that answered, but as no file: a directory; one that
-           answered nowhere is simply not there */
-        if (stat(name, &info) == 0 || (dir != NULL && stat(dir, &info) == 0))
-        {
-            snprintf(message, message_size,
-                     "A directory, not a file: %s", name);
-        }
-        else
-        {
-            snprintf(message, message_size, "No such file: %s", name);
-        }
-
-        return 0;
-    }
-
-    if (BuffersOpen(open) == -1)
-    {
-        int saved_errno = errno;
-
-        snprintf(message, message_size, "Could not open: %s",
-                 saved_errno != 0 ? strerror(saved_errno)
-                                  : "not a regular file");
-        return 0;
-    }
-
-    /* the line and column name the spot the open lands on, in the
-       buffer that just came into view */
-    EditorLandJump(line, column);
-
-    snprintf(message, message_size, "Opened %s (buffer %d of %d)",
-             vted_buffer.filename, BuffersCurrent() + 1,
-             BuffersCount());
-    return 1;
 }
 
 /* Alt-o opens the file the cursor sits on, the way gf does in vi: the
