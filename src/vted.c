@@ -51,6 +51,63 @@
 static char last_query[PROMPT_MAX + 1];
 static char last_replacement[PROMPT_MAX + 1];
 
+/* the queries the searches have settled on, newest last: the up and
+   down arrows of the search walk them, the way a shell walks the
+   commands it was given */
+#define SEARCH_HISTORY_MAX 64
+static char search_history[SEARCH_HISTORY_MAX][64];
+static int search_history_count = 0;
+
+/* a query the search settles on goes into the history, newest last:
+   one the newest entry already says is not said again, and the oldest
+   falls off when the room runs out */
+static void SearchHistoryPush(const char *query)
+{
+    if (query[0] == '\0')
+    {
+        return;
+    }
+
+    if (search_history_count > 0 &&
+        strcmp(search_history[search_history_count - 1], query) == 0)
+    {
+        return; /* the newest query already says it */
+    }
+
+    if (search_history_count == SEARCH_HISTORY_MAX)
+    {
+        memmove(search_history[0], search_history[1],
+                (SEARCH_HISTORY_MAX - 1) * sizeof(search_history[0]));
+        search_history_count--;
+    }
+
+    snprintf(search_history[search_history_count],
+             sizeof(search_history[0]), "%s", query);
+    search_history_count++;
+}
+
+/* copies a query into the search's own buffer, which holds 63 bytes
+   the way typing fills it, and never a cut inside a character;
+   returns the length it came to */
+static int CopyQuery(char *query, const char *from)
+{
+    int length = (int)strlen(from);
+
+    if (length > 63)
+    {
+        length = 63;
+    }
+
+    while (length > 0 && ((unsigned char)from[length - 1] & 0xC0) == 0x80)
+    {
+        length--; /* the cut ended inside a character */
+    }
+
+    memcpy(query, from, (size_t)length);
+    query[length] = '\0';
+    return length;
+}
+
 /* the way the search reads its query: 1 reads it as a regular
    expression the way grep -E speaks one, 0 as the text itself. The
    search prompt flips it and the next search opens the way the last
@@ -2039,24 +2096,7 @@ static void EditorFind(void)
        keystroke; backspace takes it apart the way a typed one */
     if (last_query[0] != '\0')
     {
-        int seed_len = (int)strlen(last_query);
-
-        /* the query buffer holds 63 bytes the way typing fills it,
-           and never a cut inside a character */
-        if (seed_len > 63)
-        {
-            seed_len = 63;
-        }
-
-        while (seed_len > 0 &&
-               ((unsigned char)last_query[seed_len - 1] & 0xC0) == 0x80)
-        {
-            seed_len--;
-        }
-
-        memcpy(query, last_query, (size_t)seed_len);
-        query[seed_len] = '\0';
-        query_len = seed_len;
+        query_len = CopyQuery(query, last_query);
 
         /* a remembered pattern is compiled before the first step runs
            on it, so the search opens the way it left */
@@ -2071,6 +2111,22 @@ static void EditorFind(void)
 
         last_match_row = SearchStep(query, direction,
                                     last_match_row, saved_y, saved_x);
+    }
+
+    /* where the up and down arrows stand in the history: the search
+       opens on the last query, which stands as the newest entry when
+       it is one, so the first up walks to the query before it the
+       way vim's own / prompt does. The query as it stands is the
+       working line the down walk comes back to */
+    int history_pos = search_history_count;
+    char working[64];
+
+    snprintf(working, sizeof(working), "%s", query);
+
+    if (search_history_count > 0 &&
+        strcmp(working, search_history[search_history_count - 1]) == 0)
+    {
+        history_pos = search_history_count - 1;
     }
 
     while (1)
@@ -2103,21 +2159,21 @@ static void EditorFind(void)
 
             if (total > 0)
             {
-                SetStatusMessage("Find%s: %s (%d of %d, Ctrl-T %s, ESC cancel, Enter keep, arrows next/prev)",
+                SetStatusMessage("Find%s: %s (%d of %d, Ctrl-T %s, ESC cancel, Enter keep, ←/→ next/prev, ↑/↓ history)",
                                  search_regex_mode ? " (regex)" : "", query,
                                  before + 1, total,
                                  search_regex_mode ? "text" : "regex");
             }
             else
             {
-                SetStatusMessage("Find%s: %s (no matches, Ctrl-T %s, ESC cancel, Enter keep, arrows next/prev)",
+                SetStatusMessage("Find%s: %s (no matches, Ctrl-T %s, ESC cancel, Enter keep, ←/→ next/prev, ↑/↓ history)",
                                  search_regex_mode ? " (regex)" : "", query,
                                  search_regex_mode ? "text" : "regex");
             }
         }
         else
         {
-            SetStatusMessage("Find%s: %s (Ctrl-T %s, ESC cancel, Enter keep, arrows next/prev)",
+            SetStatusMessage("Find%s: %s (Ctrl-T %s, ESC cancel, Enter keep, ←/→ next/prev, ↑/↓ history)",
                              search_regex_mode ? " (regex)" : "", query,
                              search_regex_mode ? "text" : "regex");
         }
@@ -2155,13 +2211,51 @@ static void EditorFind(void)
             break;
         }
 
-        if (c == ArrowRight || c == ArrowDown)
+        if (c == ArrowRight)
         {
             direction = 1;
         }
-        else if (c == ArrowLeft || c == ArrowUp)
+        else if (c == ArrowLeft)
         {
             direction = -1;
+        }
+        else if (c == ArrowUp || c == ArrowDown)
+        {
+            /* the up and down arrows walk the queries the searches
+               have settled on, the way a shell walks the commands it
+               was given — up to the older ones, down back to the
+               newer, and past the newest to the query the walk began
+               on. A recalled query searches at once, the way the one
+               the search opens with does */
+            int moved = 0;
+
+            if (c == ArrowUp && history_pos > 0)
+            {
+                if (history_pos == search_history_count)
+                {
+                    /* leaving the working line: the query as it
+                       stands is kept for the way back */
+                    snprintf(working, sizeof(working), "%s", query);
+                }
+
+                history_pos--;
+                moved = 1;
+            }
+            else if (c == ArrowDown && history_pos < search_history_count)
+            {
+                history_pos++;
+                moved = 1;
+            }
+
+            if (moved)
+            {
+                query_len = CopyQuery(
+                    query, history_pos < search_history_count
+                               ? search_history[history_pos]
+                               : working);
+                last_match_row = -1; /* the recalled query searches afresh */
+                query_changed = 1;
+            }
         }
         else if (c == 127) /* backspace edits the query */
         {
@@ -2210,10 +2304,12 @@ static void EditorFind(void)
     }
 
     /* the query stays for the next prompt, whichever way this one
-       ended: a cancelled search is as worth repeating as a kept one */
+       ended: a cancelled search is as worth repeating as a kept one,
+       and it goes into the history the arrows walk */
     if (query_len > 0)
     {
         RememberAnswer(last_query, query);
+        SearchHistoryPush(query);
     }
 
     /* leaving the search clears the highlight */
@@ -2337,8 +2433,10 @@ static void EditorReplace(void)
 
     /* the query is settled even while the answer is still open: a
        replace cancelled at the answer keeps the query for the next
-       one, the way a cancelled search keeps its own */
+       one, the way a cancelled search keeps its own, and it goes
+       into the history the search's arrows walk */
     RememberAnswer(last_query, query);
+    SearchHistoryPush(query);
 
     char *replacement = EditorPrompt("with: ", last_replacement);
 
