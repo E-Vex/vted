@@ -1007,6 +1007,84 @@ void RowWordSpan(const vted_row_t *row, int cx, int *start, int *end)
     *start = at;
 }
 
+/* is the byte one a file name is made of: a letter, a digit, one of
+   the punctuation marks a path carries, or a byte of a name in
+   another script. The marks a shell gives a meaning of its own —
+   quotes, braces, colons, and the rest — are left out, so a name in
+   quotes or between parentheses comes out clean */
+static int PathByte(char c)
+{
+    unsigned char b = (unsigned char)c;
+
+    if (b >= 0x80)
+    {
+        return 1; /* the bytes of a name in another script */
+    }
+
+    if ((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z') ||
+        (b >= '0' && b <= '9'))
+    {
+        return 1;
+    }
+
+    return b == '/' || b == '.' || b == '-' || b == '_' || b == '+' ||
+           b == '~' || b == '#' || b == '%' || b == '=';
+}
+
+/* the run of path bytes around the cursor, from the first byte of the
+   file name it sits in (or right behind) to one past its last: the
+   name a gf-style open takes. The cursor on a byte that is no path
+   byte — a quote, a space — falls back to the glyph before it, the
+   way the bracket match does, so the cursor at the end of a name
+   still takes it; a cursor with no path byte under or behind it spans
+   nothing, both indexes coming back where the cursor stands */
+void RowPathSpan(const vted_row_t *row, int cx, int *start, int *end)
+{
+    int at = cx;
+
+    if (at < 0)
+    {
+        at = 0;
+    }
+
+    if (at > row->size)
+    {
+        at = row->size;
+    }
+
+    /* the glyph under the cursor, or the one right behind it, decides */
+    if (at >= row->size || !PathByte(row->chars[at]))
+    {
+        at = Utf8PrevBoundary(row->chars, at);
+    }
+
+    if (at >= row->size || !PathByte(row->chars[at]))
+    {
+        *start = cx;
+        *end = cx;
+        return;
+    }
+
+    /* forward to the last path byte of the run */
+    int last = at;
+
+    while (last < row->size && PathByte(row->chars[last]))
+    {
+        last++;
+    }
+
+    /* and back to its first */
+    int first = at;
+
+    while (first > 0 && PathByte(row->chars[first - 1]))
+    {
+        first--;
+    }
+
+    *start = first;
+    *end = last;
+}
+
 /* the words collected so far and what they are matched against: one
    array of fixed lines the scanners fill, the prefix they extend */
 typedef struct

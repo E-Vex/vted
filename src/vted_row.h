@@ -202,6 +202,18 @@ int RowWordLeft(const vted_row_t *row, int cx);
    row spans nothing — both indexes come back the end of the row */
 void RowWordSpan(const vted_row_t *row, int cx, int *start, int *end);
 
+/* the run of path bytes around the cursor, from the first byte of the
+   file name it sits in (or right behind) to one past its last: the
+   name a gf-style open takes. The bytes a file name is made of are
+   the letters, the digits, the marks a path carries (/ . - _ + ~ #
+   % =) and the bytes of a name in another script; quotes, braces,
+   parentheses and the rest end it. A cursor on a byte that is no
+   path byte falls back to the glyph before it, the way the bracket
+   match does, so a cursor at the end of a name still takes it; no
+   path byte under or behind the cursor spans nothing — both indexes
+   come back where the cursor stands */
+void RowPathSpan(const vted_row_t *row, int cx, int *start, int *end);
+
 /* word completion, the way dabbrev-expand in Emacs works: collects
    the distinct words of the buffer being edited that start with the
    word left of the cursor at (cy, cx), so a menu can offer them. A

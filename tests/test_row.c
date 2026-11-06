@@ -265,6 +265,81 @@ static void TestWordSpan(void)
     CHECK_INT(end, 13);
 }
 
+static void TestPathSpan(void)
+{
+    int start;
+    int end;
+    vted_row_t row = MakeRow("see src/vted_row.h for more");
+
+    RowPathSpan(&row, 6, &start, &end);   /* inside the path */
+    CHECK_INT(start, 4);
+    CHECK_INT(end, 18);
+
+    RowPathSpan(&row, 4, &start, &end);   /* its first byte */
+    CHECK_INT(start, 4);
+    CHECK_INT(end, 18);
+
+    /* the space behind the path: the glyph before it decides, so the
+       cursor at a name's end still takes it */
+    RowPathSpan(&row, 18, &start, &end);
+    CHECK_INT(start, 4);
+    CHECK_INT(end, 18);
+
+    RowPathSpan(&row, 20, &start, &end);  /* inside "for" */
+    CHECK_INT(start, 19);
+    CHECK_INT(end, 22);
+
+    RowPathSpan(&row, 27, &start, &end);  /* the row end: the last name */
+    CHECK_INT(start, 23);
+    CHECK_INT(end, 27);
+
+    RowPathSpan(&row, 99, &start, &end);  /* past it: the same as its end */
+    CHECK_INT(start, 23);
+    CHECK_INT(end, 27);
+
+    /* the punctuation a path carries is part of it, and a quote ends
+       it: a #include line hands the name alone */
+    row = MakeRow("#include \"vted_row.h\"");
+    RowPathSpan(&row, 12, &start, &end);  /* inside the name */
+    CHECK_INT(start, 10);
+    CHECK_INT(end, 20);
+
+    /* parentheses end it, and the comma behind a closing one stays off
+       the name in prose */
+    row = MakeRow("f(vted.h), see");
+    RowPathSpan(&row, 4, &start, &end);
+    CHECK_INT(start, 2);
+    CHECK_INT(end, 8);
+
+    /* a cursor with no path byte under or behind it spans nothing */
+    row = MakeRow("( )");
+    RowPathSpan(&row, 0, &start, &end);   /* the paren under it */
+    CHECK_INT(start, 0);
+    CHECK_INT(end, 0);
+
+    RowPathSpan(&row, 1, &start, &end);   /* the paren behind it neither */
+    CHECK_INT(start, 1);
+    CHECK_INT(end, 1);
+
+    /* the dots of a relative walk and a dash keep the run going */
+    row = MakeRow("from ../src/main-c.v2");
+    RowPathSpan(&row, 7, &start, &end);
+    CHECK_INT(start, 5);
+    CHECK_INT(end, 21);
+
+    /* the bytes of a name in another script are path bytes, and a
+       continuation byte the cursor lands inside still spans the whole */
+    row = MakeRow("h\xC3\xA9llo.txt");
+    RowPathSpan(&row, 2, &start, &end);
+    CHECK_INT(start, 0);
+    CHECK_INT(end, 10);
+
+    row = MakeRow("");
+    RowPathSpan(&row, 0, &start, &end);   /* an empty row spans nothing */
+    CHECK_INT(start, 0);
+    CHECK_INT(end, 0);
+}
+
 /* collects the completions of a buffer at one cursor spot and checks
    they are the given words, in order */
 static void CheckCompletions(const char *const *texts, int cy, int cx,
@@ -2202,6 +2277,7 @@ int main(void)
     TestWordRight();
     TestWordLeft();
     TestWordSpan();
+    TestPathSpan();
     TestWordMovementUtf8();
     TestWordMovementEmptyRow();
     TestCompletionsExtendTheWordLeftOfTheCursor();
