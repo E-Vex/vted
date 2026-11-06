@@ -3416,11 +3416,9 @@ int main(int argc, char *argv[])
             else if ((c_in >= 32 && c_in <= 126) || (c_in >= 128 && c_in <= 255))
             {
                 /* printable ASCII and UTF-8 bytes land in the text,
-                   replacing the selection first */
-                if (EditSelectionActive())
-                {
-                    EditDeleteSelection();
-                }
+                   replacing the selection first — an opening bracket
+                   excepted: with the electric pairs on it wraps the
+                   selection instead of taking it out */
 
                 /* an opening bracket typed with the electric pairs on
                    closes itself right away, the cursor between the two;
@@ -3430,18 +3428,30 @@ int main(int argc, char *argv[])
                                   ? RowBracketCloser((char)c_in)
                                   : 0;
 
-                if (closer != 0)
+                if (closer != 0 && EditorWrapSelection(c_in, closer))
                 {
-                    EditorInsertPair(c_in, closer);
-                }
-                else if (vted_editor_config.electric_brackets &&
-                         CursorStepsOverCloser(c_in))
-                {
-                    vted_editor_config.cursor_x++;
+                    /* the selection went in wrapped */
                 }
                 else
                 {
-                    EditorInsertChar(c_in);
+                    if (EditSelectionActive())
+                    {
+                        EditDeleteSelection();
+                    }
+
+                    if (closer != 0)
+                    {
+                        EditorInsertPair(c_in, closer);
+                    }
+                    else if (vted_editor_config.electric_brackets &&
+                             CursorStepsOverCloser(c_in))
+                    {
+                        vted_editor_config.cursor_x++;
+                    }
+                    else
+                    {
+                        EditorInsertChar(c_in);
+                    }
                 }
             }
         }
