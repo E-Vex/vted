@@ -375,10 +375,17 @@ selection    |
 | Alt-1 .. Alt-9  | jump to the buffer with that number               |
 | Ctrl-G          | go to a line number (ESC cancels)                |
 | Ctrl-F          | incremental search: every match lights up while
-  you type and the prompt counts them, arrows step between matches,
-  a match that left the viewport lands mid-viewport, ESC restores;
-  the search opens with the last query, so Enter alone keeps its
-  match; Ctrl-T in the prompt reads the query as a regular
+  you type and the prompt counts them, the left and right arrows step
+  between matches, a match that left the viewport lands mid-viewport,
+  ESC restores; the search opens with the last query, so Enter alone
+  keeps its match; the up and down arrows walk the queries the
+  searches have settled on, the way a shell walks the commands it was
+  given — up to the older ones, down back to the newer, and past the
+  newest to the query the walk began on — a recalled query searching
+  at once and its matches lighting up the way a typed one's do; the
+  queries the replace asks for go into the same history, and one the
+  newest entry already says is not said again; Ctrl-T in the prompt
+  reads the query as a regular
   expression, the way grep -E speaks one, and back as the text
   itself                                                 |
 | Ctrl-N          | show or hide the line numbers                    |
@@ -411,6 +418,18 @@ does, and closing the last buffer starts a fresh empty one.
 ## Features
 
 New in 0.3.4:
+
+- Search history: the up and down arrows of the search prompt walk
+  the queries the searches have settled on, the way a shell walks the
+  commands it was given — up to the older ones, down back to the
+  newer, and past the newest to the query the walk began on. The
+  search opens on the last query, which stands as the newest entry,
+  so the first up walks to the query before it the way vim's own /
+  prompt does; a recalled query searches at once, its matches lighting
+  up the way a typed one's do, and typing edits it where it stands.
+  The queries the replace asks for go into the same history, and one
+  the newest entry already says is not said again; the oldest falls
+  off when the room runs out (64 of them)
 
 - The file under the cursor: Alt-o opens the file the cursor sits
   on, the way gf does in vi. The run of path bytes under the cursor —
