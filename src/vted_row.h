@@ -214,6 +214,15 @@ void RowWordSpan(const vted_row_t *row, int cx, int *start, int *end);
    come back where the cursor stands */
 void RowPathSpan(const vted_row_t *row, int cx, int *start, int *end);
 
+/* the ":line:column" tail a path name can carry, the way a compiler
+   names the spot in a file it speaks about: the bytes at `at` — one
+   past the end RowPathSpan() gave — open with a colon and a line
+   number, and behind that another colon and a column, both counting
+   from one. Returns 1 with the line in *line — and the column in
+   *column, 0 when the name carries none — and 0 when no such tail is
+   there: no colon, or no number behind the colon that is */
+int RowPathJump(const vted_row_t *row, int at, int *line, int *column);
+
 /* word completion, the way dabbrev-expand in Emacs works: collects
    the distinct words of the buffer being edited that start with the
    word left of the cursor at (cy, cx), so a menu can offer them. A

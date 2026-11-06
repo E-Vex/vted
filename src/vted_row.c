@@ -1085,6 +1085,66 @@ void RowPathSpan(const vted_row_t *row, int cx, int *start, int *end)
     *end = last;
 }
 
+/* the run of digits starting at `at`, one past its last digit coming
+   back: the number it spells comes out saturated near a thousand
+   million, so a tail of absurd digits still lands somewhere instead
+   of overflowing its way past every line the file has */
+#define JUMP_TAIL_MAX 1000000000
+
+static int DigitRun(const char *chars, int size, int at, int *value)
+{
+    int number = 0;
+
+    while (at < size && chars[at] >= '0' && chars[at] <= '9')
+    {
+        if (number <= (JUMP_TAIL_MAX - 9) / 10)
+        {
+            number = number * 10 + (chars[at] - '0');
+        }
+        at++;
+    }
+
+    *value = number;
+    return at;
+}
+
+/* the ":line:column" tail a path name can carry, the way a compiler
+   names the spot in a file it speaks about: a colon and a line number
+   right behind the name, and behind that another colon and a column,
+   both numbers counting from one. Returns 1 with the line in *line —
+   and the column in *column, 0 when the name carries none — and 0
+   when the bytes at `at` open no such tail: nothing there, a colon
+   without a number behind it, or anything else that is no digit */
+int RowPathJump(const vted_row_t *row, int at, int *line, int *column)
+{
+    int past_line;
+
+    *line = 0;
+    *column = 0;
+
+    if (at < 0 || at >= row->size || row->chars[at] != ':')
+    {
+        return 0; /* no colon where a tail would open */
+    }
+
+    past_line = DigitRun(row->chars, row->size, at + 1, line);
+
+    if (past_line == at + 1)
+    {
+        return 0; /* the colon with no number behind it */
+    }
+
+    /* the column behind a second colon, when a number is there; a
+       second colon with none, or no second colon at all, leaves the
+       tail as the line alone */
+    if (past_line < row->size && row->chars[past_line] == ':')
+    {
+        DigitRun(row->chars, row->size, past_line + 1, column);
+    }
+
+    return 1;
+}
+
 /* the words collected so far and what they are matched against: one
    array of fixed lines the scanners fill, the prefix they extend */
 typedef struct

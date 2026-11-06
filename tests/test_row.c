@@ -340,6 +340,89 @@ static void TestPathSpan(void)
     CHECK_INT(end, 0);
 }
 
+static void TestPathJump(void)
+{
+    int line;
+    int column;
+    vted_row_t row = MakeRow("see src/vted_row.c:42 for the pair");
+
+    /* the span ends before the colon, and the tail behind it speaks
+       its line */
+    CHECK_INT(RowPathJump(&row, 18, &line, &column), 1);
+    CHECK_INT(line, 42);
+    CHECK_INT(column, 0);
+
+    /* a line and a column, the way a compiler names a spot */
+    row = MakeRow("src/vted_row.c:42:7 here");
+    CHECK_INT(RowPathJump(&row, 14, &line, &column), 1);
+    CHECK_INT(line, 42);
+    CHECK_INT(column, 7);
+
+    /* whatever runs past the column is not the tail's to take */
+    row = MakeRow("src/vted_row.c:42:7:9 here");
+    CHECK_INT(RowPathJump(&row, 14, &line, &column), 1);
+    CHECK_INT(line, 42);
+    CHECK_INT(column, 7);
+
+    /* a second colon with no number behind it ends the tail as the
+       line alone */
+    row = MakeRow("src/vted_row.c:42:");
+    CHECK_INT(RowPathJump(&row, 14, &line, &column), 1);
+    CHECK_INT(line, 42);
+    CHECK_INT(column, 0);
+
+    /* digits of more than one digit, and the row ending right behind
+       the tail */
+    row = MakeRow("at main.c:120");
+    CHECK_INT(RowPathJump(&row, 9, &line, &column), 1);
+    CHECK_INT(line, 120);
+    CHECK_INT(column, 0);
+
+    row = MakeRow("at main.c:120:45");
+    CHECK_INT(RowPathJump(&row, 9, &line, &column), 1);
+    CHECK_INT(line, 120);
+    CHECK_INT(column, 45);
+
+    /* a run of digits too long to say lands saturated, not wrapped */
+    row = MakeRow("at main.c:99999999999999:3");
+    CHECK_INT(RowPathJump(&row, 9, &line, &column), 1);
+    CHECK_INT(line, 999999999);
+    CHECK_INT(column, 3);
+}
+
+static void TestPathJumpWithoutATail(void)
+{
+    int line;
+    int column;
+
+    /* no colon at all: the name stands alone */
+    vted_row_t row = MakeRow("src/vted_row.c here");
+    CHECK_INT(RowPathJump(&row, 14, &line, &column), 0);
+    CHECK_INT(line, 0);
+    CHECK_INT(column, 0);
+
+    /* a colon with no number behind it is prose, not a tail */
+    row = MakeRow("http://example.com/x");
+    CHECK_INT(RowPathJump(&row, 4, &line, &column), 0);
+
+    row = MakeRow("src/vted_row.c: see");
+    CHECK_INT(RowPathJump(&row, 14, &line, &column), 0);
+
+    /* a letter behind the colon is no number either */
+    row = MakeRow("see note:a done");
+    CHECK_INT(RowPathJump(&row, 8, &line, &column), 0);
+
+    /* the row's end, one past it, and a bad index open no tail */
+    row = MakeRow("main.c:12");
+    CHECK_INT(RowPathJump(&row, 9, &line, &column), 0);
+    CHECK_INT(RowPathJump(&row, 99, &line, &column), 0);
+    CHECK_INT(RowPathJump(&row, -1, &line, &column), 0);
+
+    /* an empty row opens none */
+    row = MakeRow("");
+    CHECK_INT(RowPathJump(&row, 0, &line, &column), 0);
+}
+
 /* collects the completions of a buffer at one cursor spot and checks
    they are the given words, in order */
 static void CheckCompletions(const char *const *texts, int cy, int cx,
@@ -2294,6 +2377,8 @@ int main(void)
     TestWordLeft();
     TestWordSpan();
     TestPathSpan();
+    TestPathJump();
+    TestPathJumpWithoutATail();
     TestWordMovementUtf8();
     TestWordMovementEmptyRow();
     TestCompletionsExtendTheWordLeftOfTheCursor();
