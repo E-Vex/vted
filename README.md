@@ -393,7 +393,11 @@ selection    |
 | Ctrl-B          | pick a buffer from a list of what is open        |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
 | Alt-1 .. Alt-9  | jump to the buffer with that number               |
-| Ctrl-G          | go to a line number (ESC cancels)                |
+| Ctrl-G          | go to a line number, or a line with a ":column"
+  tail behind it — the way a jump tail carries one, counting from
+  one the way the bar counts — landing mid-viewport, a number past
+  the end on the last line, a column past a row's end on that row's
+  end (ESC cancels)                            |
 | Ctrl-F          | incremental search: every match lights up while
   you type and the prompt counts them, the left and right arrows step
   between matches, a match that left the viewport lands mid-viewport,
@@ -747,9 +751,11 @@ New in 0.3.0:
   arrows step through a search made earlier; Ctrl-T reads the query
   as a POSIX extended regular expression instead of the text itself,
   the matches lit the same way, each as long as the pattern finds it
-- Go to a line with Ctrl-G; a number past the end lands on the last
-  line, and the line lands mid-viewport, the tall rows of wrapping
-  counted at their real heights
+- Go to a line with Ctrl-G, a ":column" tail behind the number
+  naming the column to land on; a number past the end lands on the
+  last line, a column past a row's end on that row's end, and the
+  spot lands mid-viewport, the tall rows of wrapping counted at
+  their real heights
 - Saving an unnamed buffer asks for a file name; the buffer stays unnamed
   if the file cannot be written
 - Saves are atomic: the text goes to a temporary file that is renamed

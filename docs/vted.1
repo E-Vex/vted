@@ -394,9 +394,11 @@ step through the open buffers, wrapping around both ends
 jump to the buffer with that number
 .TP
 .B Ctrl\-G
-go to a line number; a number past the end goes to the last line, and
-the line lands mid-viewport with wrapping's tall rows counted, ESC
-cancels
+go to a line number, or a line with a ":column" tail behind it, the
+way a jump tail carries one, both counting from one the way the bar
+counts them; a number past the end goes to the last line, a column
+past a row's end on that row's end, and the spot lands mid-viewport
+with wrapping's tall rows counted, ESC cancels
 .TP
 .B Ctrl\-F
 incremental search: every match of the query lights up while it is
