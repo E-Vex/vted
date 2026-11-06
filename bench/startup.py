@@ -3,10 +3,13 @@
 
 The editor is spawned on a pseudo terminal the way packaging/
 smoke-test.py does it, and two clocks are taken per run: the time
-from the process starting to the first painted frame, and the time
-to a clean exit after one Ctrl-Q. The median of the runs is the
-answer; the terminal is 24x80 so the frame is small and the fixed
-costs dominate, which is what startup is.
+from the process starting to the first painted frame — told from
+the setup escapes before it by waiting for the bar of the opening
+view, or the welcome banner of an empty buffer, so the open of the
+file is inside the number — and the time to a clean exit after one
+Ctrl-Q. The median of the runs is the answer; the terminal is 24x80
+so the frame is small and the fixed costs dominate, which is what
+startup is.
 
   python3 bench/startup.py ./vted [file] [runs]
 """
@@ -47,10 +50,18 @@ def wait_exit(pid, fd, timeout=10):
 
 def one_run(binary, args):
     """(first frame, clean exit) in seconds, or None when it went wrong"""
+    # the first painted frame is told from the setup escapes before
+    # it: the bar of the opening view ("Ln 1/...") only arrives once
+    # the file is loaded and laid out behind it, and an empty buffer
+    # paints its welcome banner instead — the first of the two the
+    # file on the command line decides between
+    telltale = b'Ln 1/' if args else b'vted -- version'
+
     start = time.perf_counter()
     pid, fd = spawn(binary, args)
 
     first_frame = None
+    seen = b''
     deadline = time.time() + 2.0
     while time.perf_counter() - start < deadline and first_frame is None:
         ready, _, _ = select.select([fd], [], [], 0.01)
@@ -62,7 +73,8 @@ def one_run(binary, args):
             break
         if not chunk:
             break
-        if chunk:  # any frame painted: the editor is up and drawing
+        seen += chunk
+        if telltale in seen:  # the bar is drawn: the frame is painted
             first_frame = time.perf_counter() - start
 
     if first_frame is None:
