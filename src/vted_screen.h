@@ -34,6 +34,9 @@ typedef struct
                         indent at their start */
   int indent_guides; /* 1: dot the last cell of every nesting level the
                         rows sit in */
+  int electric_brackets; /* 1: an opening bracket typed lays its closer
+                            in right behind it, the cursor between the
+                            two */
 
   char status_message[256]; /* most recent message shown in the message bar */
 } vted_editor_Config_t;

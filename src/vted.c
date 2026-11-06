@@ -574,6 +574,7 @@ static void ApplySettings(const vted_settings_t *settings)
     vted_editor_config.wrap_column = settings->wrap_column;
     vted_editor_config.wrap_indent = settings->wrap_indent;
     vted_editor_config.indent_guides = settings->indent_guides;
+    vted_editor_config.electric_brackets = settings->electric_brackets;
 
     /* the color of the bracket match reaches the syntax module, which
        holds it the way it holds the language of the file */

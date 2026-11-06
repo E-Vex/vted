@@ -36,6 +36,9 @@ typedef struct
     int search_regex;      /* 1: the search reads its query as a
                               regular expression, the way grep -E
                               speaks one */
+    int electric_brackets; /* 1: an opening bracket typed closes
+                              itself right away, the cursor between
+                              the two */
     char theme[33];        /* the name of the color theme: a theme file
                               in the themes directory or a built-in
                               one; "default" is the built-in colors */

@@ -43,6 +43,7 @@ static void TestDefaults(void)
     CHECK_INT(settings.indent_guides, 0);
     CHECK_INT(settings.bracket_color, 0);
     CHECK_INT(settings.ignore_case, 0);
+    CHECK_INT(settings.electric_brackets, 1);
     CHECK_STR(settings.theme, "default");
 }
 
@@ -253,6 +254,24 @@ static void TestSearchRegex(void)
     CHECK_INT(settings.search_regex, 0);
 }
 
+static void TestElectricBrackets(void)
+{
+    /* an opening bracket typed closes itself right away unless told
+       otherwise */
+    vted_settings_t settings = SettingsDefaults();
+    CHECK_INT(settings.electric_brackets, 1);
+
+    CHECK_INT(LoadLines("set electric-brackets off\n", &settings), 0);
+    CHECK_INT(settings.electric_brackets, 0);
+
+    CHECK_INT(LoadLines("set electric-brackets on\n", &settings), 0);
+    CHECK_INT(settings.electric_brackets, 1);
+
+    /* anything else is not a setting */
+    CHECK_INT(LoadLines("set electric-brackets maybe\n", &settings), 1);
+    CHECK_INT(settings.electric_brackets, 1);
+}
+
 static void TestBracketColor(void)
 {
     vted_settings_t settings;
@@ -426,6 +445,7 @@ int main(void)
     TestIndentGuides();
     TestIgnoreCase();
     TestSearchRegex();
+    TestElectricBrackets();
     TestBracketColor();
     TestParseBracketColor();
     TestBracketColorName();

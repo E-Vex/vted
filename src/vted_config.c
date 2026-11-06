@@ -23,6 +23,7 @@ vted_settings_t SettingsDefaults(void)
     settings.bracket_color = 0;
     settings.ignore_case = 0;
     settings.search_regex = 0;
+    settings.electric_brackets = 1;
     strcpy(settings.theme, "default");
 
     return settings;
@@ -313,6 +314,21 @@ int SettingsLoad(vted_settings_t *settings, FILE *file)
             else
             {
                 settings->search_regex = on_off;
+            }
+        }
+        else if (TextIs(key, key_len, "electric-brackets"))
+        {
+            /* an opening bracket typed closes itself right away; Alt-(
+               turns it either way while editing */
+            int on_off = ParseOnOff(value, value_len);
+
+            if (on_off == -1)
+            {
+                bad++;
+            }
+            else
+            {
+                settings->electric_brackets = on_off;
             }
         }
         else if (TextIs(key, key_len, "bracket-color"))
