@@ -382,7 +382,12 @@ selection    |
   directory, when that one does not answer; a file that is already
   open just comes back into view, and a name that is no file at
   all — one that is not there, or a directory — says so in the bar:
-  gf goes to a file that is there, it does not start one |
+  gf goes to a file that is there, it does not start one. The name
+  can carry a ":line:column" tail, the way a compiler names a spot,
+  and the open lands the cursor on the spot it says — a line alone
+  or a line and a column, the way Ctrl-G lands one — a line past
+  the end on the last one, a column past a row's end on that row's
+  end |
 | Ctrl-E          | close the buffer being edited                    |
 | Ctrl-B          | pick a buffer from a list of what is open        |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
@@ -471,7 +476,12 @@ New in 0.3.4:
   stands, in the working directory, when that one does not answer; a
   file that is already open just comes back into view, and a name
   that is no file at all says so in the bar instead of starting an
-  empty buffer
+  empty buffer. The name can carry a ":line:column" tail, the way a
+  compiler names the spot in a file it speaks about, and the open
+  lands the cursor on the spot the tail says — `two.txt:3:7` opening
+  the file and landing on its third line, seventh column, the
+  column counting the cells the bar shows; the line alone lands the
+  start of it
 
 - Path completion: Tab in the Open and Save-as prompts completes the
   path typed so far, the way the shell's Tab does. The directory the

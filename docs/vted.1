@@ -365,7 +365,12 @@ it stands, in the working directory, when that one does not answer;
 a file that is already open just comes back into view, and a name
 that is no file at all — one that is not there, or a directory — says
 so in the message bar: gf goes to a file that is there, it does not
-start one
+start one. The name can carry a ":line:column" tail, the way a
+compiler names the spot in a file it speaks about, and the open lands
+the cursor on the spot the tail says — a line alone or a line and a
+column, the way Ctrl\-G lands one — a line past the end on the last
+one, a column past a row's end on that row's end, the spot
+mid-viewport
 .TP
 .B Ctrl\-E
 close the buffer being edited; the neighbor comes into view, and
