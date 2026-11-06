@@ -524,44 +524,6 @@ static char *EditorPromptPath(const char *label, const char *initial)
     return EditorPromptEx(label, initial, 1);
 }
 
-static void EditorGoToLine(void)
-{
-    char *answer = EditorPrompt("Go to line: ", NULL);
-
-    if (answer == NULL)
-    {
-        return;
-    }
-
-    char *end;
-    long line = strtol(answer, &end, 10);
-
-    if (*end != '\0' || end == answer || line < 1)
-    {
-        SetStatusMessage("Not a line number: %s", answer);
-        free(answer);
-        return;
-    }
-
-    free(answer);
-
-    if (vted_buffer.num_rows == 0)
-    {
-        return;
-    }
-
-    /* a number past the end lands on the last line */
-    if (line > vted_buffer.num_rows)
-    {
-        line = vted_buffer.num_rows;
-    }
-
-    vted_editor_config.cursor_y = (int)line - 1;
-    vted_editor_config.cursor_x = 0;
-
-    ScreenCenterCursor();
-}
-
 /* copies the settings into the editor state; the tab width the rows
    lay out with and the gutter the next frame draws both come from
    them */
@@ -1141,8 +1103,8 @@ static int RegularFileThere(const char *path)
     return path != NULL && stat(path, &info) == 0 && S_ISREG(info.st_mode);
 }
 
-/* lands the cursor on the line and column a jump tail named, the
-   way Ctrl-G lands the line it was asked for: a line past the end
+/* lands the cursor on the line and column a jump names — the tail a
+   name carries, or the answer Ctrl-G takes: a line past the end
    lands on the last one, a column past a row's end on that row's
    end, and the spot lands mid-viewport */
 static void EditorLandJump(int line, int column)
@@ -1169,6 +1131,72 @@ static void EditorLandJump(int line, int column)
                                       : 0;
 
     ScreenCenterCursor();
+}
+
+/* the number a run of digits spells, one past its last digit coming
+   back: it comes out saturated near a thousand million, the way a
+   jump tail's digits do, so an absurd answer still lands somewhere
+   instead of overflowing its way past every line the file has */
+#define ANSWER_NUMBER_MAX 1000000000
+
+static const char *AnswerNumber(const char *at, int *value)
+{
+    int number = 0;
+
+    while (*at >= '0' && *at <= '9')
+    {
+        if (number <= (ANSWER_NUMBER_MAX - 9) / 10)
+        {
+            number = number * 10 + (*at - '0');
+        }
+        at++;
+    }
+
+    *value = number;
+    return at;
+}
+
+/* Ctrl-G asks for a line to land on: the answer a line number, or a
+   line with a ":column" tail behind it, the way a jump tail carries
+   one — both counting from one the way the bar counts them, and an
+   answer that spells neither told so in the bar */
+static void EditorGoToLine(void)
+{
+    char *answer = EditorPrompt("Go to line: ", NULL);
+
+    if (answer == NULL)
+    {
+        return;
+    }
+
+    /* the line, and behind a colon the column when the answer
+       carries one: digits, digits behind a colon, and nothing
+       behind them */
+    int line = 0;
+    int column = 0;
+    const char *at = AnswerNumber(answer, &line);
+    int ok = at != answer;
+
+    if (ok && *at == ':')
+    {
+        const char *past = AnswerNumber(at + 1, &column);
+
+        ok = past != at + 1;
+        at = past;
+    }
+
+    ok = ok && *at == '\0' && line >= 1;
+
+    if (!ok)
+    {
+        SetStatusMessage("Not a line number: %s", answer);
+        free(answer);
+        return;
+    }
+
+    free(answer);
+
+    EditorLandJump(line, column);
 }
 
 /* Alt-o opens the file the cursor sits on, the way gf does in vi: the
