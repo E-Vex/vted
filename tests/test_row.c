@@ -423,6 +423,67 @@ static void TestPathJumpWithoutATail(void)
     CHECK_INT(RowPathJump(&row, 0, &line, &column), 0);
 }
 
+static void TestNameTail(void)
+{
+    int line;
+    int column;
+
+    /* the line behind the name's colon, the way a compiler names a
+       spot */
+    CHECK_INT(RowNameTail("src/vted_row.c:42", &line, &column), 14);
+    CHECK_INT(line, 42);
+    CHECK_INT(column, 0);
+
+    /* a line and a column, the tail carrying both */
+    CHECK_INT(RowNameTail("src/vted_row.c:42:7", &line, &column), 14);
+    CHECK_INT(line, 42);
+    CHECK_INT(column, 7);
+
+    /* the digits of more than one digit, and the name ending right
+       behind the tail */
+    CHECK_INT(RowNameTail("main.c:120:45", &line, &column), 6);
+    CHECK_INT(line, 120);
+    CHECK_INT(column, 45);
+
+    /* a name of digits on its own is all name: no colon opens a
+       tail, so it opens as the name itself */
+    CHECK_INT(RowNameTail("42", &line, &column), 2);
+    CHECK_INT(line, 0);
+    CHECK_INT(column, 0);
+
+    /* digits the name ends with behind no colon belong to the name,
+       the way a versioned file's do */
+    CHECK_INT(RowNameTail("vted2.c", &line, &column), 7);
+    CHECK_INT(line, 0);
+    CHECK_INT(column, 0);
+
+    /* a colon with no number behind it is prose, not a tail — the
+       whole thing is the name, the way a URL is */
+    CHECK_INT(RowNameTail("http://example.com/x", &line, &column), 20);
+    CHECK_INT(line, 0);
+    CHECK_INT(column, 0);
+
+    CHECK_INT(RowNameTail("see:", &line, &column), 4);
+    CHECK_INT(line, 0);
+    CHECK_INT(column, 0);
+
+    /* a letter behind the colon is no number either, and neither is
+       nothing at all */
+    CHECK_INT(RowNameTail("note:a", &line, &column), 6);
+    CHECK_INT(line, 0);
+    CHECK_INT(column, 0);
+
+    CHECK_INT(RowNameTail("", &line, &column), 0);
+    CHECK_INT(line, 0);
+    CHECK_INT(column, 0);
+
+    /* absurd digits saturate the way a jump tail's do, still landing
+       somewhere instead of overflowing */
+    CHECK_INT(RowNameTail("x:99999999999999", &line, &column), 1);
+    CHECK_INT(line, 999999999);
+    CHECK_INT(column, 0);
+}
+
 /* collects the completions of a buffer at one cursor spot and checks
    they are the given words, in order */
 static void CheckCompletions(const char *const *texts, int cy, int cx,
@@ -2401,6 +2462,7 @@ int main(void)
     TestPathSpan();
     TestPathJump();
     TestPathJumpWithoutATail();
+    TestNameTail();
     TestWordMovementUtf8();
     TestWordMovementEmptyRow();
     TestCompletionsExtendTheWordLeftOfTheCursor();

@@ -223,6 +223,15 @@ void RowPathSpan(const vted_row_t *row, int cx, int *start, int *end);
    there: no colon, or no number behind the colon that is */
 int RowPathJump(const vted_row_t *row, int at, int *line, int *column);
 
+/* the ":line:column" tail a NUL-terminated name carries at its end,
+   read off a plain string the way RowPathJump() reads one off a
+   row: digits at the very end, a colon behind them, and behind that
+   colon the line behind another one, both counting from one.
+   Returns the length of the name itself — the bytes before the
+   colon that opens the tail — with the line in *line and the column
+   in *column; the whole length when the name carries no tail */
+int RowNameTail(const char *name, int *line, int *column);
+
 /* word completion, the way dabbrev-expand in Emacs works: collects
    the distinct words of the buffer being edited that start with the
    word left of the cursor at (cy, cx), so a menu can offer them. A

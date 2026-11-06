@@ -1145,6 +1145,61 @@ int RowPathJump(const vted_row_t *row, int at, int *line, int *column)
     return 1;
 }
 
+/* the ":line:column" tail a NUL-terminated name can carry at its
+   end, read the way RowPathJump reads one off a row: digits at the
+   very end, a colon behind them, and behind that colon another run
+   of digits behind another colon naming the line the first run
+   gives the column of. Returns the length of the name itself — the
+   bytes before the colon that opens the tail — with the line in
+   *line and the column in *column, both counting from one; the
+   whole length when the name carries no tail */
+int RowNameTail(const char *name, int *line, int *column)
+{
+    int len = (int)strlen(name);
+    int col_end = len;
+    int col_at = len;
+
+    *line = 0;
+    *column = 0;
+
+    /* the digits the name ends with, when it ends with any */
+    while (col_at > 0 && name[col_at - 1] >= '0' &&
+           name[col_at - 1] <= '9')
+    {
+        col_at--;
+    }
+
+    if (col_at == col_end || col_at == 0 || name[col_at - 1] != ':')
+    {
+        return len; /* no digits at the end, or no colon behind them */
+    }
+
+    /* another run of digits behind another colon: the line the
+       first run gives the column of */
+    {
+        int line_end = col_at - 1;
+        int line_at = line_end;
+
+        while (line_at > 0 && name[line_at - 1] >= '0' &&
+               name[line_at - 1] <= '9')
+        {
+            line_at--;
+        }
+
+        if (line_at < line_end && line_at > 0 &&
+            name[line_at - 1] == ':')
+        {
+            DigitRun(name, len, line_at, line);
+            DigitRun(name, len, col_at, column);
+            return line_at - 1;
+        }
+    }
+
+    /* the tail is the line alone */
+    DigitRun(name, len, col_at, line);
+    return col_at - 1;
+}
+
 /* the words collected so far and what they are matched against: one
    array of fixed lines the scanners fill, the prefix they extend */
 typedef struct
