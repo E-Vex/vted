@@ -492,6 +492,13 @@ int ParseArrowKey(void)
         return WordComplete;
     }
 
+    /* Alt-o opens the file the cursor sits on, the way gf does in vi:
+       Ctrl-O asks for the path, Alt-o takes the one under the cursor */
+    if (introducer == 'o')
+    {
+        return OpenFileAtCursor;
+    }
+
     /* Alt-z stops the editor and hands the terminal to the shell,
        the way Ctrl-Z used to: raw mode turned the signal generation
        off, so the shell's own Ctrl-Z never arrives and the z goes

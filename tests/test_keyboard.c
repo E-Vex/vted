@@ -306,6 +306,18 @@ static void TestWordCompleteKey(void)
     CHECK_INT(ReadKeyPress(), '/');
 }
 
+static void TestOpenFileAtCursorKey(void)
+{
+    /* Alt-o opens the file the cursor sits on, the way gf does in vi:
+       Ctrl-O asks for the path, Alt-o takes the one under the cursor */
+    FeedInput("\x1bo");
+    CHECK_INT(ReadKeyPress(), OpenFileAtCursor);
+
+    /* a plain o is still text */
+    FeedInput("o");
+    CHECK_INT(ReadKeyPress(), 'o');
+}
+
 static void TestSuspendKey(void)
 {
     /* Alt-z stops the editor and hands the terminal to the shell,
@@ -541,6 +553,7 @@ int main(void)
     TestSearchRepeatKeys();
     TestWordDeleteKeys();
     TestWordCompleteKey();
+    TestOpenFileAtCursorKey();
     TestSuspendKey();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();
