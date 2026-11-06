@@ -75,6 +75,12 @@
 # stepping over instead of doubling it, backspaces walking the whole
 # thing back out — the empty pair going as one — and Alt-( turning
 # the electricity off, a bracket typed after it standing alone.
+#
+# A wrap run walks the selection the pairs wrap the way a hand would:
+# a word picked with a double click, a bracket typed over it wrapping
+# it in its pair instead of taking it out, a letter typed over the
+# wrap landing between the halves, and Ctrl-Z walking the whole thing
+# back out with the pair as one step.
 import os
 import pty
 import select
@@ -115,6 +121,7 @@ PATH_SAVE = '/tmp/vted-smoke-saveas'  # the tree the save-as completion walks
 GF_TREE = '/tmp/vted-smoke-gf'      # the tree the Alt-o walk opens in
 HISTORY = '/tmp/vted-smoke-history.txt'  # the buffer the queries walk
 ELECTRIC = '/tmp/vted-smoke-electric.txt'  # the buffer the pairs land in
+WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
 
 
 def spawn(binary, args):
@@ -934,6 +941,61 @@ def electric_smoke(binary):
     return 0
 
 
+def wrap_smoke(binary):
+    """the wrap run: a word selected with a double click, a bracket
+    typed over it wrapping it in its pair instead of taking it out,
+    the selection riding the text — a letter typed over the wrap
+    landing between the halves — and Ctrl-Z walking the whole thing
+    back out a step at a time, the pair as one of them"""
+    with open(WRAP, 'w') as f:
+        f.write('one two three\nfour five six\n')
+
+    pid, fd = spawn(binary, [WRAP])
+    out = []
+    time.sleep(0.3)
+
+    # the double click on 'w' of "two" as the double click run: the
+    # word stands selected, and a ( typed over it wraps it
+    drive(fd, b'\x1b[<0;10;1M\x1b[<0;10;1m\x1b[<0;10;1M', out)
+    drive(fd, b'(', out)
+    drive(fd, CTRL_S, out)
+
+    with open(WRAP) as f:
+        if f.read() != 'one (two) three\nfour five six\n':
+            return fail('the bracket did not wrap the selected word')
+
+    # the selection rode the text: the word, not the pair, is what the
+    # typing over it replaces
+    drive(fd, b'x', out)
+    drive(fd, CTRL_S, out)
+
+    with open(WRAP) as f:
+        if f.read() != 'one (x) three\nfour five six\n':
+            return fail('the wrapped word did not answer the typing over it')
+
+    # three undos walk it back: the letter, the word the typing took,
+    # and the pair as one step
+    for _ in range(3):
+        drive(fd, CTRL_Z, out, pause=0.1)
+    drive(fd, CTRL_S, out)
+
+    with open(WRAP) as f:
+        if f.read() != 'one two three\nfour five six\n':
+            return fail('the wrap did not go back out with the pair as one step')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    print('smoke: OK - wrapped a double-clicked word in an electric pair')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -949,7 +1011,7 @@ def main() -> int:
         or dblclick_smoke(binary) or middleclick_smoke(binary) \
         or path_smoke(binary) or saveas_smoke(binary) \
         or gf_smoke(binary) or history_smoke(binary) \
-        or electric_smoke(binary)
+        or electric_smoke(binary) or wrap_smoke(binary)
 
 
 if __name__ == '__main__':
