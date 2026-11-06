@@ -1153,6 +1153,116 @@ void EditDeleteSelection(void)
     EditClearSelection();
 }
 
+/* moves a selection end past the halves a wrap laid in: the opener
+   went in at the top/left end of the span, so an end on the top row
+   at or past it lands behind the opener, and the closer at the
+   bottom/right end, so an end beyond that boundary lands behind the
+   closer. An end on the boundary itself stays before the closer: the
+   closer went in behind the selection, and the boundary is where the
+   selection ends */
+static void ShiftPastHalves(int *y, int *x, int top, int left,
+                            int bottom, int right)
+{
+    int shift = 0;
+
+    if (*y == top && *x >= left)
+    {
+        shift++; /* behind the opener */
+    }
+    if (*y == bottom && *x > right)
+    {
+        shift++; /* behind the closer */
+    }
+
+    *x += shift;
+}
+
+int EditorWrapSelection(int opener, int closer)
+{
+    int top;
+    int left;
+    int bottom;
+    int right;
+    int anchor_y;
+    int anchor_x;
+    int cursor_y;
+    int cursor_x;
+    char halves[2] = {(char)opener, (char)closer};
+
+    EditSelectionRange(&top, &left, &bottom, &right);
+
+    /* nothing selected is nothing to wrap, and a buffer without rows
+       has not even a spot for the pair: the caller lays it in at the
+       cursor instead */
+    if (!sel_active || vted_buffer.num_rows == 0 ||
+        (top == bottom && left == right))
+    {
+        return 0;
+    }
+
+    /* the closer goes in at the bottom/right end first, so the opener
+       landing at the top/left end cannot shift it */
+    if (RowInsertChar(&vted_buffer.rows[bottom], right, closer) == -1)
+    {
+        KillApp("RowInsertChar");
+    }
+
+    if (RowInsertChar(&vted_buffer.rows[top], left, opener) == -1)
+    {
+        KillApp("RowInsertChar");
+    }
+
+    vted_buffer.dirty = 1;
+
+    /* the selection rides the text: both of its ends move past the
+       halves that went in around them, the anchor and the cursor
+       keeping the ends they had */
+    anchor_y = sel_anchor_y;
+    anchor_x = sel_anchor_x;
+    ShiftPastHalves(&anchor_y, &anchor_x, top, left, bottom, right);
+
+    cursor_y = vted_editor_config.cursor_y;
+    cursor_x = vted_editor_config.cursor_x;
+    ShiftPastHalves(&cursor_y, &cursor_x, top, left, bottom, right);
+
+    EditSetAnchor(anchor_y, anchor_x);
+    vted_editor_config.cursor_y = cursor_y;
+    vted_editor_config.cursor_x = cursor_x;
+
+    /* the light follows the span it drew before the halves went in;
+       the undo entry keeps the geometry as it was, before the shifts
+       the halves laid into it */
+    {
+        int light_top;
+        int light_left;
+        int light_bottom;
+        int light_right;
+
+        EditSelectionRange(&light_top, &light_left,
+                           &light_bottom, &light_right);
+        ScreenSetSelection(light_top, light_left,
+                           light_bottom, light_right);
+    }
+
+    /* undo takes both halves back out as one, the cursor landing at
+       the bottom/right end of what was wrapped — the end it lands on
+       undoing a deletion too */
+    UndoEntry entry = {
+        .kind = UndoKindWrapSelection,
+        .row = top,
+        .cx = left,
+        .bytes = halves,
+        .length = 2,
+        .undo_y = bottom,
+        .undo_x = right,
+        .redo_y = cursor_y,
+        .redo_x = cursor_x,
+    };
+    UndoPush(&entry);
+
+    return 1;
+}
+
 /* the copy the editor keeps: the last text that went out to the
    clipboard, held on to so a paste of its own can come from it — the
    middle button pastes it where it is clicked. Only a copy or a cut

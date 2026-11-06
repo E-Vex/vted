@@ -22,6 +22,14 @@ void EditorInsertNewline(void);
    the way a single character does */
 void EditorInsertPair(int opener, int closer);
 
+/* wraps the selected text in the bracket pair: the opener goes in
+   front of what is selected and the closer behind it, one undoable
+   step — the selection and the cursor riding the text as it shifts,
+   so the wrapped text stays selected the way it was. Returns 1 when a
+   selection went in, 0 when nothing is selected: the caller falls
+   back on laying the pair in at the cursor */
+int EditorWrapSelection(int opener, int closer);
+
 /* takes the empty bracket pair the cursor sits inside — the opener
    left of it, the closer under it — back out as one undoable step,
    the way the electric typing laid it in as one. Returns 1 when a

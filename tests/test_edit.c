@@ -181,6 +181,164 @@ static void TestDeletePairOnlyInsideAnEmptyOne(void)
     CHECK_INT(EditorDeletePair(), 0);
 }
 
+static void TestWrapSelection(void)
+{
+    /* an opener typed over a selection wraps it: the halves go in
+       around what is selected, which stays selected the way it was,
+       the cursor keeping its own end of it */
+    Begin("abcdef");
+    CursorAt(0, 4);
+    EditSetAnchor(0, 2);
+
+    CHECK_INT(EditorWrapSelection('(', ')'), 1);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab(cd)ef");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+    CHECK_INT(vted_buffer.dirty, 1);
+
+    int top, left, bottom, right;
+
+    EditSelectionRange(&top, &left, &bottom, &right);
+    CHECK_INT(top, 0);
+    CHECK_INT(left, 3);
+    CHECK_INT(bottom, 0);
+    CHECK_INT(right, 5);
+
+    EditClearSelection();
+}
+
+static void TestWrapSelectionKeepsTheCursorEnd(void)
+{
+    /* a selection made the other way keeps its ends too: the cursor
+       stays on the end it was on, before the closer, the anchor
+       behind the opener */
+    Begin("abcdef");
+    CursorAt(0, 2);
+    EditSetAnchor(0, 4);
+
+    CHECK_INT(EditorWrapSelection('[', ']'), 1);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab[cd]ef");
+    CHECK_INT(vted_editor_config.cursor_x, 3);
+
+    int top, left, bottom, right;
+
+    EditSelectionRange(&top, &left, &bottom, &right);
+    CHECK_INT(left, 3);
+    CHECK_INT(right, 5);
+
+    EditClearSelection();
+}
+
+static void TestWrapSelectionAcrossRows(void)
+{
+    /* a span over a line break: the opener goes in front of the top
+       row's tail and the closer behind the bottom row's head */
+    Begin("abcd");
+    AppendRow("efgh", 4, VTED_EOL_LF);
+    CursorAt(1, 2);
+    EditSetAnchor(0, 2);
+
+    CHECK_INT(EditorWrapSelection('{', '}'), 1);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab{cd");
+    CHECK_STR(vted_buffer.rows[1].chars, "ef}gh");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+
+    EditClearSelection();
+}
+
+static void TestWrapSelectionAtTheRowsEnd(void)
+{
+    /* a selection running to the end of a row: the closer lands
+       behind its last byte, and the cursor keeps standing at the
+       row's end */
+    Begin("abcd");
+    CursorAt(0, 4);
+    EditSetAnchor(0, 2);
+
+    CHECK_INT(EditorWrapSelection('(', ')'), 1);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab(cd)");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+
+    EditClearSelection();
+}
+
+static void TestWrapSelectionUndoRedo(void)
+{
+    /* the wrap is one undo step: both halves go as one, and one redo
+       lays them both back in */
+    Begin("abcdef");
+    CursorAt(0, 4);
+    EditSetAnchor(0, 2);
+
+    CHECK_INT(EditorWrapSelection('(', ')'), 1);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcdef");
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab(cd)ef");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+
+    EditClearSelection();
+}
+
+static void TestWrapSelectionOnlyWithSomethingSelected(void)
+{
+    /* without a selection, or with an empty one, there is nothing to
+       wrap: the caller lays the pair in at the cursor instead */
+    Begin("ab");
+    CursorAt(0, 1);
+
+    CHECK_INT(EditorWrapSelection('(', ')'), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    EditSetAnchor(0, 1);
+    CHECK_INT(EditorWrapSelection('(', ')'), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    /* a selection that is no longer active wraps nothing either */
+    EditSetAnchor(0, 0);
+    EditClearSelection();
+    CHECK_INT(EditorWrapSelection('(', ')'), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    /* a buffer with no rows at all has no spot for the halves */
+    Begin(NULL);
+    CHECK_INT(EditorWrapSelection('(', ')'), 0);
+    CHECK_INT(vted_buffer.num_rows, 0);
+
+    EditClearSelection();
+}
+
+static void TestWrapSelectionRidesLaterKeys(void)
+{
+    /* the wrapped text answers the next key the way the bare one
+       did: a second opener wraps it again, its closer going in behind
+       the text and in front of the first closer — which is no part
+       of the selection — and a letter typed over it replaces it
+       between the halves */
+    Begin("abcdef");
+    CursorAt(0, 4);
+    EditSetAnchor(0, 2);
+
+    CHECK_INT(EditorWrapSelection('(', ')'), 1);
+
+    /* the second wrap goes around the same span, inside the halves
+       the first laid in */
+    CHECK_INT(EditorWrapSelection('[', ']'), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab([cd])ef");
+
+    /* a typed letter takes the wrapped text out between the halves */
+    EditDeleteSelection();
+    EditorInsertChar('x');
+    CHECK_STR(vted_buffer.rows[0].chars, "ab([x])ef");
+}
+
 static void TestInsertNewlineSplits(void)
 {
     Begin("abcd");
@@ -1775,6 +1933,13 @@ int main(void)
     TestInsertPairFoldsIntoTheTypingAfterIt();
     TestDeletePair();
     TestDeletePairOnlyInsideAnEmptyOne();
+    TestWrapSelection();
+    TestWrapSelectionKeepsTheCursorEnd();
+    TestWrapSelectionAcrossRows();
+    TestWrapSelectionAtTheRowsEnd();
+    TestWrapSelectionUndoRedo();
+    TestWrapSelectionOnlyWithSomethingSelected();
+    TestWrapSelectionRidesLaterKeys();
     TestInsertNewlineSplits();
     TestInsertNewlineKeepsIndent();
     TestInsertNewlineAtColumnZero();
