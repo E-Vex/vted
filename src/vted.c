@@ -646,7 +646,9 @@ static char *EditorPromptEx(const char *label, const char *initial,
             int jump_line;
             int jump_column;
             int name_len = RowNameTail(answer, &jump_line, &jump_column);
-            char message[PATH_MAX + 64];
+            char message[PROMPT_MAX + 1]; /* sized to the notice it
+                                             lands in when no file
+                                             came open */
             char beyond;
             int opened;
 
@@ -2268,8 +2270,9 @@ static void EditorFind(void)
     int last_match_row = -1;
     int query_changed = 0;
     int pattern_ok = 1; /* the pattern of the regex mode stands */
-    char notice[128]; /* what the last Alt-o said, standing until a
-                         real key answers it the way a prompt's does */
+    char notice[PROMPT_MAX + 1]; /* what the last Alt-o said, standing
+                                    until a real key answers it the
+                                    way a prompt's does */
     int opened = 0; /* Alt-o opened the query's file: the bar keeps
                        the open's own message */
 
@@ -2427,7 +2430,9 @@ static void EditorFind(void)
             int jump_line;
             int jump_column;
             int name_len = RowNameTail(query, &jump_line, &jump_column);
-            char message[PATH_MAX + 64];
+            char message[PROMPT_MAX + 1]; /* sized to the notice it
+                                             lands in when no file
+                                             came open */
             char beyond;
             int came_open;
 
