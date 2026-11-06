@@ -94,6 +94,12 @@
 # the cursor landing on the spot the tail says — the bar counting the
 # line and the column — and a tail on a name already open landing
 # there just the same.
+#
+# A goto run walks the Ctrl-G prompt the way a hand would: a line with
+# a :column tail behind it landing on the spot it names, a bare line
+# landing the start of the line the way it always did, a line past the
+# end clamped to the last one, an answer that spells no line told so
+# in the bar, and ESC taking the prompt down with the cursor standing.
 import os
 import pty
 import select
@@ -110,6 +116,7 @@ CTRL_F = b'\x06'
 CTRL_R = b'\x12'
 CTRL_T = b'\x14'
 CTRL_O = b'\x0f'    # Ctrl-O: the open prompt
+CTRL_G = b'\x07'    # Ctrl-G: the goto prompt
 CTRL_Z = b'\x1a'
 BACKSPACE = b'\x7f'
 ENTER = b'\r'
@@ -137,6 +144,7 @@ HISTORY = '/tmp/vted-smoke-history.txt'  # the buffer the queries walk
 ELECTRIC = '/tmp/vted-smoke-electric.txt'  # the buffer the pairs land in
 WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
 QUOTE = '/tmp/vted-smoke-quote.txt'  # the buffer the quotes wrap in
+GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
 
 
 def spawn(binary, args):
@@ -889,6 +897,101 @@ def jump_smoke(binary):
     return 0
 
 
+def goto_smoke(binary):
+    """the goto run: Ctrl-G asked for a line with a :column tail
+    behind it, the cursor landing on the spot it names — a bare line
+    landing the start of the line the way it always did, a line past
+    the end clamped to the last one, an answer that spells no line
+    told so in the bar, and ESC taking the prompt down with the
+    cursor standing"""
+    with open(GOTO, 'w') as f:
+        f.write('first\nsecond\nthird\n')
+
+    pid, fd = spawn(binary, [GOTO])
+    out = []
+    time.sleep(0.3)
+
+    # a line and a column: the cursor lands on the second row, its
+    # third column — the bar counting the spot
+    drive(fd, CTRL_G, out)
+    drive(fd, b'2:3', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Ln 2/3' not in drew:
+        return fail('the goto did not land on the line the answer named')
+    if b'Col 3' not in drew:
+        return fail('the goto did not land on the column the tail named')
+
+    # a bare line lands the start of the line, the way it always did
+    out.clear()
+    drive(fd, CTRL_G, out)
+    drive(fd, b'1', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Ln 1/3' not in drew or b'Col 1' not in drew:
+        return fail('a bare line number did not land as it always did')
+
+    # a line past the end is clamped to the last one
+    out.clear()
+    drive(fd, CTRL_G, out)
+    drive(fd, b'99:2', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Ln 3/3' not in drew:
+        return fail('a line past the end did not land on the last one')
+
+    # an answer that spells no line is told so in the bar — a word,
+    # and a colon with no number behind it
+    out.clear()
+    drive(fd, CTRL_G, out)
+    drive(fd, b'two', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Not a line number: two' not in drew:
+        return fail('an answer that spells no line was not told so')
+
+    out.clear()
+    drive(fd, CTRL_G, out)
+    drive(fd, b'2:', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Not a line number: 2:' not in drew:
+        return fail('a colon with no number behind it was not told so')
+
+    # ESC takes the prompt down with the cursor standing where it was
+    out.clear()
+    drive(fd, CTRL_G, out)
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'Go to line' in drew:
+        return fail('ESC did not take the prompt down')
+    if b'Ln 3/3' not in drew:
+        return fail('ESC moved the cursor off the last line')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(GOTO) as f:
+        if f.read() != 'first\nsecond\nthird\n':
+            return fail('the goto run did not leave the file as written')
+
+    print('smoke: OK - walked Ctrl-G into a :line:column landing')
+    return 0
+
+
 def history_smoke(binary):
     """the history run: two queries searched and kept, the search
     reopened on the newest, an up arrow recalling the older one and a
@@ -1165,7 +1268,8 @@ def main() -> int:
         or path_smoke(binary) or saveas_smoke(binary) \
         or gf_smoke(binary) or history_smoke(binary) \
         or electric_smoke(binary) or wrap_smoke(binary) \
-        or quote_smoke(binary) or jump_smoke(binary)
+        or quote_smoke(binary) or jump_smoke(binary) \
+        or goto_smoke(binary)
 
 
 if __name__ == '__main__':
