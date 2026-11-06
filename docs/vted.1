@@ -337,6 +337,17 @@ open another file as a buffer of its own and switch to it; a path that
 does not exist yet opens as an empty buffer that keeps the name, and a
 path that is already open switches to that buffer instead
 .TP
+.B Alt\-o
+open the file the cursor sits on, the way gf does in vi: the run of
+path bytes under the cursor — or right behind it, so the cursor at a
+name's end still takes it — names the file. A relative name stands
+beside the file being edited first, the way an #include does, and as
+it stands, in the working directory, when that one does not answer;
+a file that is already open just comes back into view, and a name
+that is no file at all — one that is not there, or a directory — says
+so in the message bar: gf goes to a file that is there, it does not
+start one
+.TP
 .B Ctrl\-E
 close the buffer being edited; the neighbor comes into view, and
 closing the last buffer starts a fresh empty one. Unsaved changes

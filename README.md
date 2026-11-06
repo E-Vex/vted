@@ -360,6 +360,15 @@ selection    |
 | typing          | insert at the cursor (replaces the selection)    |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-O          | open another file as a buffer of its own         |
+| Alt-o           | open the file the cursor sits on, the way gf does
+  in vi: the run of path bytes under the cursor — or right
+  behind it, so the cursor at a name's end still takes it — names
+  the file. A relative name stands beside the file being edited
+  first, the way an #include does, and as it stands, in the working
+  directory, when that one does not answer; a file that is already
+  open just comes back into view, and a name that is no file at
+  all — one that is not there, or a directory — says so in the bar:
+  gf goes to a file that is there, it does not start one |
 | Ctrl-E          | close the buffer being edited                    |
 | Ctrl-B          | pick a buffer from a list of what is open        |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
@@ -402,6 +411,18 @@ does, and closing the last buffer starts a fresh empty one.
 ## Features
 
 New in 0.3.4:
+
+- The file under the cursor: Alt-o opens the file the cursor sits
+  on, the way gf does in vi. The run of path bytes under the cursor —
+  or right behind it, so the cursor at a name's end still takes it —
+  names the file: letters, digits, the marks a path carries (/ . - _
+  + ~ # % =) and the bytes of a name in another script, with quotes,
+  braces and parentheses ending it. A relative name stands beside the
+  file being edited first, the way an #include does, and as it
+  stands, in the working directory, when that one does not answer; a
+  file that is already open just comes back into view, and a name
+  that is no file at all says so in the bar instead of starting an
+  empty buffer
 
 - Path completion: Tab in the Open and Save-as prompts completes the
   path typed so far, the way the shell's Tab does. The directory the
