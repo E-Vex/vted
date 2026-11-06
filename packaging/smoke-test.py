@@ -28,6 +28,15 @@
 # third, no frame per match — and the file saved to disk carrying
 # the proof the pass laid the rest in at once.
 #
+# A round-trip run walks the answers and the undo of them the way a
+# hand would: y taking the first match, q stopping at the second, one
+# Ctrl-Z taking the one replacement back; then the instant pass on
+# the prompts as they stand, n leaving the first and a taking the
+# second and the third in one pass, two Ctrl-Z walking the pass back
+# one occurrence at a time and a third saying Nothing to undo — the
+# file saved to disk at every stop of the way, carrying the whole
+# journey out and back.
+#
 # A mouse run walks the double click the way a hand would: two presses
 # of the left button inside the double click time, the word under them
 # selected, a letter typed over it taking the word in its place, and
@@ -51,6 +60,7 @@ CTRL_C = b'\x03'
 CTRL_F = b'\x06'
 CTRL_R = b'\x12'
 CTRL_T = b'\x14'
+CTRL_Z = b'\x1a'
 BACKSPACE = b'\x7f'
 ENTER = b'\r'
 ALT_DOT = b'\x1b.'    # Alt-.: the buffer after the current one
@@ -62,6 +72,7 @@ NOTE = '/tmp/vted-smoke-note.txt'    # the buffer the word is typed into
 DATE = '/tmp/vted-smoke-date.txt'    # the buffer the pattern runs in
 CONFIRM = '/tmp/vted-smoke-confirm.txt'  # the buffer the answers walk in
 ALL = '/tmp/vted-smoke-all.txt'      # the buffer the one a takes in
+ROUNDTRIP = '/tmp/vted-smoke-roundtrip.txt'  # the buffer the pass goes out and back in
 DBLCLICK = '/tmp/vted-smoke-dblclick.txt'  # the buffer the clicks land in
 MIDDLE = '/tmp/vted-smoke-middle.txt'  # the buffer the paste lands in
 
@@ -351,6 +362,99 @@ def all_smoke(binary):
     return 0
 
 
+def roundtrip_smoke(binary):
+    """the round-trip run: y and q laying one replacement in, undo
+    taking it back, then the instant pass — n leaving the first, a
+    taking the second and the third in one pass — walked back by two
+    undos one occurrence at a time, the file saved to disk carrying
+    the proof at every stop of the way"""
+    with open(ROUNDTRIP, 'w') as f:
+        f.write('one red fox, two red hens, three red cars\n')
+
+    pid, fd = spawn(binary, [ROUNDTRIP])
+    out = []
+    landings = []  # what the file on disk read at every stop of the way
+    time.sleep(0.3)
+
+    def land():
+        """Ctrl-S saves what stands in the buffer, and the file on
+        disk is read back: the landing the round trip makes there"""
+        drive(fd, CTRL_S, out)
+        with open(ROUNDTRIP) as f:
+            landings.append(f.read())
+
+    # the first walk: y takes the first match, q stops at the second
+    drive(fd, CTRL_R, out)          # Ctrl-R: the replace prompt
+    drive(fd, b'red', out)          # the query
+    drive(fd, ENTER, out)           # Enter: the query stands
+    drive(fd, b'green', out)        # the answer
+    drive(fd, ENTER, out)           # Enter: the walk starts
+    drive(fd, b'y', out)            # y: the first goes green
+    drive(fd, b'q', out)            # q: the second is left alone
+    land()                          # one green fox, the rest red
+
+    drive(fd, CTRL_Z, out)          # Ctrl-Z: the one replacement comes back
+    land()                          # the file back where it began
+
+    # the second walk, on the prompts as they stand: the instant pass
+    drive(fd, CTRL_R, out)          # Ctrl-R: the query stands already
+    drive(fd, ENTER, out)           # Enter: 'red' keeps its place
+    drive(fd, ENTER, out)           # Enter: 'green' too, the walk starts
+    drive(fd, b'n', out)            # n: the first stays
+    drive(fd, b'a', out)            # a: the second and the third in one pass
+    land()                          # the hens and the cars green, the fox red
+
+    drive(fd, CTRL_Z, out)          # Ctrl-Z: the third comes back first
+    land()                          # the cars red again
+
+    drive(fd, CTRL_Z, out)          # Ctrl-Z: the second comes back too
+    land()                          # the whole pass walked back
+
+    drive(fd, CTRL_Z, out)          # Ctrl-Z: nothing left to walk back
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    # the walks asked about their first two; the pass took the third
+    # without an ask of its own
+    for ask in (b'Replace: red (1 of 3', b'Replace: red (2 of 3'):
+        if ask not in drew:
+            return fail(f'the walk never asked {ask!r}')
+
+    if b'Replace: red (3 of 3' in drew:
+        return fail('the a answer stepped the rest instead of '
+                    'taking them in one pass')
+
+    for said in (b'Replaced 1 occurrence', b'Replaced 2 occurrences'):
+        if said not in drew:
+            return fail(f'the bar never said {said!r}')
+
+    if b'Nothing to undo' not in drew:
+        return fail('the history was not walked back whole')
+
+    # the landings: out through the answers and the pass, back one
+    # occurrence at a time, ending where the round trip began
+    want = ['one green fox, two red hens, three red cars\n',
+            'one red fox, two red hens, three red cars\n',
+            'one red fox, two green hens, three green cars\n',
+            'one red fox, two green hens, three red cars\n',
+            'one red fox, two red hens, three red cars\n']
+    if landings != want:
+        return fail(f'the landings read {landings!r}, '
+                    'not the round trip out and back')
+
+    print('smoke: OK - walked the instant pass out with one a '
+          'and back with two undos')
+    return 0
+
+
 def dblclick_smoke(binary):
     """the double click run: two presses inside the double click time
     select the word under them, a letter typed over it takes the word,
@@ -450,7 +554,7 @@ def main() -> int:
 
     return quit_smoke(binary) or completion_smoke(binary) \
         or regex_smoke(binary) or confirm_smoke(binary) \
-        or all_smoke(binary) \
+        or all_smoke(binary) or roundtrip_smoke(binary) \
         or dblclick_smoke(binary) or middleclick_smoke(binary)
 
 
