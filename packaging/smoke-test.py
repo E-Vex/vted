@@ -55,6 +55,13 @@
 # the other side of it: text typed into an unnamed buffer, Ctrl-S
 # asking where, the directory completed the same way, and the file
 # written to disk carrying the proof.
+#
+# A gf run walks the open of the file under the cursor the way a hand
+# would: a file named at the head of another's first line opened with
+# Alt-o, the name standing beside the file being edited rather than
+# in the working directory, the open handed back to the first buffer
+# when its own name is taken from the second, and a name that is no
+# file at all told so in the bar.
 import os
 import pty
 import select
@@ -77,6 +84,7 @@ ENTER = b'\r'
 ALT_DOT = b'\x1b.'    # Alt-.: the buffer after the current one
 ALT_SLASH = b'\x1b/'  # Alt-/: complete the word left of the cursor
 ESC = b'\x1b'         # ESC: cancel the prompt
+ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
 
 SMOKE = '/tmp/vted-smoke.txt'
 WORDS = '/tmp/vted-smoke-words.txt'  # the buffer the answers come from
@@ -89,6 +97,7 @@ DBLCLICK = '/tmp/vted-smoke-dblclick.txt'  # the buffer the clicks land in
 MIDDLE = '/tmp/vted-smoke-middle.txt'  # the buffer the paste lands in
 PATH_TREE = '/tmp/vted-smoke-path'      # the tree the Tab completion walks
 PATH_SAVE = '/tmp/vted-smoke-saveas'  # the tree the save-as completion walks
+GF_TREE = '/tmp/vted-smoke-gf'      # the tree the Alt-o walk opens in
 
 
 def spawn(binary, args):
@@ -698,6 +707,80 @@ def saveas_smoke(binary):
     return 0
 
 
+def gf_smoke(binary):
+    """the gf run: the file named under the cursor opened with Alt-o,
+    its name standing beside the file being edited, the open handed
+    back when the first file's own name is taken, and a name that is
+    no file told so in the bar"""
+    import shutil
+
+    shutil.rmtree(GF_TREE, ignore_errors=True)
+    os.makedirs(GF_TREE)
+    with open(os.path.join(GF_TREE, 'one.txt'), 'w') as f:
+        f.write('two.txt is the file to open\n'
+                'missing.txt is not there\n')
+    with open(os.path.join(GF_TREE, 'two.txt'), 'w') as f:
+        f.write('one.txt named me from its own text\n')
+
+    # the editor runs in / (the spawn chdir), so a bare name answers
+    # only beside the file being edited — the way an #include does
+    pid, fd = spawn(binary, [os.path.join(GF_TREE, 'one.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # the cursor starts on the name at the head of the first line:
+    # Alt-o opens the file it names as a buffer of its own
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'two.txt' not in drew:
+        return fail('the file under the cursor did not open')
+
+    if b'named me from its own text' not in drew:
+        return fail('the buffer opened is not the file the name stood for')
+
+    # the second file names the first, which is still open: the open
+    # comes back to it instead of a second buffer of the same file
+    out.clear()
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'one.txt' not in drew:
+        return fail('the open file was not handed back')
+    if b'buffer 1 of 2' not in drew:
+        return fail('the handed-back buffer is not the first one')
+
+    # a line down, a name that is no file at all: the bar says so and
+    # the buffer stands where it is
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # ArrowDown: onto the missing name
+    drive(fd, ALT_O, out)
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    if b'No such file: missing.txt' not in drew:
+        return fail('the name that is no file was not told so in the bar')
+
+    # neither file was touched by the walking
+    with open(os.path.join(GF_TREE, 'one.txt')) as f:
+        if f.read() != 'two.txt is the file to open\nmissing.txt is not there\n':
+            return fail('the one file did not stand as written')
+    with open(os.path.join(GF_TREE, 'two.txt')) as f:
+        if f.read() != 'one.txt named me from its own text\n':
+            return fail('the two file did not stand as written')
+
+    print('smoke: OK - walked Alt-o into an open, a hand back and a miss')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -711,7 +794,8 @@ def main() -> int:
         or regex_smoke(binary) or confirm_smoke(binary) \
         or all_smoke(binary) or roundtrip_smoke(binary) \
         or dblclick_smoke(binary) or middleclick_smoke(binary) \
-        or path_smoke(binary) or saveas_smoke(binary)
+        or path_smoke(binary) or saveas_smoke(binary) \
+        or gf_smoke(binary)
 
 
 if __name__ == '__main__':
