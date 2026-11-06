@@ -287,6 +287,33 @@ static void TestWrapSelectionUndoRedo(void)
     EditClearSelection();
 }
 
+static void TestWrapSelectionInAQuote(void)
+{
+    /* a quote wraps with itself as both halves — the same byte on
+       each end — and one undo takes the pair back out, the way a
+       bracket's does */
+    Begin("abcdef");
+    CursorAt(0, 4);
+    EditSetAnchor(0, 2);
+
+    CHECK_INT(EditorWrapSelection('"', '"'), 1);
+
+    CHECK_STR(vted_buffer.rows[0].chars, "ab\"cd\"ef");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+
+    int top, left, bottom, right;
+
+    EditSelectionRange(&top, &left, &bottom, &right);
+    CHECK_INT(left, 3);
+    CHECK_INT(right, 5);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcdef");
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    EditClearSelection();
+}
+
 static void TestWrapSelectionOnlyWithSomethingSelected(void)
 {
     /* without a selection, or with an empty one, there is nothing to
@@ -1938,6 +1965,7 @@ int main(void)
     TestWrapSelectionAcrossRows();
     TestWrapSelectionAtTheRowsEnd();
     TestWrapSelectionUndoRedo();
+    TestWrapSelectionInAQuote();
     TestWrapSelectionOnlyWithSomethingSelected();
     TestWrapSelectionRidesLaterKeys();
     TestInsertNewlineSplits();

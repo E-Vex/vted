@@ -3458,8 +3458,9 @@ int main(int argc, char *argv[])
             {
                 /* printable ASCII and UTF-8 bytes land in the text,
                    replacing the selection first — an opening bracket
-                   excepted: with the electric pairs on it wraps the
-                   selection instead of taking it out */
+                   or a quote character excepted: with the electric
+                   pairs on it wraps the selection instead of taking
+                   it out */
 
                 /* an opening bracket typed with the electric pairs on
                    closes itself right away, the cursor between the two;
@@ -3469,7 +3470,18 @@ int main(int argc, char *argv[])
                                   ? RowBracketCloser((char)c_in)
                                   : 0;
 
-                if (closer != 0 && EditorWrapSelection(c_in, closer))
+                /* the closer a wrap takes: a bracket's own, or a
+                   quote answering itself as both halves — a quote
+                   typed over a selection wraps it the way a bracket
+                   does, and with nothing selected stays the plain
+                   character it always was, laying no empty pair of
+                   its own */
+                char wrap_closer = vted_editor_config.electric_brackets
+                                       ? RowWrapCloser((char)c_in)
+                                       : 0;
+
+                if (wrap_closer != 0 &&
+                    EditorWrapSelection(c_in, wrap_closer))
                 {
                     /* the selection went in wrapped */
                 }
