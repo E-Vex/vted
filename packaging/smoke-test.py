@@ -100,6 +100,13 @@
 # landing the start of the line the way it always did, a line past the
 # end clamped to the last one, an answer that spells no line told so
 # in the bar, and ESC taking the prompt down with the cursor standing.
+#
+# A prompt run walks the Alt-o of the message bar the way a hand
+# would: a search whose query names a file with a :line:column tail
+# opened with Alt-o and landing on the spot it says, a query that
+# names no file told so in a notice while the search stands, the
+# notice answered by the next key, and the replace's own prompt
+# opening the same way with the bar saying what opened.
 import os
 import pty
 import select
@@ -145,6 +152,7 @@ ELECTRIC = '/tmp/vted-smoke-electric.txt'  # the buffer the pairs land in
 WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
 QUOTE = '/tmp/vted-smoke-quote.txt'  # the buffer the quotes wrap in
 GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
+PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 
 
 def spawn(binary, args):
@@ -992,6 +1000,104 @@ def goto_smoke(binary):
     return 0
 
 
+def prompt_smoke(binary):
+    """the prompt run: a search whose query names a file with a tail,
+    Alt-o opening it with the cursor landing on the spot the tail
+    says — a query that names no file told so in a notice while the
+    search stands, the notice answered by the next key, and the
+    replace's own prompt opening the same way"""
+    import shutil
+
+    shutil.rmtree(PROMPT_TREE, ignore_errors=True)
+    os.makedirs(PROMPT_TREE)
+    with open(os.path.join(PROMPT_TREE, 'one.txt'), 'w') as f:
+        f.write('alpha\nbeta\ngamma\n')
+    with open(os.path.join(PROMPT_TREE, 'two.txt'), 'w') as f:
+        f.write('first\nsecond\nthird\nfourth\n')
+
+    pid, fd = spawn(binary, [os.path.join(PROMPT_TREE, 'one.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # the search opens on a query naming two.txt with a tail: Alt-o
+    # opens it and the tail lands the cursor on its line 3, column 4,
+    # the bar counting the spot
+    drive(fd, CTRL_F, out)
+    drive(fd, b'two.txt:3:4', out)
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'two.txt' not in drew:
+        return fail('the query with its tail did not open')
+    if b'Ln 3/4' not in drew:
+        return fail('the open did not land on the line the tail named')
+    if b'Col 4' not in drew:
+        return fail('the open did not land on the column the tail named')
+
+    # a query that names no file says so in a notice while the search
+    # stands, the query still in it
+    out.clear()
+    drive(fd, CTRL_F, out)
+    for _ in range(11):   # the remembered query goes back out
+        drive(fd, BACKSPACE, out, pause=0.02)
+    drive(fd, b'nope.txt', out)
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'No such file: nope.txt' not in drew:
+        return fail('a query that names no file was not told so')
+    if b'Find:' not in drew or b'nope.txt' not in drew:
+        return fail('the search did not stand behind its notice')
+
+    # the next key answers the notice: the counting line comes back
+    out.clear()
+    drive(fd, b'!', out)
+    drew = b''.join(out)
+
+    if b'No such file' in drew:
+        return fail('the notice stood past the key that answers it')
+
+    drive(fd, ESC, out)   # the search ends
+
+    # the replace's own prompt opens the same way: its Alt-o takes the
+    # answer as the name, and the bar says what opened instead of
+    # talking about a cancel
+    out.clear()
+    drive(fd, CTRL_R, out)
+    for _ in range(9):    # the remembered query goes back out
+        drive(fd, BACKSPACE, out, pause=0.02)
+    drive(fd, b'one.txt:2', out)
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'one.txt' not in drew:
+        return fail('the replace prompt did not take the Alt-o')
+    if b'Replace cancelled' in drew:
+        return fail('the cancel-talk talked over the open')
+    if b'Ln 2/3' not in drew:
+        return fail('the open did not land where the tail said')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    # neither file was touched by the walking
+    with open(os.path.join(PROMPT_TREE, 'one.txt')) as f:
+        if f.read() != 'alpha\nbeta\ngamma\n':
+            return fail('the one file did not stand as written')
+    with open(os.path.join(PROMPT_TREE, 'two.txt')) as f:
+        if f.read() != 'first\nsecond\nthird\nfourth\n':
+            return fail('the two file did not stand as written')
+
+    print('smoke: OK - walked Alt-o on the names the prompts spell')
+    return 0
+
+
 def history_smoke(binary):
     """the history run: two queries searched and kept, the search
     reopened on the newest, an up arrow recalling the older one and a
@@ -1269,7 +1375,7 @@ def main() -> int:
         or gf_smoke(binary) or history_smoke(binary) \
         or electric_smoke(binary) or wrap_smoke(binary) \
         or quote_smoke(binary) or jump_smoke(binary) \
-        or goto_smoke(binary)
+        or goto_smoke(binary) or prompt_smoke(binary)
 
 
 if __name__ == '__main__':
