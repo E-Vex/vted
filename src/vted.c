@@ -16,6 +16,7 @@
 #include "vted_edit.h"
 #include "vted_undo.h"
 #include "vted_file.h"
+#include "vted_path.h"
 #include "vted_syntax.h"
 #include "vted_utf8.h"
 #include "vted_cli.h"
@@ -26,6 +27,13 @@
 
 /* longest answer a prompt accepts, in bytes (a path fits comfortably) */
 #define PROMPT_MAX 1024
+
+/* how many lines the menu of a path listing draws, and the room one
+   of its lines has: the window the buffer picker's menu works with,
+   a directory carrying its slash so the menu says which answers
+   walk further */
+#define PATH_MENU_LINES 16
+#define PATH_MENU_WIDTH (VTED_PATH_NAME_MAX + 2)
 
 /* how many screen lines one notch of the wheel scrolls, the way a
    terminal of its own scrolls a page the mouse is over */
@@ -70,19 +78,120 @@ static void EditorSuspendIfAsked(int c)
     }
 }
 
-static char *EditorPrompt(const char *label, const char *initial)
+/* the bytes of an answer that name the directory — everything up to
+   and including its slash, or none when the path names the working
+   directory */
+static int PromptDirSpan(const char *answer)
 {
-    /* asks for one line of text in the message bar, opening with the
-       given answer when there is one: Enter takes it as it stands and
-       a backspace takes it apart. Returns it in a heap buffer the
-       caller frees, or NULL when the person cancels with ESC or
-       confirms an empty answer */
+    const char *last_slash = strrchr(answer, '/');
+
+    return last_slash != NULL ? (int)(last_slash - answer) + 1 : 0;
+}
+
+/* lays one match of a path listing into the answer behind its
+   directory: the name whole, a directory with a slash behind it, so
+   the next Tab walks into it and Enter never hands a directory to
+   the open. Returns the length the answer came to, never inside a
+   character */
+static int PromptTakeMatch(char *answer, const vted_path_match_t *match)
+{
+    int dir_span = PromptDirSpan(answer);
+    int room = PROMPT_MAX + 1 - dir_span;
+    int written = snprintf(answer + dir_span, (size_t)room, "%s%s",
+                           match->name, match->is_dir ? "/" : "");
+
+    if (written >= room)
+    {
+        written = room - 1; /* the room ended before the name did */
+    }
+
+    while (written > 0 &&
+           ((unsigned char)answer[dir_span + written - 1] & 0xC0) == 0x80)
+    {
+        written--; /* the room ended inside a character */
+    }
+
+    answer[dir_span + written] = '\0';
+    return dir_span + written;
+}
+
+/* shows the matches of a path listing over the bottom of the
+   viewport, a window that follows the selection the way the buffer
+   picker's window does. The lines live in the caller's storage,
+   borrowed by the screen until it is told otherwise */
+static void PromptShowPathMenu(const vted_path_match_t *matches,
+                               int count, int selection,
+                               char lines[][PATH_MENU_WIDTH],
+                               const char *shown_lines[PATH_MENU_LINES])
+{
+    int shown = count;
+    int first;
+    int i;
+
+    if (shown > PATH_MENU_LINES)
+    {
+        shown = PATH_MENU_LINES;
+    }
+    if (shown > vted_editor_config.screen_rows - 2)
+    {
+        shown = vted_editor_config.screen_rows - 2;
+    }
+    if (shown < 1)
+    {
+        shown = 1;
+    }
+
+    first = selection - shown / 2;
+    if (first < 0)
+    {
+        first = 0;
+    }
+    if (first > count - shown)
+    {
+        first = count - shown;
+    }
+
+    for (i = 0; i < shown; i++)
+    {
+        snprintf(lines[i], PATH_MENU_WIDTH, "%s%s",
+                 matches[first + i].name,
+                 matches[first + i].is_dir ? "/" : "");
+        shown_lines[i] = lines[i];
+    }
+
+    ScreenShowMenu(shown_lines, shown, selection - first);
+}
+
+/* asks for one line of text in the message bar, opening with the
+   given answer when there is one: Enter takes it as it stands and a
+   backspace takes it apart. Returns it in a heap buffer the caller
+   frees, or NULL when the person cancels with ESC or confirms an
+   empty answer */
+static char *EditorPromptEx(const char *label, const char *initial,
+                            int completes_paths)
+{
     char *answer = malloc(PROMPT_MAX + 1);
     int length = 0;
 
     /* the label the prompt carries until Ctrl-T asks the search's
        mode to turn and the turned label comes back */
     const char *shown = label;
+
+    /* the matches of the last Tab and the menu they were listed in:
+       a count of 0 means the menu is down. The lines are borrowed by
+       the screen until the next call, so they live as long as the
+       prompt does */
+    vted_path_match_t matches[VTED_PATH_MATCHES];
+    char menu_lines[PATH_MENU_LINES][PATH_MENU_WIDTH];
+    const char *menu_shown[PATH_MENU_LINES];
+    int match_count = 0;
+    int selection = 0;
+
+    /* a word the bar holds until the next key: what a Tab that found
+       nothing says, the prompt drawn again behind it */
+    char notice[PROMPT_MAX + 1];
+
+    notice[0] = '\0';
 
     if (answer == NULL)
     {
@@ -113,7 +222,15 @@ static char *EditorPrompt(const char *label, const char *initial)
 
     while (1)
     {
-        SetStatusMessage("%s%s", shown, answer);
+        if (notice[0] != '\0')
+        {
+            SetStatusMessage("%s", notice);
+        }
+        else
+        {
+            SetStatusMessage("%s%s", shown, answer);
+        }
+
         RefreshScreen();
 
         int c = ReadKeyPress();
@@ -127,12 +244,164 @@ static char *EditorPrompt(const char *label, const char *initial)
                not outwait */
             if (TerminalWantsExit())
             {
+                ScreenShowMenu(NULL, 0, 0);
                 SetStatusMessage("");
                 free(answer);
                 return NULL;
             }
 
             continue;
+        }
+
+        /* a real key answers the notice the last Tab left */
+        notice[0] = '\0';
+
+        if (c == '\t' && completes_paths)
+        {
+            /* Tab completes the path typed so far, the way the
+               shell's Tab does: the directory the path names answers
+               with the names that start with what follows its slash */
+            int found = PathListMatches(answer, matches,
+                                        VTED_PATH_MATCHES);
+            int dir_span = PromptDirSpan(answer);
+
+            if (found < 0)
+            {
+                /* the directory itself could not be read: the reason
+                   says so, the answer stands as it was typed */
+                snprintf(notice, sizeof(notice),
+                         "Cannot read the directory: %s", strerror(errno));
+                ScreenShowMenu(NULL, 0, 0);
+                match_count = 0;
+                continue;
+            }
+
+            if (found == 0)
+            {
+                snprintf(notice, sizeof(notice), "No match for '%s'",
+                         answer);
+                ScreenShowMenu(NULL, 0, 0);
+                match_count = 0;
+                continue;
+            }
+
+            if (found == 1)
+            {
+                /* one name answers: it lands whole, a directory with
+                   a slash behind it so the next Tab walks in */
+                length = PromptTakeMatch(answer, &matches[0]);
+                ScreenShowMenu(NULL, 0, 0);
+                match_count = 0;
+                continue;
+            }
+
+            /* several answer: the part they agree on lands first,
+               walked back to a boundary should they part inside a
+               character, and the menu lists them for the choosing */
+            {
+                int stem = PathSharedStem(matches, found);
+                int typed = length - dir_span;
+
+                if (stem > typed)
+                {
+                    memcpy(answer + dir_span, matches[0].name,
+                           (size_t)stem);
+                    length = dir_span + stem;
+
+                    while (length > dir_span &&
+                           ((unsigned char)answer[length - 1] & 0xC0) == 0x80)
+                    {
+                        length--; /* the stem ended inside a character */
+                    }
+
+                    answer[length] = '\0';
+                }
+            }
+
+            selection = 0;
+            match_count = found;
+            PromptShowPathMenu(matches, match_count, selection,
+                               menu_lines, menu_shown);
+            continue;
+        }
+
+        if (match_count > 0)
+        {
+            /* the menu stands: ESC takes it down with the prompt
+               standing, Enter or a left click takes the line under
+               them into the answer, the arrows and the wheel step
+               through it, and any other key takes it down — the
+               answer going on in the prompt, a fresh Tab listing
+               again */
+            if (c == 27 || c == '\r' || c == '\n' || c == ArrowUp ||
+                c == ArrowDown || c == MouseWheelUp ||
+                c == MouseWheelDown || c == MousePress)
+            {
+                if (c == 27)
+                {
+                    ScreenShowMenu(NULL, 0, 0);
+                    match_count = 0;
+                    continue;
+                }
+
+                if (c == '\r' || c == '\n')
+                {
+                    length = PromptTakeMatch(answer, &matches[selection]);
+                    ScreenShowMenu(NULL, 0, 0);
+                    match_count = 0;
+                    continue;
+                }
+
+                if (c == MousePress)
+                {
+                    /* a left click takes the line drawn under it, the
+                       way Enter takes the one under the selection; a
+                       click of another button, or past the list, keeps
+                       the menu waiting */
+                    if (MouseLastButton() == 0)
+                    {
+                        int line = ScreenMenuLineAt(MouseLastY());
+
+                        if (line >= 0)
+                        {
+                            length = PromptTakeMatch(answer,
+                                                     &matches[line]);
+                            ScreenShowMenu(NULL, 0, 0);
+                            match_count = 0;
+                        }
+                    }
+
+                    continue;
+                }
+
+                if (c == MouseWheelUp && selection > 0)
+                {
+                    selection--;
+                }
+                else if (c == MouseWheelDown &&
+                         selection < match_count - 1)
+                {
+                    selection++;
+                }
+                else if (c == ArrowUp)
+                {
+                    selection = selection > 0 ? selection - 1
+                                              : match_count - 1;
+                }
+                else if (c == ArrowDown)
+                {
+                    selection = selection < match_count - 1
+                                    ? selection + 1
+                                    : 0;
+                }
+
+                PromptShowPathMenu(matches, match_count, selection,
+                                   menu_lines, menu_shown);
+                continue;
+            }
+
+            ScreenShowMenu(NULL, 0, 0);
+            match_count = 0;
         }
 
         if (c == 27) /* ESC cancels */
@@ -180,6 +449,20 @@ static char *EditorPrompt(const char *label, const char *initial)
             answer[length] = '\0';
         }
     }
+}
+
+static char *EditorPrompt(const char *label, const char *initial)
+{
+    /* the prompts without a path to complete answer as they always
+       did */
+    return EditorPromptEx(label, initial, 0);
+}
+
+static char *EditorPromptPath(const char *label, const char *initial)
+{
+    /* the prompts that take a path answer Tab with the names of the
+       directory the path names */
+    return EditorPromptEx(label, initial, 1);
 }
 
 static void EditorGoToLine(void)
@@ -685,7 +968,7 @@ static void EditorSave(void)
     {
         /* an unnamed buffer asks where to go; the buffer takes the
            name only when the file could actually be written */
-        char *name = EditorPrompt("Save as: ", NULL);
+        char *name = EditorPromptPath("Save as: ", NULL);
 
         if (name == NULL)
         {
@@ -724,7 +1007,7 @@ static void EditorSave(void)
 
 static void EditorOpenFile(void)
 {
-    char *path = EditorPrompt("Open: ", NULL);
+    char *path = EditorPromptPath("Open: ", NULL);
 
     if (path == NULL)
     {
