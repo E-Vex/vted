@@ -372,7 +372,11 @@ compiler names the spot in a file it speaks about, and the open lands
 the cursor on the spot the tail says — a line alone or a line and a
 column, the way Ctrl\-G lands one — a line past the end on the last
 one, a column past a row's end on that row's end, the spot
-mid-viewport
+mid-viewport. The prompts take Alt\-o too: the answer as it stands
+names the file — a search's query among them, its tail naming the
+spot — and an open ends the prompt with the bar saying what opened,
+while a name that opens no file says so in the prompt's notice, the
+prompt standing
 .TP
 .B Ctrl\-E
 close the buffer being edited; the neighbor comes into view, and
@@ -421,7 +425,9 @@ way grep \-E speaks one, and back as the text itself; a pattern
 matches within a row, ^ and $ anchoring its head and its end, every
 match standing on the boundaries of the characters, a match of no
 bytes at all never counting, and a pattern that cannot stand says so
-in the bar and leaves the cursor where it was
+in the bar and leaves the cursor where it was. Alt\-o in the prompt
+opens the file the query names, the way it does at the cursor, and
+the search ends with the open
 .TP
 .B Ctrl\-N
 show or hide the line numbers

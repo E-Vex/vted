@@ -388,7 +388,10 @@ selection    |
   and the open lands the cursor on the spot it says — a line alone
   or a line and a column, the way Ctrl-G lands one — a line past
   the end on the last one, a column past a row's end on that row's
-  end |
+  end. The prompts take Alt-o too: the answer as it stands names
+  the file — a search's query among them — and an open ends the
+  prompt with the bar saying what opened, a name that opens no
+  file saying so while the prompt stands |
 | Ctrl-E          | close the buffer being edited                    |
 | Ctrl-B          | pick a buffer from a list of what is open        |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
@@ -411,7 +414,8 @@ selection    |
   newest entry already says is not said again; Ctrl-T in the prompt
   reads the query as a regular
   expression, the way grep -E speaks one, and back as the text
-  itself                                                 |
+  itself; Alt-o in the prompt opens the file the query names, the
+  way it does at the cursor, and the search ends with the open     |
 | Ctrl-N          | show or hide the line numbers                    |
 | Ctrl-L          | wrap long lines over several screen lines,
   breaking at word boundaries                       |
