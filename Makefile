@@ -13,6 +13,7 @@ SRC = \
 	src/vted_edit.c \
 	src/vted_undo.c \
 	src/vted_file.c \
+	src/vted_path.c \
 	src/vted_config.c \
 	src/vted_syntax.c \
 	src/vted_utf8.c \
