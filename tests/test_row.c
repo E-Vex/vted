@@ -967,6 +967,22 @@ static void TestBracketForwardMatch(void)
     CHECK_INT(x, 1);
 }
 
+static void TestBracketCloserOfAnOpener(void)
+{
+    /* the closer that answers each of the three openers, and no
+       closer for anything else */
+    CHECK_INT(RowBracketCloser('('), ')');
+    CHECK_INT(RowBracketCloser('['), ']');
+    CHECK_INT(RowBracketCloser('{'), '}');
+
+    CHECK_INT(RowBracketCloser(')'), 0);
+    CHECK_INT(RowBracketCloser(']'), 0);
+    CHECK_INT(RowBracketCloser('}'), 0);
+    CHECK_INT(RowBracketCloser('a'), 0);
+    CHECK_INT(RowBracketCloser(' '), 0);
+    CHECK_INT(RowBracketCloser('\0'), 0);
+}
+
 static void TestBracketBeforeTheCursor(void)
 {
     const char *const texts[] = {"f(a)", NULL};
@@ -2305,6 +2321,7 @@ int main(void)
     TestSplitRow();
     TestInsertAndRemoveText();
     TestBracketForwardMatch();
+    TestBracketCloserOfAnOpener();
     TestBracketBeforeTheCursor();
     TestBracketNesting();
     TestBracketOtherPairs();

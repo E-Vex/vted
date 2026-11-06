@@ -276,6 +276,11 @@ int RowFindPrev(const vted_row_t *row, int from, int to,
    the cursor is not on a bracket or no match is there to be found */
 int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
 
+/* the closer that answers the opener, 0 when the byte opens no
+   bracket: one of the three pairs the match works on, the pair an
+   electric typing lays in and takes back */
+char RowBracketCloser(char opener);
+
 /* the rows the bracket at row cy column cx (or the one right before
    it) and its partner enclose: whole rows, from the earlier of the
    two to the later one, everything in between included. Returns 1

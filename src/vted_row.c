@@ -1687,6 +1687,17 @@ void FreeBuffer(void)
 static const char bracket_openers[] = "([{";
 static const char bracket_closers[] = ")]}";
 
+/* the closer that answers the opener, 0 when the byte opens no
+   bracket: one of the three pairs the match works on, the pair an
+   electric typing lays in */
+char RowBracketCloser(char opener)
+{
+    const char *at =
+        opener != '\0' ? strchr(bracket_openers, opener) : NULL;
+
+    return at != NULL ? bracket_closers[at - bracket_openers] : 0;
+}
+
 /* which pair a byte belongs to, -1 when it is no bracket; NUL never
    counts, or strchr() would find the string terminator */
 static int BracketIndex(char c)
