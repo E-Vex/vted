@@ -68,6 +68,13 @@
 # an up arrow recalling the one before it — its matches lighting up
 # the way a typed query's do — and a down arrow walking back to the
 # newest, Enter keeping the recalled one.
+#
+# An electric run walks the bracket pairs the way a hand would: a
+# paren typed at the end of a row closing itself right away, an x
+# going inside it, the closer typed over the closer already there
+# stepping over instead of doubling it, backspaces walking the whole
+# thing back out — the empty pair going as one — and Alt-( turning
+# the electricity off, a bracket typed after it standing alone.
 import os
 import pty
 import select
@@ -91,6 +98,8 @@ ALT_DOT = b'\x1b.'    # Alt-.: the buffer after the current one
 ALT_SLASH = b'\x1b/'  # Alt-/: complete the word left of the cursor
 ESC = b'\x1b'         # ESC: cancel the prompt
 ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
+ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
+END = b'\x1b[F'      # End: the cursor at the row's end
 
 SMOKE = '/tmp/vted-smoke.txt'
 WORDS = '/tmp/vted-smoke-words.txt'  # the buffer the answers come from
@@ -105,6 +114,7 @@ PATH_TREE = '/tmp/vted-smoke-path'      # the tree the Tab completion walks
 PATH_SAVE = '/tmp/vted-smoke-saveas'  # the tree the save-as completion walks
 GF_TREE = '/tmp/vted-smoke-gf'      # the tree the Alt-o walk opens in
 HISTORY = '/tmp/vted-smoke-history.txt'  # the buffer the queries walk
+ELECTRIC = '/tmp/vted-smoke-electric.txt'  # the buffer the pairs land in
 
 
 def spawn(binary, args):
@@ -858,6 +868,72 @@ def history_smoke(binary):
     return 0
 
 
+def electric_smoke(binary):
+    """the electric run: a bracket typed closing itself, the closer
+    already under the cursor stepped over, the empty pair taken back
+    as one, and Alt-( turning the whole thing off"""
+    with open(ELECTRIC, 'w') as f:
+        f.write('row\n')
+
+    pid, fd = spawn(binary, [ELECTRIC])
+    out = []
+    time.sleep(0.3)
+
+    # End: the cursor at the row's end. A paren typed closes itself
+    # right away, the cursor between the two; an x goes inside it; the
+    # closer typed over the closer already there steps over instead of
+    # doubling it
+    drive(fd, END, out)
+    drive(fd, b'(', out)
+    drive(fd, b'x', out)
+    drive(fd, b')', out)
+    drive(fd, CTRL_S, out)         # Ctrl-S: the proof lands on disk
+
+    with open(ELECTRIC) as f:
+        if f.read() != 'row(x)\n':
+            return fail('the pair did not close itself, or the closer '
+                        'doubled instead of stepping over')
+
+    # backspaces walk it back out: the closer the step went over, the
+    # x inside, and the empty pair as one press
+    drive(fd, BACKSPACE, out, pause=0.1)   # the closer
+    drive(fd, BACKSPACE, out, pause=0.1)   # the x
+    drive(fd, BACKSPACE, out, pause=0.1)   # the pair, as one
+    drive(fd, CTRL_S, out)
+
+    with open(ELECTRIC) as f:
+        if f.read() != 'row\n':
+            return fail('the empty pair did not go back out as one')
+
+    # Alt-( turns the pairs off, the bar saying so: a bracket typed
+    # after it stands alone
+    out.clear()
+    drive(fd, ALT_LPAREN, out)     # Alt-(: off
+    drew = b''.join(out)
+
+    if b'Electric brackets off' not in drew:
+        return fail('the bar did not say the pairs turned off')
+
+    drive(fd, b'(', out)           # no closer behind it now
+    drive(fd, CTRL_S, out)
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(ELECTRIC) as f:
+        if f.read() != 'row(\n':
+            return fail('the bracket did not stand alone with the '
+                        'pairs off')
+
+    print('smoke: OK - walked an electric pair in, over and back out')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -872,7 +948,8 @@ def main() -> int:
         or all_smoke(binary) or roundtrip_smoke(binary) \
         or dblclick_smoke(binary) or middleclick_smoke(binary) \
         or path_smoke(binary) or saveas_smoke(binary) \
-        or gf_smoke(binary) or history_smoke(binary)
+        or gf_smoke(binary) or history_smoke(binary) \
+        or electric_smoke(binary)
 
 
 if __name__ == '__main__':
