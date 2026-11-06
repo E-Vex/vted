@@ -368,7 +368,10 @@ selection    |
   the electric pairs on, an opening bracket closes itself right
   away — the cursor between the two — and a closing one already
   under the cursor, its opener behind it, steps over instead of
-  laying another one in |
+  laying another one in; over a selection an opening bracket wraps
+  it in its pair instead of taking it out, the selection riding
+  the text so the wrapped text answers the next key the way the
+  bare one did |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-O          | open another file as a buffer of its own         |
 | Alt-o           | open the file the cursor sits on, the way gf does
@@ -436,7 +439,12 @@ New in 0.3.4:
   around it. A closing bracket typed over the same closer already
   under the cursor — its opener behind it, the match the bracket scan
   finds — steps over instead of doubling it, and Backspace inside an
-  empty pair takes both halves back out as one. On by default;
+  empty pair takes both halves back out as one. Over a selection an
+  opening bracket wraps it in its pair instead of taking it out:
+  `(` around a selected `word` lands `(word)` with the word still
+  selected, the selection riding the text, so another opener wraps
+  again and a typed letter replaces what is between the halves; the
+  wrap is one undo step too. On by default;
   `set electric-brackets off` in the rc file turns it off, and Alt-(
   turns it either way while editing, the bracket itself telling its
   own kind what to do
