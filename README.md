@@ -369,9 +369,10 @@ selection    |
   away — the cursor between the two — and a closing one already
   under the cursor, its opener behind it, steps over instead of
   laying another one in; over a selection an opening bracket wraps
-  it in its pair instead of taking it out, the selection riding
-  the text so the wrapped text answers the next key the way the
-  bare one did |
+  it in its pair instead of taking it out, and a quote character
+  wraps it in its own — the same one both halves, laying no empty
+  pair when nothing is selected — the selection riding the text so
+  the wrapped text answers the next key the way the bare one did |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-O          | open another file as a buffer of its own         |
 | Alt-o           | open the file the cursor sits on, the way gf does

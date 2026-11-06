@@ -343,9 +343,11 @@ electric pairs on, an opening bracket closes itself right away — the
 cursor between the two, the whole pair one undo step — and a closing
 bracket already under the cursor, its opener behind it, steps over
 instead of laying another one in. Over a selection an opening bracket
-wraps it in its pair instead of taking it out, the selection riding
-the text — another opener wraps again, a typed letter replaces what
-is between the halves — the wrap one undo step too
+wraps it in its pair instead of taking it out — and a quote character
+wraps it in its own, the same one both halves, laying no empty pair
+of its own when nothing is selected — the selection riding the text
+— another opener wraps again, a typed letter replaces what is
+between the halves — the wrap one undo step too
 .TP
 .B Ctrl\-S
 save the buffer to its file; a buffer without a name asks for one first,
@@ -597,7 +599,8 @@ or
 (an opening bracket typed closes itself right away, the cursor
 between the two, a closing one already under the cursor steps over,
 Backspace inside an empty pair takes it back out as one, and over a
-selection an opening bracket wraps it in its pair instead of taking
+selection an opening bracket wraps it in its pair — or a quote
+character in its own, the same one both halves — instead of taking
 it out; on by
 default, and Alt\-( turns it either way while editing),
 and
