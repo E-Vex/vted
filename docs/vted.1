@@ -143,6 +143,15 @@ keep the indent on the wrapped lines, or take it back off: a row
 that flows over several screen lines starts each one after it at
 the cell column where its own first line's text starts
 .TP
+.B Alt\-(
+turn the electric bracket pairs on or off: with them on, an opening
+bracket typed lays its closer in right behind it, the cursor between
+the two, a closing one already under the cursor steps over and
+Backspace inside an empty pair takes it back out as one — the same
+setting the rc file's
+.B electric\-brackets
+answers, on by default
+.TP
 .B Alt\-g
 show or hide the indent guides: the last cell of every nesting level a
 row sits in, its own indent edge and every shallower one still open
@@ -208,7 +217,10 @@ keeps none, the whole span is one undo step, and the selection and
 the cursor ride the text as it shifts
 .TP
 .B Backspace
-delete the character to the left, merge lines at column zero
+delete the character to the left, merge lines at column zero; with
+the electric pairs on, the empty bracket pair the cursor sits inside
+— the opener left of it, the closer under it — goes as one, the way
+the typing laid it in
 .TP
 .B Alt\-Backspace
 delete the run of blanks the cursor sits behind and the word before
@@ -326,7 +338,11 @@ changes are kept
 redo the change that Ctrl\-Z undid
 .TP
 plain typing
-insert at the cursor (UTF\-8 aware)
+insert at the cursor (UTF\-8 aware), replacing the selection; with the
+electric pairs on, an opening bracket closes itself right away — the
+cursor between the two, the whole pair one undo step — and a closing
+bracket already under the cursor, its opener behind it, steps over
+instead of laying another one in
 .TP
 .B Ctrl\-S
 save the buffer to its file; a buffer without a name asks for one first,
@@ -567,6 +583,14 @@ or
 the way grep \-E speaks one, and Ctrl\-T turns it either way in the
 prompts),
 and
+.B "set electric-brackets on"
+or
+.BR off
+(an opening bracket typed closes itself right away, the cursor
+between the two, a closing one already under the cursor steps over
+and Backspace inside an empty pair takes it back out as one; on by
+default, and Alt\-( turns it either way while editing),
+and
 .BI "set bracket-color " name
 (the background of the matching bracket's partner: red, green,
 yellow, blue, magenta, cyan or gray, or invert for the inverted video
@@ -584,7 +608,7 @@ Blank lines and lines starting with # are skipped, and a later line
 wins over an earlier one. A line that cannot be used is reported in
 the message bar while the setting it would have set stays at its
 default. The keys match what Ctrl\-W, Ctrl\-T, Ctrl\-N, Alt\-t,
-Ctrl\-L, Alt\-i, Alt\-g and Alt\-s set while editing.
+Ctrl\-L, Alt\-i, Alt\-g, Alt\-c, Alt\-s and Alt\-( set while editing.
 .PP
 Themes of your own live in
 .I $XDG_CONFIG_HOME/vted/themes/NAME.theme

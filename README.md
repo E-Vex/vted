@@ -180,6 +180,7 @@ set wrap-indent off
 set wrap-column 80
 set indent-guides on
 set ignore-case on
+set electric-brackets off
 set bracket-color red
 set theme gruvbox
 ```
@@ -187,7 +188,7 @@ set theme gruvbox
 Blank lines and `#` comments are skipped, a later line wins over an
 earlier one, and a line that cannot be used is reported in the
 message bar. The keys are the same things Ctrl-W, Ctrl-T, Ctrl-N,
-Alt-t, Ctrl-L, Alt-i, Alt-g, Alt-c and Alt-s set while editing.
+Alt-t, Ctrl-L, Alt-i, Alt-g, Alt-c, Alt-s and Alt-( set while editing.
 
 ## Themes
 
@@ -247,6 +248,10 @@ could not be used. A theme's name is made of letters, digits, `-` and
 | Alt-i           | keep the indent on the wrapped lines: a row
   that flows over several screen lines continues under
   its own first line's text                     |
+| Alt-(           | turn the electric bracket pairs on or off: an
+  opening bracket typed lays its closer in right behind
+  it, the cursor between the two — same setting the rc
+  file's `set electric-brackets off` answers |
 | Alt-g           | dot the nesting levels the code sits in: the
   last cell of every indent a row and the rows above
   it keep open carries a ·, in a quiet slate blue  |
@@ -287,7 +292,9 @@ could not be used. A theme's name is made of letters, digits, `-` and
   selection spans — the tab a row starts with, or up to the tab
   width of its spaces — or off the row of the cursor when
   nothing is selected                                       |
-| Backspace       | delete the character on the left, merge lines    |
+| Backspace       | delete the character on the left, merge lines — and
+  with the electric pairs on, the empty bracket pair the cursor
+  sits inside goes as one, the way it was laid in |
 | Alt-Backspace   | delete the run of blanks the cursor sits behind
   and the word before them, one undo step — back to the word's own
   start when the cursor sits inside it, the way the shells erase a
@@ -357,7 +364,11 @@ selection    |
   replace as it stands                       |
 | Ctrl-Z          | undo (a typing burst is one change)              |
 | Ctrl-Y          | redo the last undone change                      |
-| typing          | insert at the cursor (replaces the selection)    |
+| typing          | insert at the cursor (replaces the selection); with
+  the electric pairs on, an opening bracket closes itself right
+  away — the cursor between the two — and a closing one already
+  under the cursor, its opener behind it, steps over instead of
+  laying another one in |
 | Ctrl-S          | save the buffer (asks for a name when unnamed)   |
 | Ctrl-O          | open another file as a buffer of its own         |
 | Alt-o           | open the file the cursor sits on, the way gf does
@@ -418,6 +429,17 @@ does, and closing the last buffer starts a fresh empty one.
 ## Features
 
 New in 0.3.4:
+
+- Electric bracket pairs: an opening bracket typed with the pairs on
+  closes itself right away, `()` landing with the cursor between the
+  two, and the whole pair is one undo step that folds into the typing
+  around it. A closing bracket typed over the same closer already
+  under the cursor — its opener behind it, the match the bracket scan
+  finds — steps over instead of doubling it, and Backspace inside an
+  empty pair takes both halves back out as one. On by default;
+  `set electric-brackets off` in the rc file turns it off, and Alt-(
+  turns it either way while editing, the bracket itself telling its
+  own kind what to do
 
 - Search history: the up and down arrows of the search prompt walk
   the queries the searches have settled on, the way a shell walks the
