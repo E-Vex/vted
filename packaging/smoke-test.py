@@ -45,6 +45,16 @@
 # last copy kept: the word copied with Ctrl-C, the paste laid in at
 # the far end of the row below, the selection giving way first the
 # way every paste replaces one, and the bar saying what came in.
+#
+# A path run walks the Tab completion the way a hand would: Ctrl-O
+# opening the prompt, a prefix with no answer told so in the bar, the
+# directory of a fresh tree completed with its slash, a lone file
+# landing whole, and the menu of several matches stepped down with an
+# arrow and taken with Enter — the file on disk and the bar saying
+# the open landed where the completion walked. A save-as run walks
+# the other side of it: text typed into an unnamed buffer, Ctrl-S
+# asking where, the directory completed the same way, and the file
+# written to disk carrying the proof.
 import os
 import pty
 import select
@@ -60,11 +70,13 @@ CTRL_C = b'\x03'
 CTRL_F = b'\x06'
 CTRL_R = b'\x12'
 CTRL_T = b'\x14'
+CTRL_O = b'\x0f'    # Ctrl-O: the open prompt
 CTRL_Z = b'\x1a'
 BACKSPACE = b'\x7f'
 ENTER = b'\r'
 ALT_DOT = b'\x1b.'    # Alt-.: the buffer after the current one
 ALT_SLASH = b'\x1b/'  # Alt-/: complete the word left of the cursor
+ESC = b'\x1b'         # ESC: cancel the prompt
 
 SMOKE = '/tmp/vted-smoke.txt'
 WORDS = '/tmp/vted-smoke-words.txt'  # the buffer the answers come from
@@ -75,6 +87,8 @@ ALL = '/tmp/vted-smoke-all.txt'      # the buffer the one a takes in
 ROUNDTRIP = '/tmp/vted-smoke-roundtrip.txt'  # the buffer the pass goes out and back in
 DBLCLICK = '/tmp/vted-smoke-dblclick.txt'  # the buffer the clicks land in
 MIDDLE = '/tmp/vted-smoke-middle.txt'  # the buffer the paste lands in
+PATH_TREE = '/tmp/vted-smoke-path'      # the tree the Tab completion walks
+PATH_SAVE = '/tmp/vted-smoke-saveas'  # the tree the save-as completion walks
 
 
 def spawn(binary, args):
@@ -543,6 +557,147 @@ def middleclick_smoke(binary):
     return 0
 
 
+def path_smoke(binary):
+    """the path run: a prefix with no answer told so, a directory
+    completed with its slash, a lone file landed whole, and the menu
+    of several matches stepped down and taken with Enter"""
+    import shutil
+
+    shutil.rmtree(PATH_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(PATH_TREE, 'sub'))
+    with open(os.path.join(PATH_TREE, 'alpha.txt'), 'w') as f:
+        f.write('alpha text\n')
+    with open(os.path.join(PATH_TREE, 'answer.txt'), 'w') as f:
+        f.write('answer text\n')
+
+    pid, fd = spawn(binary, [])
+    out = []
+    time.sleep(0.3)
+
+    # a prefix nothing answers: the bar says so, the answer stands
+    drive(fd, CTRL_O, out)
+    drive(fd, (PATH_TREE + '/zz').encode(), out)
+    drive(fd, b'\t', out)
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b"No match for" not in drew:
+        return fail('the bar did not tell the prefix with no answer')
+
+    # the directory alone completes with its slash, and the lone file
+    # behind it lands whole
+    out.clear()
+    drive(fd, CTRL_O, out)
+    drive(fd, PATH_TREE.encode(), out)
+    drive(fd, b'\t', out)
+    drew = b''.join(out)
+
+    if (PATH_TREE + '/').encode() not in drew:
+        return fail('the directory did not complete with its slash')
+
+    out.clear()
+    drive(fd, b'al', out)
+    drive(fd, b'\t', out)
+    drive(fd, ENTER, out)          # Enter: open what completed
+    drive(fd, CTRL_S, out)         # Ctrl-S: save it back, unmodified
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'alpha.txt' not in drew:
+        return fail('the lone file did not open whole')
+
+    # several answer: the menu lists them, a directory with its slash,
+    # and an arrow plus Enter takes the one stepped onto
+    out.clear()
+    drive(fd, CTRL_O, out)
+    drive(fd, (PATH_TREE + '/').encode(), out)
+    drive(fd, b'\t', out)
+    drew = b''.join(out)
+
+    for said in (b'alpha.txt', b'answer.txt', b'sub/'):
+        if said not in drew:
+            return fail(f"the menu did not draw '{said.decode()}'")
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)     # ArrowDown: onto answer.txt
+    drive(fd, ENTER, out)          # Enter: take it into the answer
+    drive(fd, ENTER, out)          # Enter: open it
+    drive(fd, CTRL_S, out)
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'answer.txt' not in drew:
+        return fail('the match stepped onto did not open')
+
+    # the second open switched to the first buffer again: both files
+    # stand as they were written, the completion walking only
+    with open(os.path.join(PATH_TREE, 'alpha.txt')) as f:
+        if f.read() != 'alpha text\n':
+            return fail('the alpha file did not stand as written')
+
+    with open(os.path.join(PATH_TREE, 'answer.txt')) as f:
+        if f.read() != 'answer text\n':
+            return fail('the answer file did not stand as written')
+
+    print('smoke: OK - walked the Tab completion into an open, '
+          'menu and all')
+    return 0
+
+
+def saveas_smoke(binary):
+    """the save-as run: text typed into an unnamed buffer, Ctrl-S
+    asking where, the directory completed with its slash, and the
+    file written to disk carrying the proof"""
+    import shutil
+
+    shutil.rmtree(PATH_SAVE, ignore_errors=True)
+    os.makedirs(PATH_SAVE)
+
+    pid, fd = spawn(binary, [])
+    out = []
+    time.sleep(0.3)
+    drive(fd, b'saved by completion', out)  # the unnamed buffer's text
+    drive(fd, CTRL_S, out)                  # Ctrl-S: the save-as prompt
+    drive(fd, PATH_SAVE.encode(), out)
+    drive(fd, b'\t', out)                  # Tab: the directory completes
+    drive(fd, b'saved.txt', out)            # the name of the new file
+    drive(fd, ENTER, out)                   # Enter: write it
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    if b'Saved' not in drew:
+        return fail('the bar did not say the save landed')
+
+    try:
+        with open(os.path.join(PATH_SAVE, 'saved.txt')) as f:
+            text = f.read()
+    except OSError:
+        return fail('the save-as completion wrote no file')
+
+    if text != 'saved by completion\n':
+        return fail(f'the file reads {text!r}, '
+                    'not the text typed into the unnamed buffer')
+
+    print('smoke: OK - saved an unnamed buffer through the '
+          'completed directory')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -555,7 +710,8 @@ def main() -> int:
     return quit_smoke(binary) or completion_smoke(binary) \
         or regex_smoke(binary) or confirm_smoke(binary) \
         or all_smoke(binary) or roundtrip_smoke(binary) \
-        or dblclick_smoke(binary) or middleclick_smoke(binary)
+        or dblclick_smoke(binary) or middleclick_smoke(binary) \
+        or path_smoke(binary) or saveas_smoke(binary)
 
 
 if __name__ == '__main__':
