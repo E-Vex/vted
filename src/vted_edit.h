@@ -15,6 +15,20 @@
 void EditorInsertChar(int c);
 void EditorInsertNewline(void);
 
+/* the electric pair: an opening bracket laid in with its closing half
+   right behind it, the cursor between the two — one undoable step
+   that folds into the typing around it the way a pair of keystrokes
+   would. On the phantom row past the end the pair starts a new line
+   the way a single character does */
+void EditorInsertPair(int opener, int closer);
+
+/* takes the empty bracket pair the cursor sits inside — the opener
+   left of it, the closer under it — back out as one undoable step,
+   the way the electric typing laid it in as one. Returns 1 when a
+   pair went, 0 when the cursor sits inside none: the caller falls
+   back on the plain backspace then */
+int EditorDeletePair(void);
+
 /* places a pasted text at the cursor and leaves the cursor after it.
    The text goes in as it is: no auto indent, and CR LF or a lone CR
    count as one line break; control bytes other than Tab are dropped.

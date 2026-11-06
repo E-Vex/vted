@@ -66,6 +66,68 @@ void EditorInsertChar(int c)
     UndoPushTyping(&entry);
 }
 
+/* the electric pair: an opening bracket laid in with its closing half
+   right behind it, the cursor between the two — one undoable step
+   that folds into the typing around it the way a pair of keystrokes
+   would. On the phantom row past the end the pair starts a new line
+   the way a single character does, ending the way the last real one
+   does */
+void EditorInsertPair(int opener, int closer)
+{
+    int before_y = vted_editor_config.cursor_y;
+    int before_x = vted_editor_config.cursor_x;
+    char pair[2] = {(char)opener, (char)closer};
+    int row_created = 0;
+    int eol = VTED_EOL_LF;
+
+    /* typing on the phantom row past the end starts a new line */
+    if (vted_editor_config.cursor_y == vted_buffer.num_rows)
+    {
+        eol = vted_buffer.num_rows > 0
+                  ? vted_buffer.rows[vted_buffer.num_rows - 1].eol
+                  : VTED_EOL_LF;
+
+        if (AppendRow(pair, 2, eol) == -1)
+        {
+            KillApp("AppendRow");
+        }
+
+        row_created = 1;
+    }
+    else
+    {
+        vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+        if (RowInsertString(row, vted_editor_config.cursor_x, pair, 2) == -1)
+        {
+            KillApp("RowInsertString");
+        }
+    }
+
+    vted_buffer.dirty = 1;
+
+    /* the cursor lands between the two, so the next thing typed goes
+       inside the pair */
+    vted_editor_config.cursor_x++;
+
+    /* undo sees the whole line when typing created it, and the pair
+       when it did not */
+    UndoEntry entry = {
+        .kind = row_created ? UndoKindInsertRow : UndoKindInsertBytes,
+        .row = row_created ? vted_editor_config.cursor_y : before_y,
+        .cx = before_x,
+        .bytes = pair,
+        .length = 2,
+        .eol = eol,
+        .fold = row_created, /* typing may keep growing the new line */
+        .undo_y = before_y,
+        .undo_x = before_x,
+        .redo_y = vted_editor_config.cursor_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPushTyping(&entry);
+}
+
 void EditorInsertNewline(void)
 {
     int indent = 0;
@@ -373,6 +435,60 @@ void EditorDelChar(void)
         };
         UndoPushTyping(&entry);
     }
+}
+
+/* takes the empty bracket pair the cursor sits inside — the opener
+   left of it, the closer under it — back out as one undoable step,
+   the way the electric typing laid it in as one. Returns 1 when a
+   pair went, 0 when the cursor sits inside none: the caller falls
+   back on the plain backspace then */
+int EditorDeletePair(void)
+{
+    if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        return 0; /* the phantom row past the end holds no pair */
+    }
+
+    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    int x = vted_editor_config.cursor_x;
+
+    /* the opener left of the cursor with its own closer under it */
+    if (x < 1 || x >= row->size ||
+        RowBracketCloser(row->chars[x - 1]) != row->chars[x])
+    {
+        return 0;
+    }
+
+    int before_y = vted_editor_config.cursor_y;
+    char removed[2] = {row->chars[x - 1], row->chars[x]};
+
+    if (RowRemoveChar(row, x) == -1)
+    {
+        KillApp("RowRemoveChar");
+    }
+
+    if (RowRemoveChar(row, x - 1) == -1)
+    {
+        KillApp("RowRemoveChar");
+    }
+
+    vted_editor_config.cursor_x = x - 1;
+    vted_buffer.dirty = 1;
+
+    UndoEntry entry = {
+        .kind = UndoKindRemoveBytes,
+        .row = before_y,
+        .cx = x - 1,
+        .bytes = removed,
+        .length = 2,
+        .undo_y = before_y,
+        .undo_x = x,
+        .redo_y = vted_editor_config.cursor_y,
+        .redo_x = vted_editor_config.cursor_x,
+    };
+    UndoPushTyping(&entry);
+
+    return 1;
 }
 
 void EditorDeleteWordLeft(void)

@@ -58,6 +58,129 @@ static void TestInsertCharOnPhantomRow(void)
     CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
 }
 
+static void TestInsertPair(void)
+{
+    /* the opener lands with its closer behind it, the cursor between
+       the two */
+    Begin("ab");
+    CursorAt(0, 1);
+
+    EditorInsertPair('(', ')');
+
+    CHECK_STR(vted_buffer.rows[0].chars, "a()b");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+    CHECK_INT(vted_buffer.dirty, 1);
+}
+
+static void TestInsertPairOnPhantomRow(void)
+{
+    /* the pair starts a new line past the end the way a single
+       character does, ending the way the file does */
+    Begin("a");
+    vted_buffer.rows[0].eol = VTED_EOL_CRLF;
+    CursorAt(1, 0);
+
+    EditorInsertPair('{', '}');
+
+    CHECK_INT(vted_buffer.num_rows, 2);
+    CHECK_STR(vted_buffer.rows[1].chars, "{}");
+    CHECK_INT(vted_buffer.rows[1].eol, VTED_EOL_CRLF);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+}
+
+static void TestInsertPairUndoRedo(void)
+{
+    /* the pair is one undo step: one Ctrl-Z takes both halves back,
+       one Ctrl-Y lays them in again */
+    Begin("ab");
+    CursorAt(0, 1);
+
+    EditorInsertPair('[', ']');
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a[]b");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestInsertPairFoldsIntoTheTypingAfterIt(void)
+{
+    /* a keystroke landing right past the pair folds into it, the way
+       typing folds into typing; one inside it does not, the pair being
+       its own step there */
+    Begin("ab");
+    CursorAt(0, 1);
+
+    EditorInsertPair('(', ')');
+    vted_editor_config.cursor_x = 3; /* past the closer */
+    EditorInsertChar('x');
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+
+    /* inside the pair the keystroke is a step of its own */
+    Begin("ab");
+    CursorAt(0, 1);
+
+    EditorInsertPair('(', ')');
+    EditorInsertChar('x'); /* between the two */
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "a()b");
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab");
+}
+
+static void TestDeletePair(void)
+{
+    /* backspace inside an empty pair takes both halves out as one
+       step */
+    Begin("f()x");
+    CursorAt(0, 2);
+
+    CHECK_INT(EditorDeletePair(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "fx");
+    CHECK_INT(vted_editor_config.cursor_x, 1);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "f()x");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
+static void TestDeletePairOnlyInsideAnEmptyOne(void)
+{
+    /* a pair with something inside is not the cursor's to take whole,
+       nor a mismatched half, nor an opener at the row's end */
+    Begin("f(x)y");
+    CursorAt(0, 2);
+    CHECK_INT(EditorDeletePair(), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "f(x)y");
+
+    Begin("(]");
+    CursorAt(0, 1);
+    CHECK_INT(EditorDeletePair(), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "(]");
+
+    Begin("x(");
+    CursorAt(0, 2);
+    CHECK_INT(EditorDeletePair(), 0);
+    CHECK_STR(vted_buffer.rows[0].chars, "x(");
+
+    /* nothing left of the cursor, and nothing on the phantom row */
+    Begin("()");
+    CursorAt(0, 0);
+    CHECK_INT(EditorDeletePair(), 0);
+
+    Begin("()");
+    CursorAt(1, 0);
+    CHECK_INT(EditorDeletePair(), 0);
+}
+
 static void TestInsertNewlineSplits(void)
 {
     Begin("abcd");
@@ -1646,6 +1769,12 @@ int main(void)
 {
     TestInsertChar();
     TestInsertCharOnPhantomRow();
+    TestInsertPair();
+    TestInsertPairOnPhantomRow();
+    TestInsertPairUndoRedo();
+    TestInsertPairFoldsIntoTheTypingAfterIt();
+    TestDeletePair();
+    TestDeletePairOnlyInsideAnEmptyOne();
     TestInsertNewlineSplits();
     TestInsertNewlineKeepsIndent();
     TestInsertNewlineAtColumnZero();
