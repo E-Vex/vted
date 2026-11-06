@@ -1199,51 +1199,23 @@ static void EditorGoToLine(void)
     EditorLandJump(line, column);
 }
 
-/* Alt-o opens the file the cursor sits on, the way gf does in vi: the
-   run of path bytes under the cursor (or right behind it) names the
-   file. A relative name stands beside the file being edited first —
-   the way an #include does — and as it stands, in the working
-   directory, when that one does not answer. A file that is already
-   open just comes back into view, and a name that is no file at all
-   says so in the bar: gf goes to a file that is there, it does not
-   start one. The ":line:column" tail the name can carry, the way a
-   compiler names a spot, says where in the file the open lands */
-static void EditorOpenFileAtCursor(void)
+/* opens the name the way the Alt-o keys do: a relative name stands
+   beside the file being edited first — the way an #include does —
+   and as it stands, in the working directory, when that one does
+   not answer. A file that is already open just comes back into
+   view, and a name that is no file at all says so instead: gf goes
+   to a file that is there, it does not start one. The line and
+   column name the spot the open lands on. Says what happened in
+   message — "Opened ..." or the reason no file came open — for the
+   caller to put in the bar. Returns 1 when a file came open, 0
+   when the name answered as none */
+static int EditorOpenNamed(const char *name, int line, int column,
+                            char *message, size_t message_size)
 {
-    char name[PATH_MAX];
     char beside[PATH_MAX];
     const char *dir = NULL; /* the spelling beside the file being edited */
     const char *open;
-    int span_start;
-    int span_end;
-    int jump_line = 0;
-    int jump_column = 0;
     struct stat info;
-
-    if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
-    {
-        SetStatusMessage("No file name under the cursor");
-        return;
-    }
-
-    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
-
-    RowPathSpan(row, vted_editor_config.cursor_x, &span_start, &span_end);
-
-    /* no name under the cursor, or one too long to say: nothing to
-       open */
-    if (span_start == span_end || span_end - span_start >= (int)sizeof(name))
-    {
-        SetStatusMessage("No file name under the cursor");
-        return;
-    }
-
-    memcpy(name, &row->chars[span_start], (size_t)(span_end - span_start));
-    name[span_end - span_start] = '\0';
-
-    /* the tail behind the name, when it carries one: the line and the
-       column the open lands on */
-    RowPathJump(row, span_end, &jump_line, &jump_column);
 
     /* a relative name beside a file that has a directory of its own:
        the directory the file was opened from answers for it */
@@ -1275,34 +1247,79 @@ static void EditorOpenFileAtCursor(void)
            answered nowhere is simply not there */
         if (stat(name, &info) == 0 || (dir != NULL && stat(dir, &info) == 0))
         {
-            SetStatusMessage("A directory, not a file: %s", name);
+            snprintf(message, message_size,
+                     "A directory, not a file: %s", name);
         }
         else
         {
-            SetStatusMessage("No such file: %s", name);
+            snprintf(message, message_size, "No such file: %s", name);
         }
 
-        return;
+        return 0;
     }
 
     if (BuffersOpen(open) == -1)
     {
         int saved_errno = errno;
 
-        SetStatusMessage("Could not open: %s",
-                         saved_errno != 0 ? strerror(saved_errno)
-                                          : "not a regular file");
+        snprintf(message, message_size, "Could not open: %s",
+                 saved_errno != 0 ? strerror(saved_errno)
+                                  : "not a regular file");
+        return 0;
     }
-    else
-    {
-        /* the tail the name carried names the spot the open lands on,
-           in the buffer that just came into view */
-        EditorLandJump(jump_line, jump_column);
 
-        SetStatusMessage("Opened %s (buffer %d of %d)",
-                         vted_buffer.filename, BuffersCurrent() + 1,
-                         BuffersCount());
+    /* the line and column name the spot the open lands on, in the
+       buffer that just came into view */
+    EditorLandJump(line, column);
+
+    snprintf(message, message_size, "Opened %s (buffer %d of %d)",
+             vted_buffer.filename, BuffersCurrent() + 1,
+             BuffersCount());
+    return 1;
+}
+
+/* Alt-o opens the file the cursor sits on, the way gf does in vi: the
+   run of path bytes under the cursor (or right behind it) names the
+   file. The ":line:column" tail the name can carry, the way a
+   compiler names a spot, says where in the file the open lands */
+static void EditorOpenFileAtCursor(void)
+{
+    char name[PATH_MAX];
+    char message[PATH_MAX + 64];
+    int span_start;
+    int span_end;
+    int jump_line = 0;
+    int jump_column = 0;
+
+    if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        SetStatusMessage("No file name under the cursor");
+        return;
     }
+
+    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+    RowPathSpan(row, vted_editor_config.cursor_x, &span_start, &span_end);
+
+    /* no name under the cursor, or one too long to say: nothing to
+       open */
+    if (span_start == span_end || span_end - span_start >= (int)sizeof(name))
+    {
+        SetStatusMessage("No file name under the cursor");
+        return;
+    }
+
+    memcpy(name, &row->chars[span_start], (size_t)(span_end - span_start));
+    name[span_end - span_start] = '\0';
+
+    /* the tail behind the name, when it carries one: the line and the
+       column the open lands on */
+    RowPathJump(row, span_end, &jump_line, &jump_column);
+
+    /* the open, the message it leaves put in the bar */
+    EditorOpenNamed(name, jump_line, jump_column,
+                    message, sizeof(message));
+    SetStatusMessage("%s", message);
 }
 
 /* steps through the open buffers in the direction the key says,
