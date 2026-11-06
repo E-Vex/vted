@@ -640,6 +640,42 @@ static void EditorJumpToBracket(void)
     ScreenCenterCursor();
 }
 
+/* says whether the typed closing bracket is already under the cursor,
+   paired with its opener behind it: the typing steps over it then,
+   instead of laying another one in. The match the bracket scan finds
+   for the closer under the cursor is its opener, which only ever sits
+   before it, so a match at all is the answer */
+static int CursorStepsOverCloser(int closer)
+{
+    int match_y;
+    int match_x;
+
+    if (closer != ')' && closer != ']' && closer != '}')
+    {
+        return 0; /* only a closing half steps over */
+    }
+
+    if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        return 0; /* the phantom row past the end holds no closer */
+    }
+
+    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+    if (vted_editor_config.cursor_x >= row->size ||
+        row->chars[vted_editor_config.cursor_x] != (char)closer)
+    {
+        return 0; /* the closer is not the one under the cursor */
+    }
+
+    return BufferFindBracketMatch(vted_editor_config.cursor_y,
+                                  vted_editor_config.cursor_x,
+                                  &match_y, &match_x) &&
+           (match_y < vted_editor_config.cursor_y ||
+            (match_y == vted_editor_config.cursor_y &&
+             match_x < vted_editor_config.cursor_x));
+}
+
 /* the mouse over the viewport: a click places the cursor at the
    buffer position the renderer drew under it, a notch of the wheel
    scrolls the viewport, and a drag carries a selection from where
@@ -3007,6 +3043,15 @@ int main(int argc, char *argv[])
                 SetStatusMessage("Indent guides %s",
                                  vted_editor_config.indent_guides ? "shown" : "hidden");
             }
+            else if (c_in == ElectricBracketsToggle)
+            {
+                /* Alt-( turns the electric bracket pairs on and off:
+                   a plain ( is a character of the text and stays one */
+                vted_editor_config.electric_brackets = !vted_editor_config.electric_brackets;
+
+                SetStatusMessage("Electric brackets %s",
+                                 vted_editor_config.electric_brackets ? "on" : "off");
+            }
             else if (c_in == BracketColorPrompt)
             {
                 /* Alt-c sets the color the matching bracket lights up
@@ -3099,10 +3144,16 @@ int main(int argc, char *argv[])
             else if (c_in == 127)
             {
                 /* Backspace removes the selection, or the character
-                   left of the cursor */
+                   left of the cursor — the empty pair the cursor sits
+                   inside going as one when the electric pairs are on */
                 if (EditSelectionActive())
                 {
                     EditDeleteSelection();
+                }
+                else if (vted_editor_config.electric_brackets &&
+                         EditorDeletePair())
+                {
+                    /* the pair went as one */
                 }
                 else
                 {
@@ -3371,7 +3422,27 @@ int main(int argc, char *argv[])
                     EditDeleteSelection();
                 }
 
-                EditorInsertChar(c_in);
+                /* an opening bracket typed with the electric pairs on
+                   closes itself right away, the cursor between the two;
+                   a closing one already under the cursor, its opener
+                   behind it, steps over instead */
+                char closer = vted_editor_config.electric_brackets
+                                  ? RowBracketCloser((char)c_in)
+                                  : 0;
+
+                if (closer != 0)
+                {
+                    EditorInsertPair(c_in, closer);
+                }
+                else if (vted_editor_config.electric_brackets &&
+                         CursorStepsOverCloser(c_in))
+                {
+                    vted_editor_config.cursor_x++;
+                }
+                else
+                {
+                    EditorInsertChar(c_in);
+                }
             }
         }
 
