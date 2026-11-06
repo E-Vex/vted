@@ -81,6 +81,12 @@
 # it in its pair instead of taking it out, a letter typed over the
 # wrap landing between the halves, and Ctrl-Z walking the whole thing
 # back out with the pair as one step.
+#
+# A jump run walks the :line:column tails the way a hand would: a name
+# carrying one under the cursor, Alt-o opening the file it names with
+# the cursor landing on the spot the tail says — the bar counting the
+# line and the column — and a tail on a name already open landing
+# there just the same.
 import os
 import pty
 import select
@@ -119,6 +125,7 @@ MIDDLE = '/tmp/vted-smoke-middle.txt'  # the buffer the paste lands in
 PATH_TREE = '/tmp/vted-smoke-path'      # the tree the Tab completion walks
 PATH_SAVE = '/tmp/vted-smoke-saveas'  # the tree the save-as completion walks
 GF_TREE = '/tmp/vted-smoke-gf'      # the tree the Alt-o walk opens in
+JUMP_TREE = '/tmp/vted-smoke-jump'  # the tree the :line:column walk opens in
 HISTORY = '/tmp/vted-smoke-history.txt'  # the buffer the queries walk
 ELECTRIC = '/tmp/vted-smoke-electric.txt'  # the buffer the pairs land in
 WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
@@ -805,6 +812,75 @@ def gf_smoke(binary):
     return 0
 
 
+def jump_smoke(binary):
+    """the jump run: a name carrying a :line:column tail under the
+    cursor, Alt-o opening the file it names with the cursor landing
+    on the spot the tail says — the bar counting the line and the
+    column it landed on — and a tail on a name already open landing
+    there just the same"""
+    import shutil
+
+    shutil.rmtree(JUMP_TREE, ignore_errors=True)
+    os.makedirs(JUMP_TREE)
+    with open(os.path.join(JUMP_TREE, 'one.txt'), 'w') as f:
+        f.write('two.txt:3:7 is the spot to open\n')
+    with open(os.path.join(JUMP_TREE, 'two.txt'), 'w') as f:
+        f.write('first\nsecond\nthird one.txt:1:2 sits here\n')
+
+    # the editor runs in / (the spawn chdir), so a bare name answers
+    # only beside the file being edited — the way an #include does
+    pid, fd = spawn(binary, [os.path.join(JUMP_TREE, 'one.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # the cursor starts on the name at the head of the first line:
+    # Alt-o opens the file it names, and the tail lands the cursor on
+    # its line 3, its column 7 — the bar counting the spot
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'two.txt' not in drew:
+        return fail('the name with its tail did not open')
+    if b'Ln 3/3' not in drew:
+        return fail('the open did not land on the line the tail named')
+    if b'Col 7' not in drew:
+        return fail('the open did not land on the column the tail named')
+
+    # the cursor landed inside the name on the third line, its own
+    # tail naming the first file: the open hands back to it and lands
+    # where that tail says
+    out.clear()
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'one.txt' not in drew:
+        return fail('the tailed name was not handed back')
+    if b'buffer 1 of 2' not in drew:
+        return fail('the handed-back buffer is not the first one')
+    if b'Ln 1/1' not in drew or b'Col 2' not in drew:
+        return fail('the hand back did not land where its tail said')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    # neither file was touched by the walking
+    with open(os.path.join(JUMP_TREE, 'one.txt')) as f:
+        if f.read() != 'two.txt:3:7 is the spot to open\n':
+            return fail('the one file did not stand as written')
+    with open(os.path.join(JUMP_TREE, 'two.txt')) as f:
+        if f.read() != 'first\nsecond\nthird one.txt:1:2 sits here\n':
+            return fail('the two file did not stand as written')
+
+    print('smoke: OK - walked Alt-o into a :line:column jump, there and back')
+    return 0
+
+
 def history_smoke(binary):
     """the history run: two queries searched and kept, the search
     reopened on the newest, an up arrow recalling the older one and a
@@ -1011,7 +1087,8 @@ def main() -> int:
         or dblclick_smoke(binary) or middleclick_smoke(binary) \
         or path_smoke(binary) or saveas_smoke(binary) \
         or gf_smoke(binary) or history_smoke(binary) \
-        or electric_smoke(binary) or wrap_smoke(binary)
+        or electric_smoke(binary) or wrap_smoke(binary) \
+        or jump_smoke(binary)
 
 
 if __name__ == '__main__':
