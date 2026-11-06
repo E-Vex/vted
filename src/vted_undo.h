@@ -40,7 +40,12 @@ typedef enum
                              joined by '\n' */,
     UndoKindOutdentRows   /* an indent step came off the rows row
                              through cx, their old texts held the same
-                             way */
+                             way */,
+    UndoKindWrapSelection /* the selected text was wrapped in a bracket
+                             pair: the opener went in at the row/cx
+                             end of what was wrapped and the closer at
+                             its undo_y/undo_x end, the bytes holding
+                             the two halves */
 } UndoKind;
 
 typedef struct

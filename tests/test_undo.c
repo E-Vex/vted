@@ -1033,6 +1033,68 @@ static void TestPasteOfOneBreakEndingTheFileRoundTrips(void)
     CHECK_INT(vted_editor_config.cursor_y, 2);
 }
 
+static void TestWrapSelectionRoundTrips(void)
+{
+    /* as if "cd" had just been wrapped in a pair: one undo takes
+       both halves back out, one redo lays them in again */
+    Begin("ab(cd)ef");
+
+    UndoEntry entry = {
+        .kind = UndoKindWrapSelection,
+        .row = 0,
+        .cx = 2,
+        .bytes = "()",
+        .length = 2,
+        .undo_y = 0,
+        .undo_x = 4,
+        .redo_y = 0,
+        .redo_x = 5,
+    };
+    UndoPush(&entry);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcdef");
+    CHECK_INT(vted_editor_config.cursor_y, 0);
+    CHECK_INT(vted_editor_config.cursor_x, 4);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab(cd)ef");
+    CHECK_INT(vted_editor_config.cursor_x, 5);
+    CHECK_INT(vted_buffer.dirty, 1);
+}
+
+static void TestWrapSelectionAcrossRowsRoundTrips(void)
+{
+    /* a span over a line break: the opener and the closer went into
+       different rows, and both round trips must find their own */
+    Begin("ab(cd");
+    AppendRow("ef)gh", 5, VTED_EOL_LF);
+
+    UndoEntry entry = {
+        .kind = UndoKindWrapSelection,
+        .row = 0,
+        .cx = 2,
+        .bytes = "()",
+        .length = 2,
+        .undo_y = 1,
+        .undo_x = 2,
+        .redo_y = 1,
+        .redo_x = 2,
+    };
+    UndoPush(&entry);
+
+    CHECK_INT(EditorUndo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "abcd");
+    CHECK_STR(vted_buffer.rows[1].chars, "efgh");
+    CHECK_INT(vted_editor_config.cursor_y, 1);
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+
+    CHECK_INT(EditorRedo(), 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "ab(cd");
+    CHECK_STR(vted_buffer.rows[1].chars, "ef)gh");
+    CHECK_INT(vted_editor_config.cursor_x, 2);
+}
+
 /* pushes an entry for one typed byte, the way the tests above do;
    the caller sets the buffer up around the byte */
 static void PushTypedByte(char byte, int at)
@@ -1289,6 +1351,8 @@ int main(void)
     TestPasteKeepsEndingsThroughUndo();
     TestPasteEndingTheFileRoundTrips();
     TestPasteOfOneBreakEndingTheFileRoundTrips();
+    TestWrapSelectionRoundTrips();
+    TestWrapSelectionAcrossRowsRoundTrips();
     TestDetachLeavesAnEmptyModule();
     TestAnEmptyHistoryDetachesToo();
     TestAttachReplacesTheCurrentHistory();

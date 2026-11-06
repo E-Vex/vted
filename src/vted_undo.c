@@ -495,6 +495,17 @@ static void Apply(const UndoEntry *entry)
         }
         break;
     }
+    case UndoKindWrapSelection:
+    {
+        /* lay the halves back in: the closer at the bottom/right end
+           first, so the opener landing at the top/left end cannot
+           shift it — the same order the wrap laid them in */
+        PlaceBytes(entry->undo_y, entry->undo_x,
+                   entry->bytes != NULL ? entry->bytes + 1 : "", 1);
+        PlaceBytes(entry->row, entry->cx,
+                   entry->bytes != NULL ? entry->bytes : "", 1);
+        break;
+    }
     case UndoKindInsertText:
         if (entry->made_row &&
             InsertRow(entry->row, "", 0, entry->eol) == -1)
@@ -631,6 +642,16 @@ static void Revert(const UndoEntry *entry)
            does: the same helper puts them all back */
         RestoreRowTexts(entry);
         break;
+    case UndoKindWrapSelection:
+    {
+        /* take the halves back out: the opener at the top/left end
+           first, which un-shifts the closer when the two share a
+           row, so the closer then sits at the bottom/right end the
+           wrap laid it at */
+        TakeBytes(entry->row, entry->cx, 1);
+        TakeBytes(entry->undo_y, entry->undo_x, 1);
+        break;
+    }
     case UndoKindInsertText:
         if (RemoveText(entry->row, entry->cx,
                        entry->bytes != NULL ? entry->bytes : "",
