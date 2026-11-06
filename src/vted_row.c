@@ -1758,6 +1758,31 @@ char RowBracketCloser(char opener)
     return at != NULL ? bracket_closers[at - bracket_openers] : 0;
 }
 
+/* the quote characters that wrap a selection as a pair of their
+   own: each answers itself as both halves, the way a quoted span is
+   written */
+static const char wrap_quotes[] = "\"'";
+
+/* the closer that answers the opener for wrapping a selection: the
+   bracket pair an electric typing lays in, or a quote answering
+   itself as its own — the same byte both halves. 0 when the byte
+   opens no wrap */
+char RowWrapCloser(char opener)
+{
+    if (opener == '\0')
+    {
+        return 0; /* NUL never counts, or strchr() would find the
+                     string terminator */
+    }
+
+    if (strchr(wrap_quotes, opener) != NULL)
+    {
+        return opener;
+    }
+
+    return RowBracketCloser(opener);
+}
+
 /* which pair a byte belongs to, -1 when it is no bracket; NUL never
    counts, or strchr() would find the string terminator */
 static int BracketIndex(char c)

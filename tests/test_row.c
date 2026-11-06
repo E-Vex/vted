@@ -1066,6 +1066,28 @@ static void TestBracketCloserOfAnOpener(void)
     CHECK_INT(RowBracketCloser('\0'), 0);
 }
 
+static void TestWrapCloserOfAnOpener(void)
+{
+    /* the closer a typed character wraps a selection in: a
+       bracket's own closer, and a quote answering itself as its
+       own pair, the same byte both halves */
+    CHECK_INT(RowWrapCloser('('), ')');
+    CHECK_INT(RowWrapCloser('['), ']');
+    CHECK_INT(RowWrapCloser('{'), '}');
+    CHECK_INT(RowWrapCloser('"'), '"');
+    CHECK_INT(RowWrapCloser('\''), '\'');
+
+    /* a closer opens no wrap of its own, and neither does anything
+       else a key can spell */
+    CHECK_INT(RowWrapCloser(')'), 0);
+    CHECK_INT(RowWrapCloser(']'), 0);
+    CHECK_INT(RowWrapCloser('}'), 0);
+    CHECK_INT(RowWrapCloser('`'), 0);
+    CHECK_INT(RowWrapCloser('a'), 0);
+    CHECK_INT(RowWrapCloser(' '), 0);
+    CHECK_INT(RowWrapCloser('\0'), 0);
+}
+
 static void TestBracketBeforeTheCursor(void)
 {
     const char *const texts[] = {"f(a)", NULL};
@@ -2407,6 +2429,7 @@ int main(void)
     TestInsertAndRemoveText();
     TestBracketForwardMatch();
     TestBracketCloserOfAnOpener();
+    TestWrapCloserOfAnOpener();
     TestBracketBeforeTheCursor();
     TestBracketNesting();
     TestBracketOtherPairs();

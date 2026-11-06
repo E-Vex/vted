@@ -290,6 +290,12 @@ int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
    electric typing lays in and takes back */
 char RowBracketCloser(char opener);
 
+/* the closer that answers the opener for wrapping a selection, 0
+   when the byte opens no wrap: the bracket pair an electric typing
+   lays in, or a quote character answering itself as its own — the
+   same byte both halves, the way a quoted span is written */
+char RowWrapCloser(char opener);
+
 /* the rows the bracket at row cy column cx (or the one right before
    it) and its partner enclose: whole rows, from the earlier of the
    two to the later one, everything in between included. Returns 1
