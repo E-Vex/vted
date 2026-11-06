@@ -1141,6 +1141,36 @@ static int RegularFileThere(const char *path)
     return path != NULL && stat(path, &info) == 0 && S_ISREG(info.st_mode);
 }
 
+/* lands the cursor on the line and column a jump tail named, the
+   way Ctrl-G lands the line it was asked for: a line past the end
+   lands on the last one, a column past a row's end on that row's
+   end, and the spot lands mid-viewport */
+static void EditorLandJump(int line, int column)
+{
+    vted_row_t *row;
+
+    if (line < 1 || vted_buffer.num_rows == 0)
+    {
+        return;
+    }
+
+    if (line > vted_buffer.num_rows)
+    {
+        line = vted_buffer.num_rows;
+    }
+
+    vted_editor_config.cursor_y = line - 1;
+
+    /* the column counts the cells the bar shows, so the spot it names
+       is where it lands; a row's end is as far as it goes */
+    row = &vted_buffer.rows[vted_editor_config.cursor_y];
+    vted_editor_config.cursor_x = column > 0
+                                      ? RowRxToCx(row, column - 1)
+                                      : 0;
+
+    ScreenCenterCursor();
+}
+
 /* Alt-o opens the file the cursor sits on, the way gf does in vi: the
    run of path bytes under the cursor (or right behind it) names the
    file. A relative name stands beside the file being edited first —
@@ -1148,7 +1178,8 @@ static int RegularFileThere(const char *path)
    directory, when that one does not answer. A file that is already
    open just comes back into view, and a name that is no file at all
    says so in the bar: gf goes to a file that is there, it does not
-   start one */
+   start one. The ":line:column" tail the name can carry, the way a
+   compiler names a spot, says where in the file the open lands */
 static void EditorOpenFileAtCursor(void)
 {
     char name[PATH_MAX];
@@ -1157,6 +1188,8 @@ static void EditorOpenFileAtCursor(void)
     const char *open;
     int span_start;
     int span_end;
+    int jump_line = 0;
+    int jump_column = 0;
     struct stat info;
 
     if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
@@ -1179,6 +1212,10 @@ static void EditorOpenFileAtCursor(void)
 
     memcpy(name, &row->chars[span_start], (size_t)(span_end - span_start));
     name[span_end - span_start] = '\0';
+
+    /* the tail behind the name, when it carries one: the line and the
+       column the open lands on */
+    RowPathJump(row, span_end, &jump_line, &jump_column);
 
     /* a relative name beside a file that has a directory of its own:
        the directory the file was opened from answers for it */
@@ -1230,6 +1267,10 @@ static void EditorOpenFileAtCursor(void)
     }
     else
     {
+        /* the tail the name carried names the spot the open lands on,
+           in the buffer that just came into view */
+        EditorLandJump(jump_line, jump_column);
+
         SetStatusMessage("Opened %s (buffer %d of %d)",
                          vted_buffer.filename, BuffersCurrent() + 1,
                          BuffersCount());
