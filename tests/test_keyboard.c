@@ -318,6 +318,18 @@ static void TestOpenFileAtCursorKey(void)
     CHECK_INT(ReadKeyPress(), 'o');
 }
 
+static void TestElectricBracketsToggleKey(void)
+{
+    /* Alt-( turns the electric bracket pairs on and off: the bracket
+       itself, spelled with Alt, telling its own kind what to do */
+    FeedInput("\x1b(");
+    CHECK_INT(ReadKeyPress(), ElectricBracketsToggle);
+
+    /* a plain ( is still text */
+    FeedInput("(");
+    CHECK_INT(ReadKeyPress(), '(');
+}
+
 static void TestSuspendKey(void)
 {
     /* Alt-z stops the editor and hands the terminal to the shell,
@@ -554,6 +566,7 @@ int main(void)
     TestWordDeleteKeys();
     TestWordCompleteKey();
     TestOpenFileAtCursorKey();
+    TestElectricBracketsToggleKey();
     TestSuspendKey();
     TestCommentToggleKey();
     TestShiftArrowsStartSelections();

@@ -67,6 +67,8 @@ typedef enum
                         from the words of the buffer */
     OpenFileAtCursor, /* Alt-o: the file the cursor sits on, opened the
                          way gf does in vi */
+    ElectricBracketsToggle, /* Alt-(: the electric bracket pairs on
+                               or off */
     SuspendEditor,   /* Alt-z: hand the terminal back to the shell and
                         stop, the way Ctrl-Z did before the terminal
                         went raw */

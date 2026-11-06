@@ -499,6 +499,14 @@ int ParseArrowKey(void)
         return OpenFileAtCursor;
     }
 
+    /* Alt-( turns the electric bracket pairs on and off: the bracket
+       itself, spelled with Alt, telling its own kind what to do — a
+       plain ( is a character of the text and stays one */
+    if (introducer == '(')
+    {
+        return ElectricBracketsToggle;
+    }
+
     /* Alt-z stops the editor and hands the terminal to the shell,
        the way Ctrl-Z used to: raw mode turned the signal generation
        off, so the shell's own Ctrl-Z never arrives and the z goes
