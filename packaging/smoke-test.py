@@ -62,6 +62,12 @@
 # in the working directory, the open handed back to the first buffer
 # when its own name is taken from the second, and a name that is no
 # file at all told so in the bar.
+#
+# A history run walks the search history the way a hand would: two
+# queries searched and kept, the search reopened on the last of them,
+# an up arrow recalling the one before it — its matches lighting up
+# the way a typed query's do — and a down arrow walking back to the
+# newest, Enter keeping the recalled one.
 import os
 import pty
 import select
@@ -98,6 +104,7 @@ MIDDLE = '/tmp/vted-smoke-middle.txt'  # the buffer the paste lands in
 PATH_TREE = '/tmp/vted-smoke-path'      # the tree the Tab completion walks
 PATH_SAVE = '/tmp/vted-smoke-saveas'  # the tree the save-as completion walks
 GF_TREE = '/tmp/vted-smoke-gf'      # the tree the Alt-o walk opens in
+HISTORY = '/tmp/vted-smoke-history.txt'  # the buffer the queries walk
 
 
 def spawn(binary, args):
@@ -781,6 +788,76 @@ def gf_smoke(binary):
     return 0
 
 
+def history_smoke(binary):
+    """the history run: two queries searched and kept, the search
+    reopened on the newest, an up arrow recalling the older one and a
+    down arrow walking back, Enter keeping the recalled query"""
+    with open(HISTORY, 'w') as f:
+        f.write('one two one two\n')
+
+    pid, fd = spawn(binary, [HISTORY])
+    out = []
+    time.sleep(0.3)
+
+    # a first query, searched and kept
+    drive(fd, CTRL_F, out)
+    drive(fd, b'one', out)
+    drive(fd, ENTER, out)
+
+    # a second one: the seeded first is taken apart, the new typed and
+    # kept — the history now holds them both, newest last
+    drive(fd, CTRL_F, out)
+    for _ in range(3):
+        drive(fd, BACKSPACE, out, pause=0.1)
+    drive(fd, b'two', out)
+    drive(fd, ENTER, out)
+
+    # the search opens on the newest of them
+    out.clear()
+    drive(fd, CTRL_F, out)
+    drew = b''.join(out)
+
+    if b'Find: two (' not in drew:
+        return fail('the search did not open on the newest query')
+
+    # an up arrow recalls the query before it, its matches lighting up
+    # the way a typed query's do
+    out.clear()
+    drive(fd, b'\x1b[A', out)     # ArrowUp: onto the older query
+    drew = b''.join(out)
+
+    if b'Find: one (' not in drew:
+        return fail('the up arrow did not recall the older query')
+    if b'Find: one (1 of 2' not in drew:
+        return fail('the recalled query did not count its matches')
+
+    # a down arrow walks back to the newest, and Enter keeps it
+    out.clear()
+    drive(fd, b'\x1b[B', out)     # ArrowDown: back to the newest
+    drive(fd, ENTER, out)         # Enter: keep the query
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    drew = b''.join(out)
+
+    if b'Find: two (' not in drew:
+        return fail('the down arrow did not walk back to the newest query')
+
+    # the file stands as written: the walk only ever read it
+    with open(HISTORY) as f:
+        if f.read() != 'one two one two\n':
+            return fail('the file did not stand as written')
+
+    print('smoke: OK - walked the search history up and back down')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -795,7 +872,7 @@ def main() -> int:
         or all_smoke(binary) or roundtrip_smoke(binary) \
         or dblclick_smoke(binary) or middleclick_smoke(binary) \
         or path_smoke(binary) or saveas_smoke(binary) \
-        or gf_smoke(binary)
+        or gf_smoke(binary) or history_smoke(binary)
 
 
 if __name__ == '__main__':
