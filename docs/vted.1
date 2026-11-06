@@ -185,7 +185,20 @@ the current one
 .B Tab
 insert a tab character, shown up to the next tab stop (every 8 cells);
 with a selection, every row the selection spans takes one indent step
-in instead — the same bytes the lone Tab inserts
+in instead — the same bytes the lone Tab inserts. In the Open and
+Save\-as prompts, Tab completes the path typed so far the way the
+shell's own Tab does: the names of the directory the path names that
+start with what follows its slash answer, a name that starts with a
+dot only a prefix that starts with one. One name lands whole, a
+directory with a slash behind it so the next Tab walks into it;
+several land the part they agree on, with the menu the buffer picker
+uses listing them over the bottom of the viewport — a directory
+carrying its slash — the arrows and the wheel stepping through it,
+Enter or a left click taking a line into the answer, ESC taking the
+menu down with the prompt standing (a second ESC cancelling it), and
+any other key taking it down, a fresh Tab listing again. A Tab that
+finds nothing, or a directory that cannot be read, says so in the
+message bar until the next key
 .TP
 .B Shift\-Tab
 take one indent step off every row the selection spans — the tab a

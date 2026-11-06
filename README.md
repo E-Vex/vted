@@ -267,7 +267,22 @@ could not be used. A theme's name is made of letters, digits, `-` and
 | Enter           | split the line at the cursor, keeping its indent |
 | Tab             | insert a tab, shown up to the next tab stop; with
   a selection, every row the selection spans takes an indent
-  step in instead — the same bytes the lone Tab inserts     |
+  step in instead — the same bytes the lone Tab inserts. In the
+  Open and Save-as prompts it completes the path typed so far,
+  the way the shell's Tab does: the names of the directory the
+  path names that start with what follows its slash answer — a
+  name that starts with a dot only a prefix that starts with
+  one. One name lands whole, a directory with a slash behind it
+  so the next Tab walks into it; several land the part they
+  agree on, the menu the buffer picker uses listing them over
+  the bottom of the viewport, a directory carrying its slash:
+  the arrows and the wheel step through it, Enter or a left
+  click takes a line into the answer, ESC takes the menu down
+  with the prompt standing — a second ESC cancelling it the way
+  it always did — and any other key takes it down, the answer
+  going on and a fresh Tab listing again. A Tab that finds
+  nothing, or a directory that cannot be read, says so in the
+  bar until the next key |
 | Shift-Tab       | outdent: one indent step comes off every row the
   selection spans — the tab a row starts with, or up to the tab
   width of its spaces — or off the row of the cursor when
@@ -388,6 +403,18 @@ does, and closing the last buffer starts a fresh empty one.
 
 New in 0.3.4:
 
+- Path completion: Tab in the Open and Save-as prompts completes the
+  path typed so far, the way the shell's Tab does. The directory the
+  path names answers with the names that start with what follows its
+  slash — a name that starts with a dot only a prefix that starts
+  with one — one landing whole, a directory with a slash behind it so
+  the next Tab walks into it, and several landing the part they agree
+  on first, the menu the buffer picker uses listing them for the
+  choosing: the arrows and the wheel step through it, Enter or a left
+  click takes a line into the answer, ESC takes the menu down with
+  the prompt standing, and any other key takes it down, a fresh Tab
+  listing again. A Tab that finds nothing, or a directory that cannot
+  be read, says so in the bar until the next key
 - Replace with confirmation: Ctrl-R asks about one match at a time
   instead of laying every occurrence in at once. The walk starts at
   the cursor and wraps around the buffer the way the search does,
