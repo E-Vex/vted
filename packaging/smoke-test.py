@@ -82,6 +82,13 @@
 # wrap landing between the halves, and Ctrl-Z walking the whole thing
 # back out with the pair as one step.
 #
+# A quote run walks the quote wrap the way a hand would: a word picked
+# with a double click, a double quote typed over it wrapping it in its
+# own pair — the same byte both halves — a single quote doing the
+# same, Ctrl-Z walking each back out as one step, and Alt-( turning
+# the electricity off so a quote typed over a word takes it out the
+# way any letter does.
+#
 # A jump run walks the :line:column tails the way a hand would: a name
 # carrying one under the cursor, Alt-o opening the file it names with
 # the cursor landing on the spot the tail says — the bar counting the
@@ -129,6 +136,7 @@ JUMP_TREE = '/tmp/vted-smoke-jump'  # the tree the :line:column walk opens in
 HISTORY = '/tmp/vted-smoke-history.txt'  # the buffer the queries walk
 ELECTRIC = '/tmp/vted-smoke-electric.txt'  # the buffer the pairs land in
 WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
+QUOTE = '/tmp/vted-smoke-quote.txt'  # the buffer the quotes wrap in
 
 
 def spawn(binary, args):
@@ -1072,6 +1080,75 @@ def wrap_smoke(binary):
     return 0
 
 
+def quote_smoke(binary):
+    """the quote run: a word selected with a double click, a double
+    quote typed over it wrapping it in its own pair — the same byte
+    both halves — a single quote doing the same, Ctrl-Z walking each
+    back out as one step, and the pairs off so a quote typed over a
+    word takes it out the way any letter does"""
+    with open(QUOTE, 'w') as f:
+        f.write('one two three\nfour five six\n')
+
+    pid, fd = spawn(binary, [QUOTE])
+    out = []
+    time.sleep(0.3)
+
+    # the double click on 'w' of "two" as the wrap run: the word
+    # stands selected, and a double quote typed over it wraps it
+    drive(fd, b'\x1b[<0;10;1M\x1b[<0;10;1m\x1b[<0;10;1M', out)
+    drive(fd, b'"', out)
+    drive(fd, CTRL_S, out)
+
+    with open(QUOTE) as f:
+        if f.read() != 'one "two" three\nfour five six\n':
+            return fail('the double quote did not wrap the selected word')
+
+    # the wrap is one undo step, the pair going as one
+    drive(fd, CTRL_Z, out, pause=0.1)
+    drive(fd, CTRL_S, out)
+
+    with open(QUOTE) as f:
+        if f.read() != 'one two three\nfour five six\n':
+            return fail('the quote wrap did not go back out as one step')
+
+    # the single quote over 'five' on the row below does the same
+    drive(fd, b'\x1b[<0;10;2M\x1b[<0;10;2m\x1b[<0;10;2M', out)
+    drive(fd, b"'", out)
+    drive(fd, CTRL_S, out)
+
+    with open(QUOTE) as f:
+        if f.read() != "one two three\nfour 'five' six\n":
+            return fail('the single quote did not wrap the selected word')
+
+    drive(fd, CTRL_Z, out, pause=0.1)
+    drive(fd, CTRL_S, out)
+
+    # Alt-( turns the electricity off: a quote typed over a selection
+    # takes it out the way any letter does
+    out.clear()
+    drive(fd, ALT_LPAREN, out)     # Alt-(: off
+    drive(fd, b'\x1b[<0;10;1M\x1b[<0;10;1m\x1b[<0;10;1M', out)
+    drive(fd, b'"', out)
+    drive(fd, CTRL_S, out)
+
+    with open(QUOTE) as f:
+        if f.read() != 'one " three\nfour five six\n':
+            return fail('the quote stood in for the word with the '
+                        'pairs off')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    print('smoke: OK - walked the quote wrap in, both quotes and back out')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -1088,7 +1165,7 @@ def main() -> int:
         or path_smoke(binary) or saveas_smoke(binary) \
         or gf_smoke(binary) or history_smoke(binary) \
         or electric_smoke(binary) or wrap_smoke(binary) \
-        or jump_smoke(binary)
+        or quote_smoke(binary) or jump_smoke(binary)
 
 
 if __name__ == '__main__':
