@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <limits.h>
 /*===============================*/
 #include "vted_terminal.h"
 #include "vted_keyboard.h"
@@ -1033,6 +1035,111 @@ static void EditorOpenFile(void)
     }
 
     free(path);
+}
+
+/* says whether the path names a file that is there to open: stat
+   answers for a regular file, and everything else — a directory, a
+   name that is not there — is no file to go to */
+static int RegularFileThere(const char *path)
+{
+    struct stat info;
+
+    return path != NULL && stat(path, &info) == 0 && S_ISREG(info.st_mode);
+}
+
+/* Alt-o opens the file the cursor sits on, the way gf does in vi: the
+   run of path bytes under the cursor (or right behind it) names the
+   file. A relative name stands beside the file being edited first —
+   the way an #include does — and as it stands, in the working
+   directory, when that one does not answer. A file that is already
+   open just comes back into view, and a name that is no file at all
+   says so in the bar: gf goes to a file that is there, it does not
+   start one */
+static void EditorOpenFileAtCursor(void)
+{
+    char name[PATH_MAX];
+    char beside[PATH_MAX];
+    const char *dir = NULL; /* the spelling beside the file being edited */
+    const char *open;
+    int span_start;
+    int span_end;
+    struct stat info;
+
+    if (vted_editor_config.cursor_y >= vted_buffer.num_rows)
+    {
+        SetStatusMessage("No file name under the cursor");
+        return;
+    }
+
+    vted_row_t *row = &vted_buffer.rows[vted_editor_config.cursor_y];
+
+    RowPathSpan(row, vted_editor_config.cursor_x, &span_start, &span_end);
+
+    /* no name under the cursor, or one too long to say: nothing to
+       open */
+    if (span_start == span_end || span_end - span_start >= (int)sizeof(name))
+    {
+        SetStatusMessage("No file name under the cursor");
+        return;
+    }
+
+    memcpy(name, &row->chars[span_start], (size_t)(span_end - span_start));
+    name[span_end - span_start] = '\0';
+
+    /* a relative name beside a file that has a directory of its own:
+       the directory the file was opened from answers for it */
+    if (name[0] != '/' && vted_buffer.filename != NULL)
+    {
+        int dir_span = PromptDirSpan(vted_buffer.filename);
+
+        if (dir_span > 0 &&
+            snprintf(beside, sizeof(beside), "%.*s%s",
+                     dir_span, vted_buffer.filename, name) < (int)sizeof(beside))
+        {
+            dir = beside;
+        }
+    }
+
+    /* gf goes to a file that is there: beside the file being edited
+       first, then as it stands */
+    if (RegularFileThere(dir))
+    {
+        open = dir;
+    }
+    else if (RegularFileThere(name))
+    {
+        open = name;
+    }
+    else
+    {
+        /* a name that answered, but as no file: a directory; one that
+           answered nowhere is simply not there */
+        if (stat(name, &info) == 0 || (dir != NULL && stat(dir, &info) == 0))
+        {
+            SetStatusMessage("A directory, not a file: %s", name);
+        }
+        else
+        {
+            SetStatusMessage("No such file: %s", name);
+        }
+
+        return;
+    }
+
+    if (BuffersOpen(open) == -1)
+    {
+        int saved_errno = errno;
+
+        SetStatusMessage("Could not open: %s",
+                         saved_errno != 0 ? strerror(saved_errno)
+                                          : "not a regular file");
+    }
+    else
+    {
+        SetStatusMessage("Opened %s (buffer %d of %d)",
+                         vted_buffer.filename, BuffersCurrent() + 1,
+                         BuffersCount());
+    }
 }
 
 /* steps through the open buffers in the direction the key says,
@@ -3028,6 +3135,15 @@ int main(int argc, char *argv[])
             {
                 /* Ctrl-O opens another file as a buffer of its own */
                 EditorOpenFile();
+            }
+            else if (c_in == OpenFileAtCursor)
+            {
+                /* Alt-o opens the file the cursor sits on, the way gf
+                   does in vi: a movement, so the selection is gone on
+                   arrival */
+                EditClearSelection();
+                ScreenSetSelection(-1, 0, -1, 0);
+                EditorOpenFileAtCursor();
             }
             else if (c_in == CTRL_KEY('f') || c_in == CTRL_KEY('F'))
             {
