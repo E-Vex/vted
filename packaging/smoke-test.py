@@ -107,6 +107,13 @@
 # names no file told so in a notice while the search stands, the
 # notice answered by the next key, and the replace's own prompt
 # opening the same way with the bar saying what opened.
+#
+# A match run walks the quote match the way a hand would: the cursor
+# landed on the quote that opens a span with the far end of it
+# lighting up the way a bracket's partner does, Alt-% landing there
+# with the bar counting the spot, the cursor resting past the closer
+# still lighting the opener, and an escaped quote finding no partner
+# at all — Alt-% saying so in the bar.
 import os
 import pty
 import select
@@ -132,6 +139,7 @@ ALT_SLASH = b'\x1b/'  # Alt-/: complete the word left of the cursor
 ESC = b'\x1b'         # ESC: cancel the prompt
 ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
 ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
+ALT_PERCENT = b'\x1b%'  # Alt-%: the jump to the lit partner
 END = b'\x1b[F'      # End: the cursor at the row's end
 
 SMOKE = '/tmp/vted-smoke.txt'
@@ -153,6 +161,7 @@ WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
 QUOTE = '/tmp/vted-smoke-quote.txt'  # the buffer the quotes wrap in
 GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
+MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
 
 def spawn(binary, args):
@@ -1358,6 +1367,81 @@ def quote_smoke(binary):
     return 0
 
 
+def match_smoke(binary):
+    """the match run: the cursor landed on the quote that opens a
+    span, the far end of it lighting up inverted the way a bracket's
+    partner does; Alt-% landing there with the bar counting the spot,
+    the cursor resting past the closer still lighting its opener, and
+    an escaped quote finding no partner at all"""
+    with open(MATCH, 'w') as f:
+        f.write('say "hello" now\nan \\" escaped one\n')
+
+    pid, fd = spawn(binary, [MATCH])
+    out = []
+    time.sleep(0.3)
+
+    # the cursor on the opening quote: the closing one lights up
+    drive(fd, CTRL_G, out)
+    drive(fd, b'1:5', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'\x1b[7m"' not in drew:
+        return fail('the closing quote did not light up')
+
+    # Alt-% lands on the lit partner, the bar counting the spot
+    out.clear()
+    drive(fd, ALT_PERCENT, out)
+    drew = b''.join(out)
+
+    if b'Ln 1/2' not in drew or b'Col 11' not in drew:
+        return fail('Alt-% did not land on the quote partner')
+
+    # the cursor rests right past the closer: the opener still lights
+    out.clear()
+    drive(fd, CTRL_G, out)
+    drive(fd, b'1:12', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'\x1b[7m"' not in drew:
+        return fail('the quote past the cursor did not light its partner')
+
+    # an escaped quote is no delimiter: nothing lights, and Alt-%
+    # says so in the bar
+    out.clear()
+    drive(fd, CTRL_G, out)
+    drive(fd, b'2:4', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'\x1b[7m"' in drew:
+        return fail('the escaped quote lit a partner up')
+
+    out.clear()
+    drive(fd, ALT_PERCENT, out)
+    drew = b''.join(out)
+
+    if b'No bracket or quote to jump to' not in drew:
+        return fail('Alt-% did not say the escaped quote has no partner')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(MATCH) as f:
+        if f.read() != 'say "hello" now\nan \\" escaped one\n':
+            return fail('the match run did not leave the file as written')
+
+    print('smoke: OK - walked the quote match and its Alt-% jump')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -1375,7 +1459,8 @@ def main() -> int:
         or gf_smoke(binary) or history_smoke(binary) \
         or electric_smoke(binary) or wrap_smoke(binary) \
         or quote_smoke(binary) or jump_smoke(binary) \
-        or goto_smoke(binary) or prompt_smoke(binary)
+        or goto_smoke(binary) or prompt_smoke(binary) \
+        or match_smoke(binary)
 
 
 if __name__ == '__main__':
