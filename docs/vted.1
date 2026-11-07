@@ -161,9 +161,9 @@ file indents with, tabs, spaces or both; the cells they sit in take
 the same either way, and a tab shown by Alt\-t keeps its own markers
 .TP
 .B Alt\-c
-set the color the matching bracket lights up with: the prompt opens
-with the color in place, so Enter alone keeps it and only a name
-changes it — the same names the
+set the color the matching bracket lights up with, a quote's partner
+the same way: the prompt opens with the color in place, so Enter
+alone keeps it and only a name changes it — the same names the
 .B bracket\-color
 setting of the rc
 file takes
@@ -176,9 +176,10 @@ so Enter alone loads it again, which is handy while writing a theme
 file, and a name changes it
 .TP
 .B Alt\-%
-jump to the partner of the bracket under the cursor, or the one
-right behind it, the way % does in vi: the partner the highlight
-marks, given the middle of the viewport when the jump leaves it
+jump to the partner of the byte under the cursor, or the one right
+behind it — a bracket's own kind, a quote's far end — the way % does
+in vi: the partner the highlight marks, given the middle of the
+viewport when the jump leaves it
 .TP
 .B Alt\-n / Alt\-p
 step to the match after and before the one the cursor sits on, the
@@ -484,8 +485,15 @@ setting names — a name Alt\-c answers while editing,
 the prompt opening with the color in place: the scan counts brackets
 of the same
 pair, so nesting comes out right, and it reaches a megabyte before a
-match counts as missing. Alt\-% jumps to that partner, landing it in
-the middle of the viewport when it left it.
+match counts as missing. A quote's far end lights up the same way:
+the count of quotes of its own byte before it says which end the
+cursor is on — the one that opens a span finding the one that closes
+it, and the other way around — a quote a backslash escapes being no
+delimiter at all, one the cursor rests on lighting nothing and the
+walks stepping over the ones they meet. The byte under the cursor
+speaks for its own kind, so a quote the cursor sits on is not
+answered by the bracket right behind it. Alt\-% jumps to that
+partner, landing it in the middle of the viewport when it left it.
 .SH EXAMPLES
 .PP
 Open a file and start editing; Ctrl\-S writes it back and Ctrl\-Q
@@ -613,7 +621,8 @@ it out; on by
 default, and Alt\-( turns it either way while editing),
 and
 .BI "set bracket-color " name
-(the background of the matching bracket's partner: red, green,
+(the background of the matching partner, a bracket's or a quote's:
+red, green,
 yellow, blue, magenta, cyan or gray, or invert for the inverted video
 that is the default; Alt\-c answers the same names while editing),
 and

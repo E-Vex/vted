@@ -255,12 +255,12 @@ could not be used. A theme's name is made of letters, digits, `-` and
 | Alt-g           | dot the nesting levels the code sits in: the
   last cell of every indent a row and the rows above
   it keep open carries a ·, in a quiet slate blue  |
-| Alt-c           | set the color the bracket match lights up with;
-  the prompt opens with the color in place, so Enter
-  keeps it and only a name changes it              |
-| Alt-%           | jump to the partner of the bracket under the
-  cursor (or right behind it), the way % does in vi; a partner off
-  screen lands mid-viewport                         |
+| Alt-c           | set the color the bracket match lights up with, a
+  quote's partner the same way; the prompt opens with the color in
+  place, so Enter keeps it and only a name changes it  |
+| Alt-%           | jump to the partner of the byte under the cursor
+  (or right behind it) — a bracket's own kind, a quote's far end —
+  the way % does in vi; a partner off screen lands mid-viewport |
 | Alt-n / Alt-p   | step to the match after and before the one the
   cursor sits on, the way n and N do in vi: the last search runs
   again from the cursor, wrapping around the buffer, without the
@@ -446,6 +446,21 @@ does, and closing the last buffer starts a fresh empty one.
 ## Features
 
 New in 0.3.4:
+
+- Quote matching: a quote the cursor sits on lights up the far end
+  of the span it holds with the same light the bracket match lights
+  with — the Alt-c color included. The count of quotes of its own
+  byte before it says which end it is: the one that opens a span
+  finds the one that closes it, the one that closes finds the
+  opener, an apostrophe pairing with the next one of its byte the
+  same way. A quote a backslash escapes is no delimiter — the
+  cursor on one lights nothing and the walks step over the ones
+  they meet, an escaped escape not hiding the quote behind it — and
+  a partner farther than a megabyte away counts as missing, the way
+  a bracket's does. The cursor resting past a closing quote still
+  lights its opener, a quote the cursor sits on speaks for its own
+  kind before the bracket right behind it can, and Alt-% lands on
+  the lit partner mid-viewport the way it does for a bracket
 
 - Electric bracket pairs: an opening bracket typed with the pairs on
   closes itself right away, `()` landing with the cursor between the
@@ -724,8 +739,11 @@ New in 0.3.0:
 - Line numbers in a gutter, the current one in bold; Ctrl-N hides them and
   a terminal too narrow for them drops them on its own
 - The bracket the cursor sits on (or the one right behind it) has its
-  partner highlighted, across as many lines as nesting takes; a match
-  farther than a megabyte away counts as missing. `set bracket-color
+  partner highlighted, across as many lines as nesting takes — and a
+  quote's far end lights up the same way, the count of quotes of its
+  own byte before it saying which end it is, an escaped one no
+  delimiter at all; a match farther than a megabyte away counts as
+  missing. `set bracket-color
   red` — or green, yellow, blue, magenta, cyan or gray — lights the
   partner with that color instead of inverted video, and `invert`
   puts the video back; Alt-c answers the same names while editing,
