@@ -294,6 +294,19 @@ int RowFindPrev(const vted_row_t *row, int from, int to,
    the cursor is not on a bracket or no match is there to be found */
 int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
 
+/* looks for the quote under the cursor, or the one right before it,
+   and walks the buffer for the far end of the span it holds: the
+   count of quotes of its own byte before it — even, it opens the
+   span and the walk goes ahead; odd, it closes it and the walk goes
+   back. A quote a backslash escapes is no delimiter: the cursor on
+   one matches nothing, and the walks step over the ones they meet.
+   Each walk stops after VTED_BRACKET_SCAN_BYTES bytes, so a partner
+   farther away than that counts as missing. Returns 1 with the byte
+   index and row of the partner in *match_cx and *match_cy, 0 when
+   the cursor is not on such a quote or no partner is there to be
+   found */
+int BufferFindQuoteMatch(int cy, int cx, int *match_cy, int *match_cx);
+
 /* the closer that answers the opener, 0 when the byte opens no
    bracket: one of the three pairs the match works on, the pair an
    electric typing lays in and takes back */

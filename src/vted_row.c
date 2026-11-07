@@ -1968,6 +1968,149 @@ int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx)
                            match_cy, match_cx);
 }
 
+/* the quote characters the match lights up the far end of: each
+   pairs with the next of its own byte, the span between them the
+   quoted one a delimiter holds */
+static const char match_quotes[] = "\"'";
+
+/* whether the byte is one of the quotes the match works on; NUL
+   never counts, or strchr() would find the string terminator */
+static int IsMatchQuote(char c)
+{
+    return c != '\0' && strchr(match_quotes, c) != NULL;
+}
+
+/* whether the quote at byte x of the row carries an odd run of
+   backslashes before it: escaped the way a quoted span says one, it
+   is no delimiter — the match neither starts on it nor counts it */
+static int QuoteEscapedAt(const vted_row_t *row, int x)
+{
+    int slashes = 0;
+    int at = x - 1;
+
+    while (at >= 0 && row->chars[at] == '\\')
+    {
+        slashes++;
+        at--;
+    }
+
+    return (slashes & 1) != 0;
+}
+
+/* the count of quotes of the byte before row cy byte x, the rows
+   above it walked backwards: the parity of the count says which half
+   of the span the quote there is. A count that reaches
+   VTED_BRACKET_SCAN_BYTES without arriving at the top of the buffer
+   stands as it landed, the way a bracket past the reach counts as
+   missing */
+static int CountQuotesBefore(int cy, int x, char quote)
+{
+    long scanned = 0;
+    int count = 0;
+    int y = cy;
+
+    x--; /* the quote itself does not count */
+
+    while (y >= 0 && scanned < VTED_BRACKET_SCAN_BYTES)
+    {
+        const vted_row_t *scan_row = &vted_buffer.rows[y];
+
+        while (x >= 0 && scanned < VTED_BRACKET_SCAN_BYTES)
+        {
+            if (scan_row->chars[x] == quote && !QuoteEscapedAt(scan_row, x))
+            {
+                count++;
+            }
+
+            x--;
+            scanned++;
+        }
+
+        /* the line break between rows counts toward the limit as
+           well */
+        y--;
+        x = y >= 0 ? vted_buffer.rows[y].size - 1 : 0;
+        scanned++;
+    }
+
+    return count;
+}
+
+int BufferFindQuoteMatch(int cy, int cx, int *match_cy, int *match_cx)
+{
+    if (cy < 0 || cy >= vted_buffer.num_rows)
+    {
+        return 0;
+    }
+
+    const vted_row_t *row = &vted_buffer.rows[cy];
+
+    if (cx < 0 || cx > row->size)
+    {
+        return 0;
+    }
+
+    /* the quote under the cursor decides; when there is none, the
+       one right before it does, so the cursor resting after a
+       closing quote still shows its partner — and one a backslash
+       escapes matches nothing at all, for it is no delimiter */
+    int at = cx;
+    char quote = 0;
+
+    if (at < row->size && IsMatchQuote(row->chars[at]))
+    {
+        quote = QuoteEscapedAt(row, at) ? 0 : row->chars[at];
+    }
+
+    if (quote == 0 && at > 0 && IsMatchQuote(row->chars[at - 1]))
+    {
+        at--;
+        quote = QuoteEscapedAt(row, at) ? 0 : row->chars[at];
+    }
+
+    if (quote == 0)
+    {
+        return 0;
+    }
+
+    /* which half of the span the quote is: an even count of its own
+       byte before it opens one, an odd count closes it */
+    int forward = (CountQuotesBefore(cy, at, quote) & 1) == 0;
+    long scanned = 0;
+    int y = cy;
+    int x;
+
+    while (y >= 0 && y < vted_buffer.num_rows &&
+           scanned < VTED_BRACKET_SCAN_BYTES)
+    {
+        const vted_row_t *scan_row = &vted_buffer.rows[y];
+
+        x = (y == cy) ? (forward ? at + 1 : at - 1)
+                      : (forward ? 0 : scan_row->size - 1);
+
+        while (x >= 0 && x < scan_row->size &&
+               scanned < VTED_BRACKET_SCAN_BYTES)
+        {
+            if (scan_row->chars[x] == quote && !QuoteEscapedAt(scan_row, x))
+            {
+                *match_cy = y;
+                *match_cx = x;
+                return 1;
+            }
+
+            x += forward ? 1 : -1;
+            scanned++;
+        }
+
+        /* the line break between rows counts toward the limit as
+           well */
+        y += forward ? 1 : -1;
+        scanned++;
+    }
+
+    return 0;
+}
+
 int BufferFindBracketBlock(int cy, int cx, int *first_row, int *last_row)
 {
     /* whole rows, from the earlier of the bracket and its partner to

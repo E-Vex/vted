@@ -1097,6 +1097,14 @@ static int MatchAt(int cy, int cx, int *out_y, int *out_x)
     return BufferFindBracketMatch(cy, cx, out_y, out_x);
 }
 
+/* runs one quote query and checks where it landed */
+static int QuoteAt(int cy, int cx, int *out_y, int *out_x)
+{
+    *out_y = -2;
+    *out_x = -2;
+    return BufferFindQuoteMatch(cy, cx, out_y, out_x);
+}
+
 static void TestBracketForwardMatch(void)
 {
     const char *const texts[] = {"f(a, b)", NULL};
@@ -1679,6 +1687,140 @@ static void TestBracketScanStopsAtTheLimit(void)
     InsertRow(0, text, size + 1, VTED_EOL_LF);
 
     CHECK_INT(MatchAt(0, 0, &y, &x), 0);
+
+    free(text);
+    FreeBuffer();
+}
+
+static void TestQuoteMatchBothEnds(void)
+{
+    /* the quote that opens the span finds the one that closes it,
+       and the closing one finds the opening one back */
+    const char *const texts[] = {"say \"hello\" now", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(QuoteAt(0, 4, &y, &x), 1); /* cursor on the opener */
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 10);
+    CHECK_INT(QuoteAt(0, 10, &y, &x), 1); /* cursor on the closer */
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 4);
+}
+
+static void TestQuoteMatchBehindTheCursor(void)
+{
+    const char *const texts[] = {"say \"hello\" now", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    /* the cursor rests right after the closing quote */
+    CHECK_INT(QuoteAt(0, 11, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 4);
+}
+
+static void TestQuoteMatchOwnByte(void)
+{
+    /* each quote pairs within its own byte: a double never answers
+       a single */
+    const char *const texts[] = {"\"a\" 'b' \"c\"", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(QuoteAt(0, 0, &y, &x), 1);
+    CHECK_INT(x, 2);
+    CHECK_INT(QuoteAt(0, 4, &y, &x), 1);
+    CHECK_INT(x, 6);
+    CHECK_INT(QuoteAt(0, 8, &y, &x), 1);
+    CHECK_INT(x, 10);
+}
+
+static void TestQuoteMatchEscaped(void)
+{
+    /* a quote a backslash escapes is no delimiter: the walks step
+       over it, and the cursor on one matches nothing */
+    const char *const texts[] = {"\"a \\\" b\" and '\\''", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    /* the opener of the double span steps over the escaped one */
+    CHECK_INT(QuoteAt(0, 0, &y, &x), 1);
+    CHECK_INT(x, 7);
+    CHECK_INT(QuoteAt(0, 7, &y, &x), 1);
+    CHECK_INT(x, 0);
+    /* the escaped quote itself matches nothing */
+    CHECK_INT(QuoteAt(0, 4, &y, &x), 0);
+    /* the char literal: its escaped inner quote counts as none */
+    CHECK_INT(QuoteAt(0, 13, &y, &x), 1);
+    CHECK_INT(x, 16);
+    CHECK_INT(QuoteAt(0, 16, &y, &x), 1);
+    CHECK_INT(x, 13);
+}
+
+static void TestQuoteMatchAcrossRows(void)
+{
+    const char *const texts[] = {"one \"two", "three\" four", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(QuoteAt(0, 4, &y, &x), 1);
+    CHECK_INT(y, 1);
+    CHECK_INT(x, 5);
+    CHECK_INT(QuoteAt(1, 5, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 4);
+}
+
+static void TestQuoteMatchLoneQuote(void)
+{
+    /* a quote with no partner of its own byte ahead of it matches
+       nothing, from either side */
+    const char *const texts[] = {"an \" odd quote", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(QuoteAt(0, 3, &y, &x), 0);
+    CHECK_INT(QuoteAt(0, 4, &y, &x), 0);
+}
+
+static void TestQuoteMatchProseApostrophes(void)
+{
+    /* an apostrophe is a quote of the prose: the parity walks it the
+       same way, pairing it with the next one of its byte */
+    const char *const texts[] = {"don't stop, it's fine", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(QuoteAt(0, 3, &y, &x), 1);
+    CHECK_INT(x, 14);
+    CHECK_INT(QuoteAt(0, 14, &y, &x), 1);
+    CHECK_INT(x, 3);
+}
+
+static void TestQuoteScanStopsAtTheLimit(void)
+{
+    /* a row far past the scan limit: the partner at its end counts
+       as missing, and the query still answers quickly */
+    int size = VTED_BRACKET_SCAN_BYTES + 64;
+    char *text = malloc((size_t)size + 2);
+    int y, x;
+
+    if (text == NULL)
+    {
+        fprintf(stderr, "  malloc failed\n");
+        _exit(2);
+    }
+
+    memset(text, 'x', (size_t)size);
+    text[0] = '"';
+    text[size] = '"';
+    text[size + 1] = '\0';
+
+    FreeBuffer();
+    InsertRow(0, text, size + 1, VTED_EOL_LF);
+
+    CHECK_INT(QuoteAt(0, 0, &y, &x), 0);
 
     free(text);
     FreeBuffer();
@@ -2521,6 +2663,14 @@ int main(void)
     TestOutdentRowsLeavesWhatHasNoIndent();
     TestIndentOutdentRoundTrips();
     TestBracketScanStopsAtTheLimit();
+    TestQuoteMatchBothEnds();
+    TestQuoteMatchBehindTheCursor();
+    TestQuoteMatchOwnByte();
+    TestQuoteMatchEscaped();
+    TestQuoteMatchAcrossRows();
+    TestQuoteMatchLoneQuote();
+    TestQuoteMatchProseApostrophes();
+    TestQuoteScanStopsAtTheLimit();
     TestWrapCount();
     TestWrapBreaksAtWordBoundaries();
     TestWrapBreaksLongRunsByCharacter();
