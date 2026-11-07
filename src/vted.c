@@ -356,6 +356,73 @@ static int EditorOpenNamed(const char *name, int line, int column,
     return 1;
 }
 
+/* one round of the completion a path answer takes: the directory
+   the typed path names answers with the names that start with what
+   follows its slash, the way the shell's Tab asks — one landing
+   whole, a directory with a slash behind it so the next round
+   walks in, several landing the part they agree on first with the
+   menu left standing for the choosing. Returns the length the
+   answer came to and reports the listing: *menu stands at the
+   count the round left the menu with, 0 saying the menu is down,
+   *selection at the line it stands on, and a notice is laid when
+   nothing answered */
+static int PromptCompletePath(char *answer, int length,
+                              vted_path_match_t *matches,
+                              int *menu, int *selection,
+                              char *notice, size_t notice_size)
+{
+    int found = PathListMatches(answer, matches, VTED_PATH_MATCHES);
+    int dir_span = PromptDirSpan(answer);
+
+    *menu = 0;
+
+    if (found < 0)
+    {
+        /* the directory itself could not be read: the reason says
+           so, the answer stands as it was typed */
+        snprintf(notice, notice_size,
+                 "Cannot read the directory: %s", strerror(errno));
+    }
+    else if (found == 0)
+    {
+        snprintf(notice, notice_size, "No match for '%s'", answer);
+    }
+    else if (found == 1)
+    {
+        /* one name answers: it lands whole, a directory with a
+           slash behind it so the next round walks in */
+        length = PromptTakeMatch(answer, &matches[0]);
+    }
+    else
+    {
+        /* several answer: the part they agree on lands first,
+           walked back to a boundary should they part inside a
+           character, and the menu lists them for the choosing */
+        int stem = PathSharedStem(matches, found);
+        int typed = length - dir_span;
+
+        if (stem > typed)
+        {
+            memcpy(answer + dir_span, matches[0].name,
+                   (size_t)stem);
+            length = dir_span + stem;
+
+            while (length > dir_span &&
+                   ((unsigned char)answer[length - 1] & 0xC0) == 0x80)
+            {
+                length--; /* the stem ended inside a character */
+            }
+
+            answer[length] = '\0';
+        }
+
+        *menu = found;
+        *selection = 0;
+    }
+
+    return length;
+}
+
 /* asks for one line of text in the message bar, opening with the
    given answer when there is one: Enter takes it as it stands and a
    backspace takes it apart. Returns it in a heap buffer the caller
@@ -456,69 +523,23 @@ static char *EditorPromptEx(const char *label, const char *initial,
         if (c == '\t' && completes_paths)
         {
             /* Tab completes the path typed so far, the way the
-               shell's Tab does: the directory the path names answers
-               with the names that start with what follows its slash */
-            int found = PathListMatches(answer, matches,
-                                        VTED_PATH_MATCHES);
-            int dir_span = PromptDirSpan(answer);
+               shell's Tab does: the round does the asking, and the
+               menu it leaves standing — or the notice it laid —
+               goes up around it */
+            length = PromptCompletePath(answer, length, matches,
+                                        &match_count, &selection,
+                                        notice, sizeof(notice));
 
-            if (found < 0)
+            if (match_count > 0)
             {
-                /* the directory itself could not be read: the reason
-                   says so, the answer stands as it was typed */
-                snprintf(notice, sizeof(notice),
-                         "Cannot read the directory: %s", strerror(errno));
+                PromptShowPathMenu(matches, match_count, selection,
+                                   menu_lines, menu_shown);
+            }
+            else
+            {
                 ScreenShowMenu(NULL, 0, 0);
-                match_count = 0;
-                continue;
             }
 
-            if (found == 0)
-            {
-                snprintf(notice, sizeof(notice), "No match for '%s'",
-                         answer);
-                ScreenShowMenu(NULL, 0, 0);
-                match_count = 0;
-                continue;
-            }
-
-            if (found == 1)
-            {
-                /* one name answers: it lands whole, a directory with
-                   a slash behind it so the next Tab walks in */
-                length = PromptTakeMatch(answer, &matches[0]);
-                ScreenShowMenu(NULL, 0, 0);
-                match_count = 0;
-                continue;
-            }
-
-            /* several answer: the part they agree on lands first,
-               walked back to a boundary should they part inside a
-               character, and the menu lists them for the choosing */
-            {
-                int stem = PathSharedStem(matches, found);
-                int typed = length - dir_span;
-
-                if (stem > typed)
-                {
-                    memcpy(answer + dir_span, matches[0].name,
-                           (size_t)stem);
-                    length = dir_span + stem;
-
-                    while (length > dir_span &&
-                           ((unsigned char)answer[length - 1] & 0xC0) == 0x80)
-                    {
-                        length--; /* the stem ended inside a character */
-                    }
-
-                    answer[length] = '\0';
-                }
-            }
-
-            selection = 0;
-            match_count = found;
-            PromptShowPathMenu(matches, match_count, selection,
-                               menu_lines, menu_shown);
             continue;
         }
 
