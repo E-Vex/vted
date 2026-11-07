@@ -1306,13 +1306,15 @@ static const char *AnswerNumber(const char *at, int *value)
     return at;
 }
 
-/* Ctrl-G asks for a line to land on: the answer a line number, or a
-   line with a ":column" tail behind it, the way a jump tail carries
-   one — both counting from one the way the bar counts them, and an
-   answer that spells neither told so in the bar */
+/* Ctrl-G asks for a place to land: a line number, a line with a
+   ":column" tail behind it the way a jump tail carries one, or the
+   name of a file — opened the way the Alt-o keys open one, the
+   tail it carries naming the spot the open lands on. The counts
+   start at one the way the bar counts them, and an answer that
+   spells none of them told so in the bar */
 static void EditorGoToLine(void)
 {
-    char *answer = EditorPrompt("Go to line: ", NULL);
+    char *answer = EditorPrompt("Go to line or file: ", NULL);
 
     if (answer == NULL)
     {
@@ -1325,9 +1327,38 @@ static void EditorGoToLine(void)
     int line = 0;
     int column = 0;
     const char *at = AnswerNumber(answer, &line);
-    int ok = at != answer;
 
-    if (ok && *at == ':')
+    if (at == answer)
+    {
+        /* no digits at the head: the answer names a file, the way
+           the Alt-o keys take a name — beside the file being edited
+           first, the tail behind it naming the spot — and the bar
+           says what came of the open */
+        int jump_line;
+        int jump_column;
+        int name_len = RowNameTail(answer, &jump_line, &jump_column);
+        char message[PROMPT_MAX + 1]; /* sized to the notices an
+                                         open that fails lands in */
+
+        if (name_len == 0)
+        {
+            SetStatusMessage("Not a line number: %s", answer);
+            free(answer);
+            return;
+        }
+
+        answer[name_len] = '\0';
+        EditorOpenNamed(answer, jump_line, jump_column,
+                        message, sizeof(message));
+
+        SetStatusMessage("%s", message);
+        free(answer);
+        return;
+    }
+
+    int ok = 1;
+
+    if (*at == ':')
     {
         const char *past = AnswerNumber(at + 1, &column);
 

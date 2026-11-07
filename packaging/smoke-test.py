@@ -919,8 +919,8 @@ def goto_smoke(binary):
     behind it, the cursor landing on the spot it names — a bare line
     landing the start of the line the way it always did, a line past
     the end clamped to the last one, an answer that spells no line
-    told so in the bar, and ESC taking the prompt down with the
-    cursor standing"""
+    naming a file instead, one that is not there told so in the bar,
+    and ESC taking the prompt down with the cursor standing"""
     with open(GOTO, 'w') as f:
         f.write('first\nsecond\nthird\n')
 
@@ -960,16 +960,17 @@ def goto_smoke(binary):
     if b'Ln 3/3' not in drew:
         return fail('a line past the end did not land on the last one')
 
-    # an answer that spells no line is told so in the bar — a word,
-    # and a colon with no number behind it
+    # an answer that spells no line names a file instead — one that
+    # is not there says so in the bar the way Alt-o does, and a
+    # colon with no number behind it still spells no line
     out.clear()
     drive(fd, CTRL_G, out)
     drive(fd, b'two', out)
     drive(fd, ENTER, out)
     drew = b''.join(out)
 
-    if b'Not a line number: two' not in drew:
-        return fail('an answer that spells no line was not told so')
+    if b'No such file: two' not in drew:
+        return fail('a name that is no file was not told so')
 
     out.clear()
     drive(fd, CTRL_G, out)
