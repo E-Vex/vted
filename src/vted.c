@@ -423,6 +423,80 @@ static int PromptCompletePath(char *answer, int length,
     return length;
 }
 
+/* the tail goes back behind whatever landed — the name a round
+   laid, or the match a pick took — whole when the room takes it
+   and dropped when it does not: a cut of it would name another
+   spot than the one the answer spelled. Returns the length the
+   answer came to */
+static int PromptLayTailBack(char *answer, int length,
+                             const char *tail, int tail_len)
+{
+    if (tail_len <= PROMPT_MAX - length)
+    {
+        memcpy(answer + length, tail, (size_t)tail_len + 1);
+        length += tail_len;
+    }
+
+    return length;
+}
+
+/* one round of the completion a name answer takes: the name part
+   of the answer — the bytes before the ":line:column" tail it may
+   carry — completes the way a path does, the tail standing aside
+   while the round asks and going back behind whatever it lands,
+   so the spot the answer names survives the completion. The
+   reports are the ones the path round leaves */
+static int PromptCompleteName(char *answer, int length,
+                              vted_path_match_t *matches,
+                              int *menu, int *selection,
+                              char *notice, size_t notice_size)
+{
+    int tail_line;
+    int tail_column;
+    int name_len = RowNameTail(answer, &tail_line, &tail_column);
+    char tail[PROMPT_MAX + 1];
+    int tail_len = length - name_len;
+
+    /* the tail stands aside while the round asks the name part */
+    memcpy(tail, answer + name_len, (size_t)tail_len + 1);
+    answer[name_len] = '\0';
+
+    length = PromptCompletePath(answer, name_len, matches, menu,
+                                selection, notice, notice_size);
+
+    return PromptLayTailBack(answer, length, tail, tail_len);
+}
+
+/* lays a match of a standing menu into the answer: behind the
+   name part when the menu came from the Alt-/ that completes
+   names — the tail standing behind the match — and over the whole
+   answer the way the Tab menus always took one */
+static int PromptTakeMenuMatch(char *answer,
+                               const vted_path_match_t *match,
+                               int over_name)
+{
+    if (!over_name)
+    {
+        return PromptTakeMatch(answer, match);
+    }
+
+    {
+        int tail_line;
+        int tail_column;
+        int name_len = RowNameTail(answer, &tail_line, &tail_column);
+        char tail[PROMPT_MAX + 1];
+        int tail_len = (int)strlen(answer) - name_len;
+
+        /* the tail stands aside while the match lands behind the
+           directory the name part names */
+        memcpy(tail, answer + name_len, (size_t)tail_len + 1);
+        answer[name_len] = '\0';
+
+        return PromptLayTailBack(answer, PromptTakeMatch(answer, match),
+                                 tail, tail_len);
+    }
+}
+
 /* asks for one line of text in the message bar, opening with the
    given answer when there is one: Enter takes it as it stands and a
    backspace takes it apart. Returns it in a heap buffer the caller
@@ -430,7 +504,7 @@ static int PromptCompletePath(char *answer, int length,
    empty answer — or when its Alt-o opened the file the answer
    names, which prompt_opened then says */
 static char *EditorPromptEx(const char *label, const char *initial,
-                            int completes_paths)
+                            int completes_paths, int completes_names)
 {
     char *answer = malloc(PROMPT_MAX + 1);
     int length = 0;
@@ -441,9 +515,10 @@ static char *EditorPromptEx(const char *label, const char *initial,
        mode to turn and the turned label comes back */
     const char *shown = label;
 
-    /* the matches of the last Tab and the menu they were listed in:
-       a count of 0 means the menu is down. The lines are borrowed by
-       the screen until the next call, so they live as long as the
+    /* the matches of the last completing key — Tab over a path,
+       Alt-/ over a name — and the menu they were listed in: a count
+       of 0 means the menu is down. The lines are borrowed by the
+       screen until the next call, so they live as long as the
        prompt does */
     vted_path_match_t matches[VTED_PATH_MATCHES];
     char menu_lines[PATH_MENU_LINES][PATH_MENU_WIDTH];
@@ -451,8 +526,14 @@ static char *EditorPromptEx(const char *label, const char *initial,
     int match_count = 0;
     int selection = 0;
 
-    /* a word the bar holds until the next key: what a Tab that found
-       nothing says, the prompt drawn again behind it */
+    /* the standing menu came from the Alt-/ that completes names:
+       its takes land behind the name part of the answer, the tail
+       behind the name standing */
+    int menu_names = 0;
+
+    /* a word the bar holds until the next key: what a completing
+       key that found nothing says, the prompt drawn again behind
+       it */
     char notice[PROMPT_MAX + 1];
 
     notice[0] = '\0';
@@ -517,7 +598,8 @@ static char *EditorPromptEx(const char *label, const char *initial,
             continue;
         }
 
-        /* a real key answers the notice the last Tab left */
+        /* a real key answers the notice the last completing key
+           left */
         notice[0] = '\0';
 
         if (c == '\t' && completes_paths)
@@ -532,6 +614,32 @@ static char *EditorPromptEx(const char *label, const char *initial,
 
             if (match_count > 0)
             {
+                menu_names = 0;
+                PromptShowPathMenu(matches, match_count, selection,
+                                   menu_lines, menu_shown);
+            }
+            else
+            {
+                ScreenShowMenu(NULL, 0, 0);
+            }
+
+            continue;
+        }
+
+        if (c == WordComplete && completes_names)
+        {
+            /* Alt-/ completes the name the answer spells, the way
+               the editor's Alt-/ completes a word: the round asks
+               over the name part — the tail behind it naming the
+               spot — and the menu it leaves standing, or the notice
+               it laid, goes up the way the Tab's does */
+            length = PromptCompleteName(answer, length, matches,
+                                        &match_count, &selection,
+                                        notice, sizeof(notice));
+
+            if (match_count > 0)
+            {
+                menu_names = 1;
                 PromptShowPathMenu(matches, match_count, selection,
                                    menu_lines, menu_shown);
             }
@@ -549,8 +657,8 @@ static char *EditorPromptEx(const char *label, const char *initial,
                standing, Enter or a left click takes the line under
                them into the answer, the arrows and the wheel step
                through it, and any other key takes it down — the
-               answer going on in the prompt, a fresh Tab listing
-               again */
+               answer going on in the prompt, a fresh completing
+               key listing again */
             if (c == 27 || c == '\r' || c == '\n' || c == ArrowUp ||
                 c == ArrowDown || c == MouseWheelUp ||
                 c == MouseWheelDown || c == MousePress)
@@ -564,7 +672,9 @@ static char *EditorPromptEx(const char *label, const char *initial,
 
                 if (c == '\r' || c == '\n')
                 {
-                    length = PromptTakeMatch(answer, &matches[selection]);
+                    length = PromptTakeMenuMatch(answer,
+                                                 &matches[selection],
+                                                 menu_names);
                     ScreenShowMenu(NULL, 0, 0);
                     match_count = 0;
                     continue;
@@ -582,8 +692,9 @@ static char *EditorPromptEx(const char *label, const char *initial,
 
                         if (line >= 0)
                         {
-                            length = PromptTakeMatch(answer,
-                                                     &matches[line]);
+                            length = PromptTakeMenuMatch(answer,
+                                                         &matches[line],
+                                                         menu_names);
                             ScreenShowMenu(NULL, 0, 0);
                             match_count = 0;
                         }
@@ -724,14 +835,22 @@ static char *EditorPrompt(const char *label, const char *initial)
 {
     /* the prompts without a path to complete answer as they always
        did */
-    return EditorPromptEx(label, initial, 0);
+    return EditorPromptEx(label, initial, 0, 0);
 }
 
 static char *EditorPromptPath(const char *label, const char *initial)
 {
     /* the prompts that take a path answer Tab with the names of the
        directory the path names */
-    return EditorPromptEx(label, initial, 1);
+    return EditorPromptEx(label, initial, 1, 0);
+}
+
+static char *EditorPromptGoto(const char *label, const char *initial)
+{
+    /* the goto prompt's answer names a file as often as a line:
+       Alt-/ completes the name part of it, the tail behind the
+       name standing through the round */
+    return EditorPromptEx(label, initial, 0, 1);
 }
 
 /* copies the settings into the editor state; the tab width the rows
@@ -1335,7 +1454,7 @@ static const char *AnswerNumber(const char *at, int *value)
    spells none of them told so in the bar */
 static void EditorGoToLine(void)
 {
-    char *answer = EditorPrompt("Go to line or file: ", NULL);
+    char *answer = EditorPromptGoto("Go to line or file: ", NULL);
 
     if (answer == NULL)
     {
