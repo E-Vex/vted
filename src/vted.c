@@ -748,17 +748,17 @@ static void ApplySettings(const vted_settings_t *settings)
     ScreenMarkAllDirty();
 }
 
-/* highlights the partner of the bracket the cursor sits on, or the
-   one right behind it; a cursor without a bracket clears the
-   highlight */
+/* highlights the partner of the byte the cursor sits on — a
+   bracket's own kind, a quote's far end — or the one right behind
+   it; a cursor without such a byte clears the highlight */
 static void UpdateBracketMatch(void)
 {
     int match_y = 0;
     int match_x = 0;
 
-    if (BufferFindBracketMatch(vted_editor_config.cursor_y,
-                               vted_editor_config.cursor_x,
-                               &match_y, &match_x))
+    if (BufferFindPartner(vted_editor_config.cursor_y,
+                          vted_editor_config.cursor_x,
+                          &match_y, &match_x))
     {
         ScreenSetBracketMatch(match_y, match_x);
     }
@@ -768,20 +768,21 @@ static void UpdateBracketMatch(void)
     }
 }
 
-/* Alt-% lands the cursor on the partner of the bracket it sits on,
-   or the one right behind it: the partner the highlight marks, given
-   the middle of the viewport when the jump leaves it — a partner that
-   stays on screen keeps the viewport as it is */
+/* Alt-% lands the cursor on the partner of the byte it sits on, or
+   the one right behind it: the partner the highlight marks — a
+   bracket's own kind, a quote's far end — given the middle of the
+   viewport when the jump leaves it — a partner that stays on screen
+   keeps the viewport as it is */
 static void EditorJumpToBracket(void)
 {
     int match_y = 0;
     int match_x = 0;
 
-    if (!BufferFindBracketMatch(vted_editor_config.cursor_y,
-                                vted_editor_config.cursor_x,
-                                &match_y, &match_x))
+    if (!BufferFindPartner(vted_editor_config.cursor_y,
+                           vted_editor_config.cursor_x,
+                           &match_y, &match_x))
     {
-        SetStatusMessage("No bracket to jump to");
+        SetStatusMessage("No bracket or quote to jump to");
         return;
     }
 
@@ -3215,9 +3216,10 @@ int main(int argc, char *argv[])
             }
             else if (c_in == BracketJump)
             {
-                /* Alt-% jumps to the partner of the bracket under the
-                   cursor, the way % does in vi: a movement, so the
-                   selection is gone on arrival */
+                /* Alt-% jumps to the partner of the byte under the
+                   cursor — a bracket's own kind, a quote's far end —
+                   the way % does in vi: a movement, so the selection
+                   is gone on arrival */
                 EditClearSelection();
                 ScreenSetSelection(-1, 0, -1, 0);
                 EditorJumpToBracket();

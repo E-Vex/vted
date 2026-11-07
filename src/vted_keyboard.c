@@ -448,9 +448,10 @@ int ParseArrowKey(void)
         return ThemePrompt;
     }
 
-    /* Alt-% jumps to the partner of the bracket the cursor sits on,
-       the way % does in vi — the plain % is a character of the text,
-       so the jump goes with Alt */
+    /* Alt-% jumps to the partner of the byte the cursor sits on — a
+       bracket's own kind, a quote's far end — the way % does in vi;
+       the plain % is a character of the text, so the jump goes with
+       Alt */
     if (introducer == '%')
     {
         return BracketJump;
