@@ -2111,6 +2111,35 @@ int BufferFindQuoteMatch(int cy, int cx, int *match_cy, int *match_cx)
     return 0;
 }
 
+/* the partner of the byte the cursor sits on: a bracket paired with
+   its own kind the way the bracket scan finds it, a quote with the
+   far end of the span it holds the way the quote walk does. The
+   byte under the cursor speaks for its own kind first — a quote the
+   cursor sits on is not answered by the bracket right behind it —
+   and the byte right behind it answers only when the cursor rests
+   past a closing one, a bracket before a quote, the way the bracket
+   scan alone read the cursor */
+int BufferFindPartner(int cy, int cx, int *match_cy, int *match_cx)
+{
+    if (cy >= 0 && cy < vted_buffer.num_rows)
+    {
+        const vted_row_t *row = &vted_buffer.rows[cy];
+
+        if (cx >= 0 && cx < row->size &&
+            IsMatchQuote(row->chars[cx]) && !QuoteEscapedAt(row, cx))
+        {
+            return BufferFindQuoteMatch(cy, cx, match_cy, match_cx);
+        }
+    }
+
+    if (BufferFindBracketMatch(cy, cx, match_cy, match_cx))
+    {
+        return 1;
+    }
+
+    return BufferFindQuoteMatch(cy, cx, match_cy, match_cx);
+}
+
 int BufferFindBracketBlock(int cy, int cx, int *first_row, int *last_row)
 {
     /* whole rows, from the earlier of the bracket and its partner to

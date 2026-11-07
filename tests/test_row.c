@@ -1105,6 +1105,14 @@ static int QuoteAt(int cy, int cx, int *out_y, int *out_x)
     return BufferFindQuoteMatch(cy, cx, out_y, out_x);
 }
 
+/* runs one partner query and checks where it landed */
+static int PartnerAt(int cy, int cx, int *out_y, int *out_x)
+{
+    *out_y = -2;
+    *out_x = -2;
+    return BufferFindPartner(cy, cx, out_y, out_x);
+}
+
 static void TestBracketForwardMatch(void)
 {
     const char *const texts[] = {"f(a, b)", NULL};
@@ -1824,6 +1832,63 @@ static void TestQuoteScanStopsAtTheLimit(void)
 
     free(text);
     FreeBuffer();
+}
+
+static void TestPartnerPrefersTheQuoteUnderTheCursor(void)
+{
+    /* a quote the cursor sits on speaks for its own kind, the
+       bracket right behind it answering only when the cursor rests
+       on a byte of neither kind */
+    const char *const texts[] = {"(\"hello\")", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    /* the quote under the cursor, not the bracket behind it */
+    CHECK_INT(PartnerAt(0, 1, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 7);
+    CHECK_INT(PartnerAt(0, 7, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 1);
+    /* the bracket under the cursor still answers with its own kind */
+    CHECK_INT(PartnerAt(0, 0, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 8);
+    CHECK_INT(PartnerAt(0, 8, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 0);
+}
+
+static void TestPartnerOfTheByteBehindTheCursor(void)
+{
+    /* the byte right behind the cursor answers when the cursor
+       rests on a byte of neither kind: a bracket before a quote */
+    const char *const texts[] = {"f(a) and \"b\"c", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    /* past the closer: the bracket behind it, the way it always did */
+    CHECK_INT(PartnerAt(0, 4, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 1);
+    /* a plain byte with the closing quote behind it */
+    CHECK_INT(PartnerAt(0, 12, &y, &x), 1);
+    CHECK_INT(y, 0);
+    CHECK_INT(x, 9);
+    /* a plain byte with no partner behind it */
+    CHECK_INT(PartnerAt(0, 5, &y, &x), 0);
+}
+
+static void TestPartnerEscapedQuoteIsNoDelimiter(void)
+{
+    /* an escaped quote is a byte of neither kind: the cursor on it
+       finds nothing, the byte behind it the backslash that escapes
+       it */
+    const char *const texts[] = {"x(\"y", NULL};
+    int y, x;
+
+    MakeBuffer(texts);
+    CHECK_INT(PartnerAt(0, 3, &y, &x), 0);
 }
 
 static void TestWrapBreaksAtWordBoundaries(void)
@@ -2671,6 +2736,9 @@ int main(void)
     TestQuoteMatchLoneQuote();
     TestQuoteMatchProseApostrophes();
     TestQuoteScanStopsAtTheLimit();
+    TestPartnerPrefersTheQuoteUnderTheCursor();
+    TestPartnerOfTheByteBehindTheCursor();
+    TestPartnerEscapedQuoteIsNoDelimiter();
     TestWrapCount();
     TestWrapBreaksAtWordBoundaries();
     TestWrapBreaksLongRunsByCharacter();

@@ -307,6 +307,16 @@ int BufferFindBracketMatch(int cy, int cx, int *match_cy, int *match_cx);
    found */
 int BufferFindQuoteMatch(int cy, int cx, int *match_cy, int *match_cx);
 
+/* the partner of the byte the cursor sits on, or the one right
+   before it: a bracket's own kind the way the bracket scan finds it,
+   a quote's far end the way the quote walk does — the byte under the
+   cursor speaking for its own kind first, so a quote the cursor sits
+   on is not answered by the bracket right behind it. Returns 1 with
+   the byte index and row of the partner in *match_cx and *match_cy,
+   0 when the cursor sits on no byte of either kind, or no partner is
+   there to be found */
+int BufferFindPartner(int cy, int cx, int *match_cy, int *match_cx);
+
 /* the closer that answers the opener, 0 when the byte opens no
    bracket: one of the three pairs the match works on, the pair an
    electric typing lays in and takes back */
