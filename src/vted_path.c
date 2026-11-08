@@ -79,11 +79,14 @@ static int NameIsDir(const char *dir, const char *name)
    giving way to a smaller one come later. A name that starts with a
    dot answers only a prefix that starts with one, the way the
    shell's completion holds the hidden names back until they are
-   asked for, and a name too long for a match to carry is passed
-   over rather than cut. Returns the count of the names it laid */
+   asked for — unless the round takes the hidden names in, when
+   every name the directory holds answers and . and .. stay back,
+   the walk and its way up, which the browse names by its own keys —
+   and a name too long for a match to carry is passed over rather
+   than cut. Returns the count of the names it laid */
 static int CollectMatches(DIR *handle, const char *dir,
-                          const char *prefix, vted_path_match_t *out,
-                          int max)
+                          const char *prefix, int take_hidden,
+                          vted_path_match_t *out, int max)
 {
     struct dirent *entry;
     size_t prefix_len = strlen(prefix);
@@ -95,12 +98,27 @@ static int CollectMatches(DIR *handle, const char *dir,
         size_t name_len = strlen(name);
         int slot;
 
-        /* a name that starts with a dot answers only a prefix that
-           starts with one, the way the shell's completion holds the
-           hidden names back until they are asked for */
-        if (name[0] == '.' && (prefix_len == 0 || prefix[0] != '.'))
+        if (name[0] == '.')
         {
-            continue;
+            if (take_hidden)
+            {
+                /* the hidden names taken in: every name the
+                   directory holds answers, but . and .. — the walk
+                   and its way up, which the browse names by its own
+                   keys */
+                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+                {
+                    continue;
+                }
+            }
+            else if (prefix_len == 0 || prefix[0] != '.')
+            {
+                /* a name that starts with a dot answers only a
+                   prefix that starts with one, the way the shell's
+                   completion holds the hidden names back until they
+                   are asked for */
+                continue;
+            }
         }
 
         /* a name too long for a match to carry cannot be walked to
@@ -155,7 +173,24 @@ int PathListMatches(const char *typed, vted_path_match_t *out, int max)
         return -1; /* the reason stands in errno for the caller */
     }
 
-    count = CollectMatches(handle, dir, prefix, out, max);
+    count = CollectMatches(handle, dir, prefix, 0, out, max);
+    closedir(handle);
+    return count;
+}
+
+int PathListAll(const char *dir, vted_path_match_t *out, int max)
+{
+    DIR *handle;
+    int count;
+
+    handle = opendir(dir);
+
+    if (handle == NULL)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    count = CollectMatches(handle, dir, "", 1, out, max);
     closedir(handle);
     return count;
 }

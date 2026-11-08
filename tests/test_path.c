@@ -195,6 +195,45 @@ static void TestDirectoryWalk(void)
     CHECK_INT(List("nodir/x"), -1);
 }
 
+static void TestEveryNameListing(void)
+{
+    /* the every-name listing takes the hidden names in: every name
+       the directory holds answers, . and .. staying back as the
+       walk and its way up, and all of them come out sorted the way
+       the answering listing sorts them */
+    CHECK_INT(PathListAll(".", matches, VTED_PATH_MATCHES), 8);
+
+    CHECK_STR(matches[0].name, ".git");
+    CHECK_STR(matches[1].name, ".hidden");
+    CHECK_STR(matches[2].name, "alpha.txt");
+    CHECK_STR(matches[3].name, "beta.txt");
+    CHECK_STR(matches[4].name, "common1.c");
+    CHECK_STR(matches[5].name, "common2.h");
+    CHECK_STR(matches[6].name, "note");
+    CHECK_STR(matches[7].name, "sub");
+    CHECK_INT(matches[0].is_dir, 1);
+    CHECK_INT(matches[1].is_dir, 0);
+    CHECK_INT(matches[7].is_dir, 1);
+
+    /* the room runs out the way it does for the answering listing:
+       the names the sort puts first stay standing */
+    CHECK_INT(PathListAll(".", matches, 3), 3);
+    CHECK_STR(matches[0].name, ".git");
+    CHECK_STR(matches[1].name, ".hidden");
+    CHECK_STR(matches[2].name, "alpha.txt");
+
+    /* a directory named with its trailing slash lists the same */
+    CHECK_INT(PathListAll("sub/", matches, VTED_PATH_MATCHES), 2);
+    CHECK_STR(matches[0].name, "deeper");
+    CHECK_STR(matches[1].name, "inner.txt");
+    CHECK_INT(matches[0].is_dir, 1);
+    CHECK_INT(matches[1].is_dir, 0);
+
+    /* a directory that is not there to answer says so apart from an
+       empty answer */
+    CHECK_INT(PathListAll("nodir", matches, VTED_PATH_MATCHES), -1);
+}
+
 static void TestSharedStem(void)
 {
     /* one name agrees with all of itself */
@@ -255,6 +294,7 @@ int main(void)
     TestWorkingDirectoryAnswers();
     TestPrefixes();
     TestDirectoryWalk();
+    TestEveryNameListing();
     TestSharedStem();
     TestStemSplitsCharacters();
     TestListingHoldsWhatItHolds();

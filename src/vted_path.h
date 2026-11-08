@@ -6,7 +6,9 @@
 | The prompts that take a path complete what is typed     |
 | with the names of the directory the path names: the     |
 | module lists them and tells how far they agree, the    |
-| way the shell's own Tab does.                          |
+| way the shell's own Tab does. A directory listed for    |
+| its own sake — the browse of it — is served too, with   |
+| every name it holds.                                    |
 ==========================================================*/
 
 /* the longest name a match carries, and how many matches one
@@ -32,6 +34,15 @@ typedef struct
    each saying whether it names a directory. Returns their count, or
    -1 when the directory itself cannot be read */
 int PathListMatches(const char *typed, vted_path_match_t *out, int max);
+
+/* lists every name the directory the path names holds — the ones
+   that start with a dot among them, . and .. held back as the walk
+   itself and its way up, which the browse names by its own keys —
+   sorted, at most max of them, a directory wider than the listing
+   answering with the names the sort puts first. Each name says
+   whether it names a directory. Returns the count, or -1 when the
+   directory itself cannot be read */
+int PathListAll(const char *dir, vted_path_match_t *out, int max);
 
 /* the number of bytes the names of a listing agree on at their
    heads: what a path typed so far can take of them without choosing
