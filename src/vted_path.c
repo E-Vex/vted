@@ -3,8 +3,10 @@
 /*===============================*/
 #include <dirent.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 /*===============================*/
 #include "vted_path.h"
 /*===============================*/
@@ -13,6 +15,20 @@
    says whether the name names a directory: the room a typed path
    and a name both fit into comfortably */
 #define PATH_JOIN_MAX 2048
+
+/* the path a name makes behind the directory it belongs to: the
+   pair joined into out. Returns 0 when they fit, -1 when the room
+   given cannot hold them */
+static int NamePath(const char *dir, const char *name,
+                    char *out, int size)
+{
+    if (snprintf(out, (size_t)size, "%s/%s", dir, name) >= size)
+    {
+        return -1;
+    }
+
+    return 0;
+}
 
 /* the directory a typed path names and the prefix its answers start
    with: the bytes up to the last slash name the directory — the
@@ -66,8 +82,7 @@ static void NameLook(const char *dir, const char *name,
     *size = 0;
     *mtime = 0;
 
-    if (snprintf(joined, sizeof(joined), "%s/%s", dir, name)
-        >= (int)sizeof(joined))
+    if (NamePath(dir, name, joined, (int)sizeof(joined)) != 0)
     {
         return; /* the pair cannot even be named */
     }
@@ -294,4 +309,93 @@ int PathSharedStem(const vted_path_match_t *matches, int count)
     }
 
     return (int)shared;
+}
+
+int PathCreateFile(const char *dir, const char *name)
+{
+    char path[PATH_JOIN_MAX];
+    FILE *file;
+
+    if (NamePath(dir, name, path, (int)sizeof(path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    /* the x of the mode makes the create exclusive: a name already
+       there is not made again */
+    file = fopen(path, "wx");
+
+    if (file == NULL)
+    {
+        return -1;
+    }
+
+    fclose(file);
+    return 0;
+}
+
+int PathCreateDir(const char *dir, const char *name)
+{
+    char path[PATH_JOIN_MAX];
+
+    if (NamePath(dir, name, path, (int)sizeof(path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    if (mkdir(path, 0755) != 0)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+int PathRenameName(const char *dir, const char *from, const char *to)
+{
+    char old_path[PATH_JOIN_MAX];
+    char new_path[PATH_JOIN_MAX];
+
+    if (NamePath(dir, from, old_path, (int)sizeof(old_path)) != 0 ||
+        NamePath(dir, to, new_path, (int)sizeof(new_path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    if (rename(old_path, new_path) != 0)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+int PathDeleteName(const char *dir, const char *name)
+{
+    char path[PATH_JOIN_MAX];
+    struct stat info;
+
+    if (NamePath(dir, name, path, (int)sizeof(path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    if (stat(path, &info) != 0)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    if (S_ISDIR(info.st_mode))
+    {
+        /* a directory goes only when it holds nothing of its own:
+           the shell's rm without its -r, the round never reaching
+           into a directory behind the walk's back */
+        return rmdir(path) == 0 ? 0 : -1;
+    }
+
+    return unlink(path) == 0 ? 0 : -1;
 }

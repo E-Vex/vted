@@ -8,7 +8,8 @@
 | module lists them and tells how far they agree, the    |
 | way the shell's own Tab does. A directory listed for    |
 | its own sake — the browse of it — is served too, with   |
-| every name it holds.                                    |
+| every name it holds, and with the names a hand walking  |
+| it makes, moves or takes away.                           |
 ==========================================================*/
 
 /* the longest name a match carries, and how many matches one
@@ -88,5 +89,32 @@ int PathListAll(const char *dir, vted_path_sort_t sort,
    between them yet. A listing of one name agrees with all of it, an
    empty one with nothing */
 int PathSharedStem(const vted_path_match_t *matches, int count);
+
+/* creates the name in the directory the path names as an empty
+   file: a name already there is not made again, the way the
+   shell's touch never writes over what stands. Returns 0 when
+   the name came to be, -1 when it did not, the reason standing
+   in errno for the caller */
+int PathCreateFile(const char *dir, const char *name);
+
+/* creates the name in the directory the path names as a
+   directory of its own, empty and ready to walk into. Returns 0
+   when the name came to be, -1 when it did not, the reason
+   standing in errno for the caller */
+int PathCreateDir(const char *dir, const char *name);
+
+/* moves the name a directory holds to the other name it is
+   given in the same directory: what the name holds comes with
+   it, the way the shell's mv moves a name within one directory.
+   Returns 0 when the name moved, -1 when it did not, the reason
+   standing in errno for the caller */
+int PathRenameName(const char *dir, const char *from, const char *to);
+
+/* takes the name a directory holds away: a file outright, a
+   directory only when it holds nothing of its own — the shell's
+   rm without its -r, the round never reaching into a directory
+   behind the walk's back. Returns 0 when the name is gone, -1
+   when it stayed, the reason standing in errno for the caller */
+int PathDeleteName(const char *dir, const char *name);
 
 #endif
