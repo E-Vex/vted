@@ -543,7 +543,17 @@ New in 0.3.4:
   staying back either way as the walk itself and its way up, the
   name the selection stands on standing selected through the
   relisting, and the bar saying which way they stand until the
-  next key. Bytes typed while the listing stands narrow it, the
+  next key. Alt-s turns the sort of the listing — the s of `ls -S`,
+  the theme's own Alt-s standing only where the text is edited:
+  the names laid by name, then by size the largest first, then by
+  time the newest first, the way `ls -S` and `ls -t` lay their
+  own, and back by name. The name the selection stands on stands
+  selected through the resort, the bar saying which order stands
+  until the next key, and the walk carries the sort from directory
+  to directory the way it carries the hidden gate; a filter
+  standing stays standing, the sort and the narrowing the
+  listing's own two questions, asked together. Bytes typed while
+  the listing stands narrow it, the
   way the goto prompt carries its answer: the filter spells
   itself out in the bar as it is typed, and the names that carry
   its bytes anywhere in them — not only at their heads, the way
