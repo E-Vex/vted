@@ -73,24 +73,21 @@ static int NameIsDir(const char *dir, const char *name)
     return S_ISDIR(info.st_mode) ? 1 : 0;
 }
 
-int PathListMatches(const char *typed, vted_path_match_t *out, int max)
+/* the round a listing of names runs: every entry of the open
+   directory that answers goes into out sorted, at most max of them,
+   a full listing keeping the names the sort puts first, the largest
+   giving way to a smaller one come later. A name that starts with a
+   dot answers only a prefix that starts with one, the way the
+   shell's completion holds the hidden names back until they are
+   asked for, and a name too long for a match to carry is passed
+   over rather than cut. Returns the count of the names it laid */
+static int CollectMatches(DIR *handle, const char *dir,
+                          const char *prefix, vted_path_match_t *out,
+                          int max)
 {
-    char dir[PATH_JOIN_MAX];
-    const char *prefix;
-    size_t prefix_len;
-    DIR *handle;
     struct dirent *entry;
+    size_t prefix_len = strlen(prefix);
     int count = 0;
-
-    SplitTyped(typed, dir, (int)sizeof(dir), &prefix);
-    prefix_len = strlen(prefix);
-
-    handle = opendir(dir);
-
-    if (handle == NULL)
-    {
-        return -1; /* the reason stands in errno for the caller */
-    }
 
     while ((entry = readdir(handle)) != NULL)
     {
@@ -139,6 +136,26 @@ int PathListMatches(const char *typed, vted_path_match_t *out, int max)
         count++;
     }
 
+    return count;
+}
+
+int PathListMatches(const char *typed, vted_path_match_t *out, int max)
+{
+    char dir[PATH_JOIN_MAX];
+    const char *prefix;
+    DIR *handle;
+    int count;
+
+    SplitTyped(typed, dir, (int)sizeof(dir), &prefix);
+
+    handle = opendir(dir);
+
+    if (handle == NULL)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    count = CollectMatches(handle, dir, prefix, out, max);
     closedir(handle);
     return count;
 }
