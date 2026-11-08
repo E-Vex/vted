@@ -448,6 +448,86 @@ static void TestListingTellsTheMetadata(void)
     CHECK_INT(matches[2].mtime, 1700000000);
 }
 
+static void TestSortedListings(void)
+{
+    /* the order the sort asks: by size the largest first, by time
+       the newest first, names that agree on the key falling back to
+       the alphabet. The round asks by a filter that leaves the
+       directories out, their room on the disk being the
+       filesystem's own word and not one the round pinned */
+    FillFile("alpha.txt", "0123456789012345678901234567890123456789");
+    FillFile("beta.txt", "0123456789");
+    FillFile("note", "0123456789012345678901234567890123456789"
+                     "0123456789012345678901234567890123456789"
+                     "01234567890123456789");
+    SetMtime("alpha.txt", 1700000000);
+    SetMtime("beta.txt", 1700000000);
+    SetMtime("note", 1600000000);
+
+    /* by name: the alphabet's own order */
+    CHECK_INT(PathListFiltered(".", "t", 0, VTED_PATH_SORT_NAME,
+                               matches, VTED_PATH_MATCHES), 3);
+    CHECK_STR(matches[0].name, "alpha.txt");
+    CHECK_STR(matches[1].name, "beta.txt");
+    CHECK_STR(matches[2].name, "note");
+
+    /* by size: the largest first — note holding a hundred bytes,
+       alpha forty, beta ten */
+    CHECK_INT(PathListFiltered(".", "t", 0, VTED_PATH_SORT_SIZE,
+                               matches, VTED_PATH_MATCHES), 3);
+    CHECK_STR(matches[0].name, "note");
+    CHECK_STR(matches[1].name, "alpha.txt");
+    CHECK_STR(matches[2].name, "beta.txt");
+
+    /* by time: the newest first, alpha and beta agreeing on their
+       moment and falling back to the alphabet */
+    CHECK_INT(PathListFiltered(".", "t", 0, VTED_PATH_SORT_MTIME,
+                               matches, VTED_PATH_MATCHES), 3);
+    CHECK_STR(matches[0].name, "alpha.txt");
+    CHECK_STR(matches[1].name, "beta.txt");
+    CHECK_STR(matches[2].name, "note");
+
+    /* the every-name listing answers with the same orders: every
+       moment pinned, so the round knows where each name lands */
+    SetMtime(".git", 1300000000);
+    SetMtime(".hidden", 1400000000);
+    SetMtime(sub, 1500000000);
+    SetMtime("common1.c", 1900000000);
+    SetMtime("common2.h", 1800000000);
+
+    CHECK_INT(PathListAll(".", VTED_PATH_SORT_MTIME,
+                          matches, VTED_PATH_MATCHES), 8);
+    CHECK_STR(matches[0].name, "common1.c");
+    CHECK_STR(matches[1].name, "common2.h");
+    CHECK_STR(matches[2].name, "alpha.txt");
+    CHECK_STR(matches[3].name, "beta.txt");
+    CHECK_STR(matches[4].name, "note");
+    CHECK_STR(matches[5].name, "sub");
+    CHECK_STR(matches[6].name, ".hidden");
+    CHECK_STR(matches[7].name, ".git");
+
+    /* the room runs out the way it does for every listing: the
+       names the sort puts first stay standing */
+    FillFile("srt00", "01234567890123456789012345678901234567890123456789"
+                      "012345");
+    FillFile("srt02", "0123456789012345678901234567890123456789");
+    FillFile("srt03", "012345678901234567890123");
+    MakeFile("srt01");
+    MakeFile("srt04");
+
+    CHECK_INT(PathListFiltered(".", "srt", 0, VTED_PATH_SORT_SIZE,
+                               matches, 3), 3);
+    CHECK_STR(matches[0].name, "srt00");
+    CHECK_STR(matches[1].name, "srt02");
+    CHECK_STR(matches[2].name, "srt03");
+
+    unlink("srt00");
+    unlink("srt01");
+    unlink("srt02");
+    unlink("srt03");
+    unlink("srt04");
+}
+
 int main(void)
 {
     BuildTree();
@@ -459,6 +539,7 @@ int main(void)
     TestSharedStem();
     TestStemSplitsCharacters();
     TestListingTellsTheMetadata();
+    TestSortedListings();
     TestListingHoldsWhatItHolds();
     TestFilteredListing();
 
