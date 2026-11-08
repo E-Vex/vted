@@ -22,6 +22,12 @@ typedef struct
     char name[VTED_PATH_NAME_MAX]; /* a name the directory answers with */
     int is_dir; /* the name names a directory: it takes a slash behind
                    it, so the walk can keep going into it */
+    long long size; /* the bytes the name holds, the way stat counts
+                       them: a file its own bytes, a directory the
+                       room its own listing takes on the disk */
+    long long mtime; /* the second the name was last changed: what a
+                        listing can sort by and say, the clock the
+                        disk keeps for every name it holds */
 } vted_path_match_t;
 
 /* lists the names the directory the typed path names answers the
@@ -31,8 +37,9 @@ typedef struct
    starts with a dot answers only a prefix that starts with one, the
    way the shell's completion holds the hidden names back until they
    are asked for. The answers come out sorted, at most max of them,
-   each saying whether it names a directory. Returns their count, or
-   -1 when the directory itself cannot be read */
+   each saying whether it names a directory, the bytes it holds and
+   the second it was last changed. Returns their count, or -1 when
+   the directory itself cannot be read */
 int PathListMatches(const char *typed, vted_path_match_t *out, int max);
 
 /* lists the names the directory the path names holds that carry the
@@ -43,9 +50,9 @@ int PathListMatches(const char *typed, vted_path_match_t *out, int max);
    way the browse holds them, and . and .. stay back either way, the
    walk and its way up. The answers come out sorted, at most max of
    them, a directory wider than the listing answering with the names
-   the sort puts first, each saying whether it names a directory.
-   Returns their count, or -1 when the directory itself cannot be
-   read */
+   the sort puts first, each saying whether it names a directory,
+   the bytes it holds and the second it was last changed. Returns
+   their count, or -1 when the directory itself cannot be read */
 int PathListFiltered(const char *dir, const char *filter, int take_hidden,
                      vted_path_match_t *out, int max);
 
@@ -54,8 +61,9 @@ int PathListFiltered(const char *dir, const char *filter, int take_hidden,
    itself and its way up, which the browse names by its own keys —
    sorted, at most max of them, a directory wider than the listing
    answering with the names the sort puts first. Each name says
-   whether it names a directory. Returns the count, or -1 when the
-   directory itself cannot be read */
+   whether it names a directory, the bytes it holds and the second
+   it was last changed. Returns the count, or -1 when the directory
+   itself cannot be read */
 int PathListAll(const char *dir, vted_path_match_t *out, int max);
 
 /* the number of bytes the names of a listing agree on at their

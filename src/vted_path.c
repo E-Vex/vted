@@ -51,26 +51,35 @@ static void SplitTyped(const char *typed, char *dir, int dir_size,
     }
 }
 
-/* says whether the name of a directory names a directory itself: a
-   name that cannot be looked at honestly names none, the way a
-   broken link names no file */
-static int NameIsDir(const char *dir, const char *name)
+/* the one look a listing takes at a name: whether it names a
+   directory, the bytes it holds and the second it was last changed
+   — the same single stat the is_dir alone used to cost. A name that
+   cannot be looked at honestly answers as no directory holding
+   nothing, changed never, the way a broken link names no file */
+static void NameLook(const char *dir, const char *name,
+                     int *is_dir, long long *size, long long *mtime)
 {
     char joined[PATH_JOIN_MAX];
     struct stat info;
 
+    *is_dir = 0;
+    *size = 0;
+    *mtime = 0;
+
     if (snprintf(joined, sizeof(joined), "%s/%s", dir, name)
         >= (int)sizeof(joined))
     {
-        return 0; /* the pair cannot even be named: no directory */
+        return; /* the pair cannot even be named */
     }
 
     if (stat(joined, &info) != 0)
     {
-        return 0;
+        return;
     }
 
-    return S_ISDIR(info.st_mode) ? 1 : 0;
+    *is_dir = S_ISDIR(info.st_mode) ? 1 : 0;
+    *size = (long long)info.st_size;
+    *mtime = (long long)info.st_mtime;
 }
 
 /* the round a listing of names runs: every entry of the open
@@ -162,7 +171,8 @@ static int CollectMatches(DIR *handle, const char *dir,
         }
 
         memcpy(out[slot].name, name, name_len + 1);
-        out[slot].is_dir = NameIsDir(dir, name);
+        NameLook(dir, name, &out[slot].is_dir, &out[slot].size,
+                 &out[slot].mtime);
         count++;
     }
 
