@@ -101,6 +101,13 @@
 # end clamped to the last one, an answer that spells no line told so
 # in the bar, and ESC taking the prompt down with the cursor standing.
 #
+# A goto completion run walks the Alt-/ of the goto prompt the way a
+# hand would: a lone name landing whole behind its directory, several
+# landing the stem they agree on with the menu standing and a take
+# from it landing behind the name part, the tail behind the name
+# standing through a round and a take — the open landing on the spot
+# it spells — and a prefix nothing answers told so in the bar.
+#
 # A prompt run walks the Alt-o of the message bar the way a hand
 # would: a search whose query names a file with a :line:column tail
 # opened with Alt-o and landing on the spot it says, a query that
@@ -160,6 +167,7 @@ ELECTRIC = '/tmp/vted-smoke-electric.txt'  # the buffer the pairs land in
 WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
 QUOTE = '/tmp/vted-smoke-quote.txt'  # the buffer the quotes wrap in
 GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
+GOTO_TREE = '/tmp/vted-smoke-goto-tree'  # the tree the goto's Alt-/ walks
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
@@ -1010,6 +1018,124 @@ def goto_smoke(binary):
     return 0
 
 
+def gocomplete_smoke(binary):
+    """the goto completion run: Alt-/ over the name part of the
+    goto answer — a lone name landing whole behind its directory,
+    several landing the stem they agree on with the menu standing, a
+    take from the menu landing behind the name part, the tail behind
+    the name standing through a round and a take so the open lands
+    on the spot it spells, and a prefix nothing answers told so in
+    the bar"""
+    import shutil
+
+    shutil.rmtree(GOTO_TREE, ignore_errors=True)
+    os.makedirs(GOTO_TREE)
+    with open(os.path.join(GOTO_TREE, 'start.txt'), 'w') as f:
+        f.write('here the walk starts\n')
+    with open(os.path.join(GOTO_TREE, 'alpha.txt'), 'w') as f:
+        f.write('one\ntwo\nthree\nfour\nfive\n')
+    with open(os.path.join(GOTO_TREE, 'beta.c'), 'w') as f:
+        f.write('a\nb\nc\nd\n')
+    with open(os.path.join(GOTO_TREE, 'betty.txt'), 'w') as f:
+        f.write('x\ny\nz\n')
+
+    pid, fd = spawn(binary, [os.path.join(GOTO_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # a lone name lands whole: the bar spells the answer it completed
+    drive(fd, CTRL_G, out)
+    drive(fd, (GOTO_TREE + '/alp').encode(), out)
+    drive(fd, ALT_SLASH, out)
+    drew = b''.join(out)
+
+    if (GOTO_TREE + '/alpha.txt').encode() not in drew:
+        return fail('the lone name did not land whole behind its directory')
+
+    # Enter takes the answer: the file opens with the cursor on its
+    # first line
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'alpha.txt' not in drew:
+        return fail('the completed name did not open')
+    if b'Ln 1/5' not in drew:
+        return fail('the open did not land on the first line')
+
+    # several answer: the stem they agree on lands, and the menu the
+    # Tab completion uses lists them
+    drive(fd, CTRL_G, out)
+    drive(fd, (GOTO_TREE + '/be').encode(), out)
+    drive(fd, ALT_SLASH, out)
+    drew = b''.join(out)
+
+    for said in (b'beta.c', b'betty.txt'):
+        if said not in drew:
+            return fail(f"the menu did not draw '{said.decode()}'")
+
+    if (GOTO_TREE + '/bet').encode() not in drew:
+        return fail('the stem the names agree on did not land')
+
+    # a take from the menu lands behind the name part, and Enter
+    # opens it
+    drive(fd, ENTER, out)   # take the selection into the answer
+    drive(fd, ENTER, out)   # open what the answer names
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'Ln 1/4' not in drew:
+        return fail('the take from the menu did not open the file')
+
+    # the tail stands through a round and a take: a second Alt-/
+    # relists after the tail was typed, an arrow takes betty.txt
+    # behind the name part with the tail behind it, and the open
+    # lands on the spot it spells
+    drive(fd, CTRL_G, out)
+    drive(fd, (GOTO_TREE + '/be').encode(), out)
+    drive(fd, ALT_SLASH, out)
+    drive(fd, b':2', out)   # the tail: any other key takes the menu down
+    drive(fd, ALT_SLASH, out)  # and a fresh round puts it back up
+    drive(fd, b'\x1b[B', out)  # ArrowDown: onto betty.txt
+    drive(fd, ENTER, out)   # take it, the tail behind the name
+    drive(fd, ENTER, out)   # open it, landing on the tail's spot
+    drew = b''.join(out)
+
+    if b'betty.txt' not in drew:
+        return fail('the take did not land betty.txt in the answer')
+    if b'Ln 2/3' not in drew:
+        return fail('the tail did not land the open on the second line')
+
+    # a prefix nothing answers says so in the bar, the answer standing
+    out.clear()
+    drive(fd, CTRL_G, out)
+    drive(fd, (GOTO_TREE + '/zz').encode(), out)
+    drive(fd, ALT_SLASH, out)
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'No match for' not in drew:
+        return fail('the prefix nothing answers was not told so')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    for name, said in (('start.txt', 'here the walk starts\n'),
+                       ('alpha.txt', 'one\ntwo\nthree\nfour\nfive\n'),
+                       ('beta.c', 'a\nb\nc\nd\n'),
+                       ('betty.txt', 'x\ny\nz\n')):
+        with open(os.path.join(GOTO_TREE, name)) as f:
+            if f.read() != said:
+                return fail(f'the goto completion run did not leave {name} as written')
+
+    print('smoke: OK - walked the Alt-/ of the goto prompt')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -1460,8 +1586,8 @@ def main() -> int:
         or gf_smoke(binary) or history_smoke(binary) \
         or electric_smoke(binary) or wrap_smoke(binary) \
         or quote_smoke(binary) or jump_smoke(binary) \
-        or goto_smoke(binary) or prompt_smoke(binary) \
-        or match_smoke(binary)
+        or goto_smoke(binary) or gocomplete_smoke(binary) \
+        or prompt_smoke(binary) or match_smoke(binary)
 
 
 if __name__ == '__main__':
