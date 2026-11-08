@@ -608,6 +608,91 @@ static void TestNameOperations(void)
     CHECK_INT(PathRenameName(".", "gone", "elsewhere"), -1);
 }
 
+static void TestCountingName(void)
+{
+    /* the shell's wc asked of one name: the lines its newlines
+       make, the words the runs of bytes between the blanks make,
+       and the bytes themselves */
+    vted_path_counts_t counts;
+
+    FillFile("counted.txt", "one two\nthree\n");
+    CHECK_INT(PathCountName(".", "counted.txt", &counts), 0);
+    CHECK_INT(counts.lines, 2);
+    CHECK_INT(counts.words, 3);
+    CHECK_INT(counts.bytes, 14);
+
+    /* a last line without its own newline behind it makes no line,
+       the way wc counts */
+    FillFile("tailed.txt", "hello");
+    CHECK_INT(PathCountName(".", "tailed.txt", &counts), 0);
+    CHECK_INT(counts.lines, 0);
+    CHECK_INT(counts.words, 1);
+    CHECK_INT(counts.bytes, 5);
+
+    /* the blanks of every kind end a word, and a file of nothing
+       but them holds no word at all, its newlines still making
+       their lines */
+    FillFile("blank.txt", " \t\n \n\n");
+    CHECK_INT(PathCountName(".", "blank.txt", &counts), 0);
+    CHECK_INT(counts.lines, 3);
+    CHECK_INT(counts.words, 0);
+    CHECK_INT(counts.bytes, 6);
+
+    /* an empty file holds nothing at all */
+    FillFile("hollow.txt", "");
+    CHECK_INT(PathCountName(".", "hollow.txt", &counts), 0);
+    CHECK_INT(counts.lines, 0);
+    CHECK_INT(counts.words, 0);
+    CHECK_INT(counts.bytes, 0);
+
+    /* the bytes of a script beyond the alphabet count as they
+       stand, a word a word whatever bytes it holds */
+    FillFile("accent.txt", "h\303\251llo w\303\266rld\ncaf\303\251\n");
+    CHECK_INT(PathCountName(".", "accent.txt", &counts), 0);
+    CHECK_INT(counts.lines, 2);
+    CHECK_INT(counts.words, 3);
+    CHECK_INT(counts.bytes, 20);
+
+    /* a file wider than one round of the counting keeps its words
+       whole across the rounds' edges: the last word of a round
+       goes on being counted as the one it is when the next round
+       takes it up — a thousand rounds of "ab cd" making their two
+       thousand words, the word that spans an edge still one */
+    {
+        char wide[6001];
+        int i;
+
+        for (i = 0; i < 1000; i++)
+        {
+            memcpy(wide + i * 6, "ab cd\n", 6);
+        }
+        wide[6000] = '\0';
+        FillFile("wide.txt", wide);
+    }
+
+    CHECK_INT(PathCountName(".", "wide.txt", &counts), 0);
+    CHECK_INT(counts.lines, 1000);
+    CHECK_INT(counts.words, 2000);
+    CHECK_INT(counts.bytes, 6000);
+
+    /* a directory is no file to count, the way wc says nothing of
+       one, and a name that is not there says no — the reason
+       standing in errno where the round knows it */
+    CHECK_INT(PathCountName(".", "sub", &counts), -1);
+    CHECK_INT(errno, EISDIR);
+    CHECK_INT(PathCountName(".", "gone", &counts), -1);
+    CHECK_INT(errno, ENOENT);
+
+    /* the names the round made go the way the rounds above take
+       theirs down */
+    unlink("counted.txt");
+    unlink("tailed.txt");
+    unlink("blank.txt");
+    unlink("hollow.txt");
+    unlink("accent.txt");
+    unlink("wide.txt");
+}
+
 int main(void)
 {
     BuildTree();
@@ -623,6 +708,7 @@ int main(void)
     TestListingHoldsWhatItHolds();
     TestFilteredListing();
     TestNameOperations();
+    TestCountingName();
 
     TakeTreeDown();
 
