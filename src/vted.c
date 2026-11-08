@@ -39,9 +39,17 @@
 
 /* how many lines the directory browse draws, and the room one of
    its lines has: the same window, over the names a directory
-   holds */
+   holds — a name with the slash a directory takes behind it, and
+   behind them the bytes and the moment the name carries */
 #define BROWSE_LINES 16
-#define BROWSE_WIDTH (VTED_PATH_NAME_MAX + 2)
+#define BROWSE_WIDTH (VTED_PATH_NAME_MAX + 32)
+
+/* the room the metadata of a browse line takes behind the name:
+   the bytes a name holds in ten cells, the moment it was last
+   changed in sixteen, a cell between them */
+#define BROWSE_SIZE_CELLS 10
+#define BROWSE_TIME_CELLS 16
+#define BROWSE_META_CELLS (BROWSE_SIZE_CELLS + 1 + BROWSE_TIME_CELLS)
 
 /* how many screen lines one notch of the wheel scrolls, the way a
    terminal of its own scrolls a page the mouse is over */
@@ -399,6 +407,136 @@ static int BrowseShownLen(const char *path)
     return len;
 }
 
+/* the bytes a name holds, said the way a hand reads them: the bytes
+   themselves under a thousand and twenty-four, and past that the
+   units the disk tools speak — K, M, G and T, each a thousand and
+   twenty-four of the one below, one digit behind the point */
+static void BrowseFormatSize(long long size, char *out, int room)
+{
+    if (size < 1024)
+    {
+        snprintf(out, (size_t)room, "%lld", size);
+        return;
+    }
+    else
+    {
+        static const char *const units[] = {"K", "M", "G", "T"};
+        double scaled = (double)size;
+        int which = 0;
+
+        while (scaled >= 1024.0 && which < 3)
+        {
+            scaled /= 1024.0;
+            which++;
+        }
+
+        snprintf(out, (size_t)room, "%.1f%s", scaled, units[which]);
+    }
+}
+
+/* the moment a name was last changed, said the way a hand reads
+   it: the year, the month and the day, the hour and the minute,
+   the clock of the terminal's own place. A name with no honest
+   moment to say — one that cannot be looked at, or a clock before
+   its own zero — says so with a dash */
+static void BrowseFormatTime(long long mtime, char *out, int room)
+{
+    char laid[BROWSE_TIME_CELLS + 8];
+
+    if (mtime > 0)
+    {
+        time_t when = (time_t)mtime;
+        struct tm broken;
+
+        if (localtime_r(&when, &broken) != NULL &&
+            strftime(laid, sizeof(laid), "%Y-%m-%d %H:%M", &broken) != 0)
+        {
+            snprintf(out, (size_t)room, "%s", laid);
+            return;
+        }
+    }
+
+    snprintf(out, (size_t)room, "%s", "-");
+}
+
+/* lays one line of the browse: the name — a slash behind it when it
+   names a directory — laid one character at a time and never cut
+   inside one where its own room ends, and behind it the bytes the
+   name holds and the moment it was last changed, the way ls lays
+   its own columns: the size right-aligned against the moment, both
+   ending at the screen's right edge — or at the line's own room
+   when the screen is wider than a line holds */
+static void BrowseLayLine(char *line, size_t line_size,
+                          const vted_path_match_t *match)
+{
+    int screen = vted_editor_config.screen_cols;
+    int edge = screen < (int)line_size - 1 ? screen : (int)line_size - 1;
+    int room = edge - BROWSE_META_CELLS - 1; /* the name's own room */
+    int slash_room = match->is_dir ? 1 : 0;
+    int cells = 0; /* the cells the name and its slash have taken */
+    int laid = 0;  /* the bytes of the name laid into the line */
+    int name_len = (int)strlen(match->name);
+    int pad;
+    int at;
+    char size_text[BROWSE_SIZE_CELLS + 4];
+    char time_text[BROWSE_TIME_CELLS + 4];
+
+    if (room < 1)
+    {
+        room = 1;
+    }
+
+    /* the name takes its own room, the slash of a directory
+       budgeted with it so it never falls off the end of the room; a
+       character that would not fit whole is left for the padding */
+    while (laid < name_len && cells + slash_room < room)
+    {
+        int code_point;
+        int span = Utf8Decode(match->name + laid, name_len - laid,
+                              &code_point);
+        int width;
+
+        if (span <= 0)
+        {
+            span = 1; /* an invalid byte: a character of its own */
+        }
+
+        width = Utf8CharWidth(code_point);
+
+        if (width > 0 && cells + slash_room + width > room)
+        {
+            break;
+        }
+
+        laid += span;
+        cells += width;
+    }
+
+    memcpy(line, match->name, (size_t)laid);
+    at = laid;
+
+    if (match->is_dir && at < (int)line_size - 1)
+    {
+        line[at++] = '/';
+        cells++;
+    }
+
+    /* the padding that brings the metadata to the edge, a cell at
+       the least so the name and its size never touch */
+    pad = edge - BROWSE_META_CELLS - cells;
+
+    if (pad < 1)
+    {
+        pad = 1;
+    }
+
+    BrowseFormatSize(match->size, size_text, sizeof(size_text));
+    BrowseFormatTime(match->mtime, time_text, sizeof(time_text));
+
+    snprintf(line + at, line_size - (size_t)at, "%*s%*s %s",
+             pad, "", BROWSE_SIZE_CELLS, size_text, time_text);
+}
+
 /* walks a directory the way the shell's cd does, for a name that
    answered as one: the menu the buffer picker uses lists the names
    the directory holds — a directory with its slash behind it, the
@@ -557,9 +695,8 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
             for (i = 0; i < shown_count; i++)
             {
-                snprintf(lines[i], sizeof(lines[i]), "%s%s",
-                         matches[first + i].name,
-                         matches[first + i].is_dir ? "/" : "");
+                BrowseLayLine(lines[i], sizeof(lines[i]),
+                              &matches[first + i]);
                 shown[i] = lines[i];
             }
 
