@@ -384,11 +384,14 @@ selection    |
   open just comes back into view, a directory opens the browse of
   it — the menu the buffer picker uses listing the names it holds,
   the hidden ones held back until a dot takes them in and back out,
-  the name the selection stands on standing through it, the arrows
-  and the wheel stepping through, Enter or a left click walking
-  into a directory and opening a file, Backspace going up a level
-  with the name walked from standing selected, ESC leaving the
-  editor where it was — and a name that is not there, or one
+  the name the selection stands on standing through it, the bytes
+  typed narrowing the listing with the filter spelled out in the
+  bar, Backspace giving it a byte back and only then going up a
+  level with the name walked from standing selected, ESC taking
+  the filter off with the browse standing before it leaves the
+  editor where it was, the arrows and the wheel stepping through,
+  Enter or a left click walking into a directory and opening a
+  file — and a name that is not there, or one
   that is no regular file, says so in the bar: gf goes to a file
   that is there, it does not start one. The name
   can carry a ":line:column" tail, the way a compiler names a spot,
@@ -533,10 +536,32 @@ New in 0.3.4:
   staying back either way as the walk itself and its way up, the
   name the selection stands on standing selected through the
   relisting, and the bar saying which way they stand until the
-  next key. The prompts that open a named file — the searches'
-  Alt-o among them, and the goto's answer — browse the same way,
-  and a name that answers as neither a file nor a directory is
-  still told so in the bar
+  next key. Bytes typed while the listing stands narrow it, the
+  way the goto prompt carries its answer: the filter spells
+  itself out in the bar as it is typed, and the names that carry
+  its bytes anywhere in them — not only at their heads, the way
+  the Tab completion asks — stay standing, a window of them that
+  follows the selection the same way. The name the selection
+  stands on stands selected through each relisting when the
+  narrowed listing still holds it, the head standing otherwise;
+  Backspace gives the filter a byte back the way a prompt's
+  backspace does — an emptied one leaving the listing whole again
+  — and goes up a level only when none stands; ESC takes the
+  filter off with the browse standing — the whole listing back,
+  the name it stood on selected through it — and leaves the
+  editor where it was only when none stands, the way it takes
+  the completion's menu down with the prompt standing; a filter
+  nothing carries says so in the bar with the menu down, the keys
+  that walk still working; a take opens the file or walks into
+  the directory from the listing as it stands narrowed, the walk
+  in taking the filter off for the listing it lands on; and a dot
+  goes into the filter when one stands, a byte like any other it
+  carries — the hidden toggle keeping its key when none does, and
+  the names a `.txt` would narrow to answering a `txt` anyway, the
+  match being anywhere in a name. The prompts that open a named
+  file — the searches' Alt-o among them, and the goto's answer —
+  browse the same way, and a name that answers as neither a file
+  nor a directory is still told so in the bar
 - Path completion: Tab in the Open and Save-as prompts completes the
   path typed so far, the way the shell's Tab does. The directory the
   path names answers with the names that start with what follows its
