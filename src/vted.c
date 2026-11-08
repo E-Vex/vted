@@ -571,7 +571,9 @@ static void BrowseLayLine(char *line, size_t line_size,
    and a trailing slash making a directory of it, the listing
    standing again with the name it gained selected — Alt-r moving
    the name under the selection to another name in the same
-   directory, what the name holds coming with it — the arrows and
+   directory, what the name holds coming with it, and Delete
+   taking the name under the selection away once the bar's y says
+   so — the arrows and
    the wheel stepping through them, Enter or a left click walking
    into a directory and
    opening a file, Backspace going up a level
@@ -597,6 +599,12 @@ static int EditorBrowseDirectory(const char *path, char *message,
                                         narrowed to, carried in the
                                         bar the way a prompt carries
                                         its answer */
+    char asking[VTED_PATH_NAME_MAX]; /* the name the Delete key
+                                         asks after, held while the
+                                         bar carries its question */
+    int deleting = 0; /* the bar is asking after the name in
+                         asking: y takes it away, any other key
+                         keeps it */
     int filter_len = 0;
     int selection = 0;
     vted_path_sort_t sort = VTED_PATH_SORT_NAME; /* the order the
@@ -795,6 +803,37 @@ static int EditorBrowseDirectory(const char *path, char *message,
         }
 
         warn[0] = '\0';
+
+        if (deleting)
+        {
+            /* the question the Delete key left stands answered by
+               this key: y takes the name away, any other key keeps
+               it, the listing standing either way */
+            deleting = 0;
+
+            if (c == 'y' || c == 'Y')
+            {
+                char preview[40]; /* the name as the bar holds it */
+
+                if (PathDeleteName(here, asking) == 0)
+                {
+                    BrowseNamePreview(asking, preview,
+                                      (int)sizeof(preview));
+                    snprintf(warn, sizeof(warn), "Deleted %s",
+                             preview);
+                }
+                else
+                {
+                    int saved = errno;
+
+                    snprintf(warn, sizeof(warn), "Cannot delete: %s",
+                             saved != 0 ? strerror(saved)
+                                        : "the name stayed");
+                }
+            }
+
+            continue;
+        }
 
         if (c == 27)
         {
@@ -1110,6 +1149,27 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 filter[0] = '\0';
             }
 
+            continue;
+        }
+
+        if (c == DeleteKey && count > 0)
+        {
+            /* Delete asks after the name under the selection: the
+               bar carries the question — the name cut at a
+               character boundary so the question never loses its
+               own tail — and the next key answers it, y taking the
+               name away and any other key keeping it. A file goes
+               outright, a directory only when it holds nothing of
+               its own, the shell's rm without its -r */
+            char preview[40];
+
+            snprintf(asking, sizeof(asking), "%s",
+                     matches[selection].name);
+            BrowseNamePreview(asking, preview, (int)sizeof(preview));
+            snprintf(warn, sizeof(warn),
+                     "Delete '%s'? y deletes, any other key keeps it",
+                     preview);
+            deleting = 1;
             continue;
         }
 
