@@ -402,13 +402,13 @@ static int BrowseShownLen(const char *path)
 /* walks a directory the way the shell's cd does, for a name that
    answered as one: the menu the buffer picker uses lists the names
    the directory holds — a directory with its slash behind it, the
-   hidden ones held back the way the Tab completion holds them —
-   the arrows and the wheel stepping through them, Enter or a left
-   click walking into a directory and opening a file, Backspace
-   going up a level with the name walked from standing selected,
-   and ESC leaving the editor where it was. Returns what an open of
-   the pick says in message — 1 when a file came open — and says
-   the cancel itself */
+   hidden ones held back the way the Tab completion holds them until
+   a dot takes them in and back out — the arrows and the wheel
+   stepping through them, Enter or a left click walking into a
+   directory and opening a file, Backspace going up a level with the
+   name walked from standing selected, and ESC leaving the editor
+   where it was. Returns what an open of the pick says in message —
+   1 when a file came open — and says the cancel itself */
 static int EditorBrowseDirectory(const char *path, char *message,
                                  size_t message_size)
 {
@@ -420,6 +420,9 @@ static int EditorBrowseDirectory(const char *path, char *message,
     char from[VTED_PATH_NAME_MAX]; /* the name a walk up selects */
     char warn[96]; /* a word the bar holds until the next key */
     int selection = 0;
+    int hidden = 0; /* a dot takes the hidden names in and holds
+                       them back again, the listing standing again
+                       either way */
     size_t len = (size_t)snprintf(here, sizeof(here), "%s", path);
 
     from[0] = '\0';
@@ -447,7 +450,9 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
     while (1)
     {
-        int count = PathListMatches(here, matches, VTED_PATH_MATCHES);
+        int count = hidden
+                        ? PathListAll(here, matches, VTED_PATH_MATCHES)
+                        : PathListMatches(here, matches, VTED_PATH_MATCHES);
         int window_first = 0; /* the head of the window a click maps
                                  into, when a listing was drawn */
 
@@ -625,6 +630,30 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 here[name_start] = '\0';
             }
 
+            continue;
+        }
+
+        if (c == '.')
+        {
+            /* a dot toggles the hidden names — held back the way the
+               Tab completion holds them until the dot takes them in
+               — the name the selection stands on standing selected
+               through the relisting when the new listing still holds
+               it, and the bar saying which way they stand */
+            if (count > 0)
+            {
+                snprintf(from, sizeof(from), "%s",
+                         matches[selection].name);
+            }
+            else
+            {
+                from[0] = '\0';
+            }
+
+            hidden = !hidden;
+            snprintf(warn, sizeof(warn), "%s",
+                     hidden ? "The hidden names are shown"
+                            : "The hidden names are held back");
             continue;
         }
 
