@@ -421,7 +421,7 @@ static void BrowseFormatSize(long long size, char *out, int room)
     else
     {
         static const char *const units[] = {"K", "M", "G", "T"};
-        double scaled = (double)size;
+        double scaled = (double)size / 1024.0; /* into K to start */
         int which = 0;
 
         while (scaled >= 1024.0 && which < 3)
