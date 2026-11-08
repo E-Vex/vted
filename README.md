@@ -561,6 +561,13 @@ New in 0.3.4:
   selection to another name in the same directory, the prompt
   opening with the name standing in it and what the name holds
   coming with it; the name as it stood says so and nothing moves.
+  Alt-w says the lines, the words and the bytes of the name under
+  the selection — w for word count, the way the shell's wc counts
+  them: the lines its newlines make, a last line without its own
+  newline behind it making no line, the words the runs of bytes
+  between the blanks make, and the bytes themselves — the bar
+  carrying the counts until the next key, a directory saying it
+  holds nothing to count and a name that cannot be read saying why.
   Delete takes the name under the selection away, the bar asking
   first — y deleting, any other key keeping — a file going
   outright and a directory only when it holds nothing of its own,
