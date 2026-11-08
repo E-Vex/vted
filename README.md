@@ -381,9 +381,14 @@ selection    |
   the file. A relative name stands beside the file being edited
   first, the way an #include does, and as it stands, in the working
   directory, when that one does not answer; a file that is already
-  open just comes back into view, and a name that is no file at
-  all — one that is not there, or a directory — says so in the bar:
-  gf goes to a file that is there, it does not start one. The name
+  open just comes back into view, a directory opens the browse of
+  it — the menu the buffer picker uses listing the names it holds,
+  the arrows and the wheel stepping through, Enter or a left click
+  walking into a directory and opening a file, Backspace going up
+  a level with the name walked from standing selected, ESC leaving
+  the editor where it was — and a name that is not there, or one
+  that is no regular file, says so in the bar: gf goes to a file
+  that is there, it does not start one. The name
   can carry a ":line:column" tail, the way a compiler names a spot,
   and the open lands the cursor on the spot it says — a line alone
   or a line and a column, the way Ctrl-G lands one — a line past
@@ -501,15 +506,30 @@ New in 0.3.4:
   braces and parentheses ending it. A relative name stands beside the
   file being edited first, the way an #include does, and as it
   stands, in the working directory, when that one does not answer; a
-  file that is already open just comes back into view, and a name
-  that is no file at all says so in the bar instead of starting an
-  empty buffer. The name can carry a ":line:column" tail, the way a
+  file that is already open just comes back into view, a directory
+  opens the browse of it, and a name that is no file at all says
+  so in the bar instead of starting an empty buffer. The name can
+  carry a ":line:column" tail, the way a
   compiler names the spot in a file it speaks about, and the open
   lands the cursor on the spot the tail says — `two.txt:3:7` opening
   the file and landing on its third line, seventh column, the
   column counting the cells the bar shows; the line alone lands the
   start of it
-
+- Directory browse: a name Alt-o takes that answers as a directory
+  opens the browse of it instead of saying so in the bar — the
+  editor's own browser, walking the way the shell's cd does. The
+  menu the buffer picker uses lists the names the directory holds
+  — a directory with its slash behind it, the hidden ones held
+  back the way the Tab completion holds them — a window of them
+  that follows the selection. The arrows and the wheel step
+  through them, Enter or a left click walks into a directory and
+  opens a file, Backspace goes up a level with the name walked
+  from standing selected in the listing above, and ESC leaves the
+  editor where it was, the bar saying the browse was cancelled.
+  The prompts that open a named file — the searches' Alt-o among
+  them, and the goto's answer — browse the same way, and a name
+  that answers as neither a file nor a directory is still told so
+  in the bar
 - Path completion: Tab in the Open and Save-as prompts completes the
   path typed so far, the way the shell's Tab does. The directory the
   path names answers with the names that start with what follows its
