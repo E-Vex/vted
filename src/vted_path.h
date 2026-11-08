@@ -17,6 +17,18 @@
 #define VTED_PATH_NAME_MAX 256
 #define VTED_PATH_MATCHES 64
 
+/* the order a listing lays its names in: by name the alphabet's
+   own, by size the largest first, by time the newest first — the
+   way ls -S and ls -t lay their own — names that agree on the key
+   falling back to the alphabet so the order never wavers between
+   two rounds of the same listing */
+typedef enum
+{
+    VTED_PATH_SORT_NAME,
+    VTED_PATH_SORT_SIZE,
+    VTED_PATH_SORT_MTIME
+} vted_path_sort_t;
+
 typedef struct
 {
     char name[VTED_PATH_NAME_MAX]; /* a name the directory answers with */
@@ -48,23 +60,26 @@ int PathListMatches(const char *typed, vted_path_match_t *out, int max);
    way a narrowing of a listing asks after the names worth taking.
    The hidden ones are held back or taken in as take_hidden says, the
    way the browse holds them, and . and .. stay back either way, the
-   walk and its way up. The answers come out sorted, at most max of
-   them, a directory wider than the listing answering with the names
-   the sort puts first, each saying whether it names a directory,
-   the bytes it holds and the second it was last changed. Returns
-   their count, or -1 when the directory itself cannot be read */
+   walk and its way up. The answers come out in the order sort asks,
+   at most max of them, a directory wider than the listing answering
+   with the names the sort puts first, each saying whether it names
+   a directory, the bytes it holds and the second it was last
+   changed. Returns their count, or -1 when the directory itself
+   cannot be read */
 int PathListFiltered(const char *dir, const char *filter, int take_hidden,
-                     vted_path_match_t *out, int max);
+                     vted_path_sort_t sort, vted_path_match_t *out, int max);
 
 /* lists every name the directory the path names holds — the ones
    that start with a dot among them, . and .. held back as the walk
    itself and its way up, which the browse names by its own keys —
    sorted, at most max of them, a directory wider than the listing
-   answering with the names the sort puts first. Each name says
+   answering with the names the sort puts first, each saying
    whether it names a directory, the bytes it holds and the second
-   it was last changed. Returns the count, or -1 when the directory
-   itself cannot be read */
-int PathListAll(const char *dir, vted_path_match_t *out, int max);
+   it was last changed — the answers coming out in the order sort
+   asks. Returns the count, or -1 when the directory itself cannot
+   be read */
+int PathListAll(const char *dir, vted_path_sort_t sort,
+                vted_path_match_t *out, int max);
 
 /* the number of bytes the names of a listing agree on at their
    heads: what a path typed so far can take of them without choosing

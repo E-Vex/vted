@@ -608,11 +608,13 @@ static int EditorBrowseDirectory(const char *path, char *message,
         if (filter_len > 0)
         {
             count = PathListFiltered(here, filter, hidden,
+                                     VTED_PATH_SORT_NAME,
                                      matches, VTED_PATH_MATCHES);
         }
         else if (hidden)
         {
-            count = PathListAll(here, matches, VTED_PATH_MATCHES);
+            count = PathListAll(here, VTED_PATH_SORT_NAME,
+                                matches, VTED_PATH_MATCHES);
         }
         else
         {

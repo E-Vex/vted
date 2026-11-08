@@ -82,10 +82,34 @@ static void NameLook(const char *dir, const char *name,
     *mtime = (long long)info.st_mtime;
 }
 
+/* says whether one name goes before another in the order the sort
+   asks: by name the alphabet's own order, by size the largest
+   first the way ls -S lays its own, by time the newest first the
+   way ls -t does — and names that agree on the key falling back
+   to the alphabet, so the order never wavers between two rounds
+   of the same listing */
+static int MatchBefore(const vted_path_match_t *one,
+                       const vted_path_match_t *two,
+                       vted_path_sort_t sort)
+{
+    if (sort == VTED_PATH_SORT_SIZE && one->size != two->size)
+    {
+        return one->size > two->size;
+    }
+
+    if (sort == VTED_PATH_SORT_MTIME && one->mtime != two->mtime)
+    {
+        return one->mtime > two->mtime;
+    }
+
+    return strcmp(one->name, two->name) < 0;
+}
+
 /* the round a listing of names runs: every entry of the open
-   directory that answers goes into out sorted, at most max of them,
-   a full listing keeping the names the sort puts first, the largest
-   giving way to a smaller one come later. A name that starts with a
+   directory that answers goes into out in the order the sort asks,
+   at most max of them, a full listing keeping the names the sort
+   puts first, the last of them giving way to a name come later
+   that the sort puts before it. A name that starts with a
    dot answers only a prefix that starts with one, the way the
    shell's completion holds the hidden names back until they are
    asked for — unless the round takes the hidden names in, when
@@ -98,7 +122,7 @@ static void NameLook(const char *dir, const char *name,
    names it laid */
 static int CollectMatches(DIR *handle, const char *dir,
                           const char *prefix, const char *filter,
-                          int take_hidden,
+                          int take_hidden, vted_path_sort_t sort,
                           vted_path_match_t *out, int max)
 {
     struct dirent *entry;
@@ -109,6 +133,8 @@ static int CollectMatches(DIR *handle, const char *dir,
     {
         const char *name = entry->d_name;
         size_t name_len = strlen(name);
+        vted_path_match_t fresh; /* the name, looked at before it
+                                    takes its place */
         int slot;
 
         if (name[0] == '.')
@@ -150,13 +176,17 @@ static int CollectMatches(DIR *handle, const char *dir,
             continue;
         }
 
-        /* the listing stays sorted, so the menu and the stem read
-           the order the shell's own completion would; a full listing
-           keeps the names the sort puts first, the largest giving
-           way to a smaller one come later */
+        memcpy(fresh.name, name, name_len + 1);
+        NameLook(dir, name, &fresh.is_dir, &fresh.size, &fresh.mtime);
+
+        /* the listing stays in the order the sort asks, so the menu
+           and the stem read it the way the asking sort lays it; a
+           full listing keeps the names the sort puts first, the
+           last of them giving way to a name the sort puts before
+           it */
         if (count == max)
         {
-            if (strcmp(out[max - 1].name, name) <= 0)
+            if (!MatchBefore(&fresh, &out[max - 1], sort))
             {
                 continue;
             }
@@ -164,15 +194,13 @@ static int CollectMatches(DIR *handle, const char *dir,
         }
 
         slot = count;
-        while (slot > 0 && strcmp(out[slot - 1].name, name) > 0)
+        while (slot > 0 && MatchBefore(&fresh, &out[slot - 1], sort))
         {
             out[slot] = out[slot - 1];
             slot--;
         }
 
-        memcpy(out[slot].name, name, name_len + 1);
-        NameLook(dir, name, &out[slot].is_dir, &out[slot].size,
-                 &out[slot].mtime);
+        out[slot] = fresh;
         count++;
     }
 
@@ -195,13 +223,16 @@ int PathListMatches(const char *typed, vted_path_match_t *out, int max)
         return -1; /* the reason stands in errno for the caller */
     }
 
-    count = CollectMatches(handle, dir, prefix, NULL, 0, out, max);
+    /* the completion reads the alphabet's own order, the way the
+       shell's own completion does */
+    count = CollectMatches(handle, dir, prefix, NULL, 0,
+                           VTED_PATH_SORT_NAME, out, max);
     closedir(handle);
     return count;
 }
 
 int PathListFiltered(const char *dir, const char *filter, int take_hidden,
-                     vted_path_match_t *out, int max)
+                     vted_path_sort_t sort, vted_path_match_t *out, int max)
 {
     DIR *handle;
     int count;
@@ -213,12 +244,14 @@ int PathListFiltered(const char *dir, const char *filter, int take_hidden,
         return -1; /* the reason stands in errno for the caller */
     }
 
-    count = CollectMatches(handle, dir, "", filter, take_hidden, out, max);
+    count = CollectMatches(handle, dir, "", filter, take_hidden,
+                           sort, out, max);
     closedir(handle);
     return count;
 }
 
-int PathListAll(const char *dir, vted_path_match_t *out, int max)
+int PathListAll(const char *dir, vted_path_sort_t sort,
+                vted_path_match_t *out, int max)
 {
     DIR *handle;
     int count;
@@ -230,7 +263,7 @@ int PathListAll(const char *dir, vted_path_match_t *out, int max)
         return -1; /* the reason stands in errno for the caller */
     }
 
-    count = CollectMatches(handle, dir, "", NULL, 1, out, max);
+    count = CollectMatches(handle, dir, "", NULL, 1, sort, out, max);
     closedir(handle);
     return count;
 }
