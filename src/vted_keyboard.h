@@ -68,6 +68,11 @@ typedef enum
                         from the words of the buffer */
     OpenFileAtCursor, /* Alt-o: the file the cursor sits on, opened the
                          way gf does in vi */
+    BrowseCreate, /* Alt-a: a name made in the directory the browse
+                     lists, the listing standing again */
+    BrowseRename, /* Alt-r: the name under the selection of the
+                     browse moved to another name in the same
+                     directory */
     ElectricBracketsToggle, /* Alt-(: the electric bracket pairs on
                                or off */
     SuspendEditor,   /* Alt-z: hand the terminal back to the shell and

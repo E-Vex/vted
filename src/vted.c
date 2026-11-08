@@ -298,6 +298,11 @@ static void EditorLandJump(int line, int column)
 static int EditorBrowseDirectory(const char *path, char *message,
                                  size_t message_size);
 
+/* asks the bar for an answer, the plain prompt without a completion:
+   declared here so the browse can ask for a name to make or move,
+   the prompt standing where the listing does */
+static char *EditorPrompt(const char *label, const char *initial);
+
 /* opens the name the way the Alt-o keys do: a relative name stands
    beside the file being edited first — the way an #include does —
    and as it stands, in the working directory, when that one does
@@ -459,6 +464,22 @@ static void BrowseFormatTime(long long mtime, char *out, int room)
     snprintf(out, (size_t)room, "%s", "-");
 }
 
+/* the name as the bar can hold it: cut at a character boundary
+   when the room runs out, so the word the bar says around it never
+   loses its own tail to a name too long for it */
+static void BrowseNamePreview(const char *name, char *out, int room)
+{
+    int len = (int)strlen(name);
+
+    if (len >= room)
+    {
+        len = Utf8PrevBoundary(name, room - 1);
+    }
+
+    memcpy(out, name, (size_t)len);
+    out[len] = '\0';
+}
+
 /* lays one line of the browse: the name — a slash behind it when it
    names a directory — laid one character at a time and never cut
    inside one where its own room ends, and behind it the bytes the
@@ -545,9 +566,13 @@ static void BrowseLayLine(char *line, size_t line_size,
    them, the names laid by name, by size the largest first or by
    time the newest first, the way ls -S and ls -t lay their own,
    the name the selection stands on standing selected through the
-   resort and the bar saying which order stands — the arrows and
-   the wheel stepping through them, Enter or a left click walking
-   into a directory and opening a file, Backspace going up a level
+   resort and the bar saying which order stands — Alt-a making a
+   name in the directory being listed, the prompt taking the name
+   and a trailing slash making a directory of it, the listing
+   standing again with the name it gained selected — the arrows
+   and the wheel stepping through them, Enter or a left click
+   walking into a directory and
+   opening a file, Backspace going up a level
    with the name walked from standing selected, and ESC leaving the
    editor where it was. Bytes typed while the listing stands narrow
    it the way the goto prompt carries its answer: the bar carries
@@ -917,6 +942,96 @@ static int EditorBrowseDirectory(const char *path, char *message,
                          : sort == VTED_PATH_SORT_SIZE
                                ? "Sorted by size, the largest first"
                                : "Sorted by time, the newest first");
+            continue;
+        }
+
+        if (c == BrowseCreate)
+        {
+            /* Alt-a makes a name in the directory being listed: the
+               prompt takes the name — a trailing slash making a
+               directory of it, the slash the listing itself puts
+               behind one — and the listing stands again with the
+               name it gained standing selected, the filter off so
+               the name shows. The prompt answers in the directory
+               being listed, not the working one, so it completes
+               nothing: a name, not a path */
+            char label[PATH_MAX + 32];
+            char name[VTED_PATH_NAME_MAX];
+            char *answer;
+            size_t answer_len;
+            int make_dir;
+
+            snprintf(label, sizeof(label), "Create in %.*s: ",
+                     BrowseShownLen(here), here);
+            answer = EditorPrompt(label, NULL);
+
+            if (answer == NULL)
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "Cancelled the create");
+                continue;
+            }
+
+            answer_len = strlen(answer);
+            make_dir = answer_len > 0 && answer[answer_len - 1] == '/';
+
+            if (make_dir)
+            {
+                answer_len--; /* the slash says the kind, it is not
+                                 part of the name */
+                answer[answer_len] = '\0';
+            }
+
+            if (answer_len == 0)
+            {
+                free(answer);
+                snprintf(warn, sizeof(warn), "%s", "Nothing to make");
+                continue;
+            }
+
+            if (strchr(answer, '/') != NULL)
+            {
+                free(answer);
+                snprintf(warn, sizeof(warn), "%s",
+                         "A name, not a path: the slash stays out of it");
+                continue;
+            }
+
+            if (answer_len >= sizeof(name))
+            {
+                free(answer);
+                snprintf(warn, sizeof(warn), "%s",
+                         "The name is too long for a listing to carry");
+                continue;
+            }
+
+            snprintf(name, sizeof(name), "%s", answer);
+            free(answer);
+
+            if ((make_dir ? PathCreateDir(here, name)
+                          : PathCreateFile(here, name)) != 0)
+            {
+                int saved = errno;
+
+                snprintf(warn, sizeof(warn), "Cannot create: %s",
+                         saved != 0 ? strerror(saved)
+                                    : "the name did not come to be");
+            }
+            else
+            {
+                char preview[40]; /* the name as the bar holds it */
+
+                BrowseNamePreview(name, preview, (int)sizeof(preview));
+                snprintf(warn, sizeof(warn), "Created %s%s", preview,
+                         make_dir ? "/" : "");
+                snprintf(from, sizeof(from), "%s", name);
+
+                /* the listing stands whole so the name it gained
+                   shows, the way a walk in lands on a whole listing */
+                filter_len = 0;
+                filter[0] = '\0';
+            }
+
             continue;
         }
 

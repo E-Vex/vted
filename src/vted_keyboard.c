@@ -500,6 +500,24 @@ int ParseArrowKey(void)
         return OpenFileAtCursor;
     }
 
+    /* Alt-a makes a name in the directory the browse lists: a for
+       add, the way the picker adds a buffer of its own — a plain a
+       is a character of the text and stays one, and the key answers
+       only where a listing stands */
+    if (introducer == 'a')
+    {
+        return BrowseCreate;
+    }
+
+    /* Alt-r moves the name under the selection of the browse to
+       another name in the same directory: r for rename, the way the
+       shell's mv renames — a plain r is a character of the text and
+       stays one, and the key answers only where a listing stands */
+    if (introducer == 'r')
+    {
+        return BrowseRename;
+    }
+
     /* Alt-( turns the electric bracket pairs on and off: the bracket
        itself, spelled with Alt, telling its own kind what to do — a
        plain ( is a character of the text and stays one */
