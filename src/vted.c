@@ -407,7 +407,12 @@ static int BrowseShownLen(const char *path)
    stepping through them, Enter or a left click walking into a
    directory and opening a file, Backspace going up a level with the
    name walked from standing selected, and ESC leaving the editor
-   where it was. Returns what an open of the pick says in message —
+   where it was. Bytes typed while the listing stands narrow it the
+   way the goto prompt carries its answer: the bar carries the
+   filter, the names that carry its bytes anywhere in them stay
+   standing, Backspace gives it a byte back and only then goes up a
+   level, and ESC takes it off with the browse standing before it
+   cancels. Returns what an open of the pick says in message —
    1 when a file came open — and says the cancel itself */
 static int EditorBrowseDirectory(const char *path, char *message,
                                  size_t message_size)
@@ -419,6 +424,11 @@ static int EditorBrowseDirectory(const char *path, char *message,
     const char *shown[BROWSE_LINES];
     char from[VTED_PATH_NAME_MAX]; /* the name a walk up selects */
     char warn[96]; /* a word the bar holds until the next key */
+    char filter[VTED_PATH_NAME_MAX]; /* the bytes the listing is
+                                        narrowed to, carried in the
+                                        bar the way a prompt carries
+                                        its answer */
+    int filter_len = 0;
     int selection = 0;
     int hidden = 0; /* a dot takes the hidden names in and holds
                        them back again, the listing standing again
@@ -427,6 +437,7 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
     from[0] = '\0';
     warn[0] = '\0';
+    filter[0] = '\0';
 
     if (len >= sizeof(here))
     {
@@ -450,11 +461,25 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
     while (1)
     {
-        int count = hidden
-                        ? PathListAll(here, matches, VTED_PATH_MATCHES)
-                        : PathListMatches(here, matches, VTED_PATH_MATCHES);
+        /* the listing the bar stands on: the whole of it, or the
+           names that carry the filter's bytes somewhere in them */
+        int count;
         int window_first = 0; /* the head of the window a click maps
                                  into, when a listing was drawn */
+
+        if (filter_len > 0)
+        {
+            count = PathListFiltered(here, filter, hidden,
+                                     matches, VTED_PATH_MATCHES);
+        }
+        else if (hidden)
+        {
+            count = PathListAll(here, matches, VTED_PATH_MATCHES);
+        }
+        else
+        {
+            count = PathListMatches(here, matches, VTED_PATH_MATCHES);
+        }
 
         if (count < 0)
         {
@@ -543,10 +568,25 @@ static int EditorBrowseDirectory(const char *path, char *message,
         }
 
         /* the hint, or what a walk that could not happen says, or an
-           empty directory saying so */
+           empty directory saying so — the filter carried in the bar
+           the way a prompt carries its answer, so the narrowing
+           stands spelled out while it narrows */
         if (warn[0] != '\0')
         {
             SetStatusMessage("%s", warn);
+        }
+        else if (filter_len > 0)
+        {
+            if (count == 0)
+            {
+                SetStatusMessage("Browse %.*s (filter '%s'): no name carries it; Backspace edits the filter, ESC takes it off",
+                                 BrowseShownLen(here), here, filter);
+            }
+            else
+            {
+                SetStatusMessage("Browse %.*s (filter '%s'): arrows move, Enter or a click takes, Backspace edits the filter, ESC takes it off",
+                                 BrowseShownLen(here), here, filter);
+            }
         }
         else if (count == 0)
         {
@@ -579,13 +619,49 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
         warn[0] = '\0';
 
-        if (c == 27) /* ESC: the editor stays where it was */
+        if (c == 27)
         {
+            /* a filter standing comes off first — the listing stands
+               whole again, the name the selection stands on standing
+               through the relisting — the way ESC takes the
+               completion's menu down with the prompt standing, and
+               only then leaves the editor where it was */
+            if (filter_len > 0)
+            {
+                if (count > 0)
+                {
+                    snprintf(from, sizeof(from), "%s",
+                             matches[selection].name);
+                }
+
+                filter_len = 0;
+                filter[0] = '\0';
+                continue;
+            }
+
             break;
         }
 
         if (c == 127)
         {
+            /* a filter standing gives a byte back the way a prompt's
+               backspace does, an empty one leaving the listing whole
+               again — the name the selection stands on standing
+               through the relisting when the new listing still holds
+               it */
+            if (filter_len > 0)
+            {
+                if (count > 0)
+                {
+                    snprintf(from, sizeof(from), "%s",
+                             matches[selection].name);
+                }
+
+                filter_len = Utf8PrevBoundary(filter, filter_len);
+                filter[filter_len] = '\0';
+                continue;
+            }
+
             /* Backspace goes up a level, the name walked from standing
                selected in the listing above; the root stays the root */
             size_t end = strlen(here);
@@ -633,13 +709,16 @@ static int EditorBrowseDirectory(const char *path, char *message,
             continue;
         }
 
-        if (c == '.')
+        if (c == '.' && filter_len == 0)
         {
             /* a dot toggles the hidden names — held back the way the
                Tab completion holds them until the dot takes them in
                — the name the selection stands on standing selected
                through the relisting when the new listing still holds
-               it, and the bar saying which way they stand */
+               it, and the bar saying which way they stand. A filter
+               standing takes the dot as its own byte instead, so the
+               names a '.txt' narrows to stay reachable — the hidden
+               toggle keeping its key when none stands */
             if (count > 0)
             {
                 snprintf(from, sizeof(from), "%s",
@@ -708,8 +787,13 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
             if (matches[take].is_dir)
             {
+                /* the walk in takes the filter off: the listing it
+                   lands on stands whole, its own narrowing its own
+                   round */
                 memcpy(here, into, strlen(into) + 1);
                 selection = 0;
+                filter_len = 0;
+                filter[0] = '\0';
                 continue;
             }
 
@@ -741,6 +825,25 @@ static int EditorBrowseDirectory(const char *path, char *message,
         else if (count > 0 && c == ArrowDown)
         {
             selection = selection < count - 1 ? selection + 1 : 0;
+        }
+        else if (((c >= 32 && c <= 126) || (c >= 128 && c <= 255)) &&
+                 filter_len < (int)sizeof(filter) - 1)
+        {
+            /* the bytes typed while the listing stands narrow it, the
+               way the goto prompt carries its answer: the bar carries
+               the filter, the names that carry its bytes anywhere in
+               them stay standing, and the name the selection stands
+               on stands selected through the relisting when the
+               narrowed listing still holds it */
+            if (count > 0)
+            {
+                snprintf(from, sizeof(from), "%s",
+                         matches[selection].name);
+            }
+
+            filter[filter_len++] = (char)c;
+            filter[filter_len] = '\0';
+            continue;
         }
 
         /* any other key only repaints the listing */
