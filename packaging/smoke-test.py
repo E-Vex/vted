@@ -1153,7 +1153,12 @@ def browse_smoke(binary):
     selection, a walk into a narrower directory painting the rows
     the wider listing covered, the hidden names held back until a
     dot takes them in and back out with the selection standing
-    through it and a take from the hidden ones opening one, an
+    through it and a take from the hidden ones opening one, the
+    bytes typed narrowing the listing with the filter carried in
+    the bar, Backspace giving a byte back and only then going up,
+    ESC taking the filter off with the browse standing, a take from
+    the narrowed listing, the walk in taking the filter off, and a
+    dot going into the filter instead of the hidden toggle, an
     empty directory saying so with Backspace going up and the name
     walked from standing selected, a walk in from the listing
     above, a left click taking the line drawn under it, ESC
@@ -1275,6 +1280,164 @@ def browse_smoke(binary):
         return fail('the click did not take the line drawn under it')
     if b'Ln 1/2' not in drew:
         return fail('the click did not open on the first line')
+
+    # the bytes typed while the listing stands narrow it, the way
+    # the goto prompt carries its answer in the bar: the filter
+    # itself carried in the bar, the names that carry its bytes
+    # anywhere in them staying standing, Backspace giving a byte
+    # back and only then going up a level, a filter nothing carries
+    # saying so, ESC taking the filter off with the browse standing
+    # before it cancels, a take from the narrowed listing, the walk
+    # in taking the filter off, and a dot going into the filter
+    # instead of the hidden toggle
+    drive(fd, CTRL_G, out)
+    drive(fd, (BROWSE_TREE + '/sub').encode(), out)
+    out.clear()
+    drive(fd, ENTER, out)
+    out.clear()
+
+    # 'e' takes nothing out — every name of sub carries one — but
+    # the bar carries the filter itself
+    drive(fd, b'e', out)
+    drew = b''.join(out)
+
+    if b"(filter 'e')" not in drew:
+        return fail("the bar did not carry the filter 'e'")
+    if b'inner/' not in drew:
+        return fail("the filter 'e' took a name that carries it out")
+
+    # 'p' takes the names that carry 'ep' nowhere out
+    out.clear()
+    drive(fd, b'p', out)
+    drew = b''.join(out)
+
+    if b'inner/' in drew:
+        return fail("the filter 'ep' left inner/ standing")
+    if b'deep.txt' not in drew or b'deeper.txt' not in drew:
+        return fail("the filter 'ep' took a name that carries it out")
+
+    # Backspace gives the byte back — and a second one empties the
+    # filter, the listing standing whole again with the bar saying
+    # so the plain way
+    out.clear()
+    drive(fd, BACKSPACE, out)
+    drew = b''.join(out)
+
+    if b'inner/' not in drew:
+        return fail('Backspace did not give the filter byte back')
+
+    out.clear()
+    drive(fd, BACKSPACE, out)
+    drew = b''.join(out)
+
+    if b'inner/' not in drew:
+        return fail('an emptied filter did not leave the listing whole')
+    if b'(filter' in drew:
+        return fail('an emptied filter stayed carried in the bar')
+
+    # a filter nothing carries says so, the menu coming down the way
+    # an empty directory takes it down
+    out.clear()
+    drive(fd, b'z', out)
+    drew = b''.join(out)
+
+    if b'no name carries it' not in drew:
+        return fail('a filter nothing carries did not say so')
+    if b'deep.txt' in drew:
+        return fail('a filter nothing carries left a name standing')
+
+    # ESC takes the filter off with the browse standing — the whole
+    # listing back, no cancel yet — and only the second one cancels
+    # the browse, the editor standing where it was
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'deep.txt' not in drew or b'inner/' not in drew:
+        return fail('ESC did not take the filter off with the browse standing')
+    if b'Cancelled' in drew:
+        return fail('ESC cancelled the browse with a filter standing')
+
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'Cancelled the browse' not in drew:
+        return fail('the second ESC did not cancel the browse')
+    if b'far one' not in drew:
+        return fail('the cancel did not leave the editor where it was')
+
+    # a take from the narrowed listing opens the file under it:
+    # 'deepe' narrows to deeper.txt alone, the selection landing on
+    # it through the relisting
+    drive(fd, CTRL_G, out)
+    drive(fd, (BROWSE_TREE + '/sub').encode(), out)
+    drive(fd, ENTER, out)
+    drive(fd, b'deep', out)
+    out.clear()
+    drive(fd, b'e', out)
+    drew = b''.join(out)
+
+    if b'deep.txt' in drew:
+        return fail("the filter 'deepe' left deep.txt standing")
+    if b'deeper.txt' not in drew:
+        return fail("the filter 'deepe' took deeper.txt out")
+
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'deeper.txt' not in drew:
+        return fail('the take from the narrowed listing did not open the file')
+    if b'Ln 1/2' not in drew:
+        return fail('the take from the narrowed listing did not open on the first line')
+
+    # the walk in takes the filter off: 'in' narrows to inner/
+    # alone, Enter walks in, the listing of it stands whole, and
+    # Backspace goes up a level again — the filter gone, not edited
+    drive(fd, CTRL_G, out)
+    drive(fd, (BROWSE_TREE + '/sub').encode(), out)
+    drive(fd, ENTER, out)
+    out.clear()
+    drive(fd, b'in', out)
+    drew = b''.join(out)
+
+    if b'deep.txt' in drew or b'deeper.txt' in drew:
+        return fail("the filter 'in' left a name standing that carries it nowhere")
+    if b'inner/' not in drew:
+        return fail("the filter 'in' took inner/ out")
+
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'one.txt' not in drew:
+        return fail('the walk in from a narrowed listing did not list the directory')
+
+    drive(fd, BACKSPACE, out)
+    drew = b''.join(out)
+
+    if b'deep.txt' not in drew or b'inner/' not in drew:
+        return fail('Backspace after the walk in did not go up with the filter off')
+
+    # a dot goes into the filter when one stands, instead of
+    # toggling the hidden names: nothing of sub carries 'e.', and
+    # .secret — which carries an 'e' — would stand were the dot a
+    # toggle that took the hidden names in
+    out.clear()
+    drive(fd, b'e', out)
+    drive(fd, b'.', out)
+    drew = b''.join(out)
+
+    if b"(filter 'e.')" not in drew:
+        return fail('a dot did not go into the filter standing')
+    if b'no name carries it' not in drew:
+        return fail("the filter 'e.' did not say nothing carries it")
+    if b'.secret' in drew:
+        return fail('a dot with a filter standing toggled the hidden names')
+
+    # the filter standing comes off and the browse with it, so the
+    # rounds after this one start from the editor standing
+    drive(fd, ESC, out)
+    drive(fd, ESC, out)
 
     # the hidden names stay back the way the Tab completion holds
     # them, until a dot takes them in and back out again: the
