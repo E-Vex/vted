@@ -396,11 +396,14 @@ selection    |
 | Ctrl-B          | pick a buffer from a list of what is open        |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
 | Alt-1 .. Alt-9  | jump to the buffer with that number               |
-| Ctrl-G          | go to a line number, or a line with a ":column"
+| Ctrl-G          | go to a line number, a line with a ":column"
   tail behind it — the way a jump tail carries one, counting from
-  one the way the bar counts — landing mid-viewport, a number past
-  the end on the last line, a column past a row's end on that row's
-  end (ESC cancels)                            |
+  one the way the bar counts — or the name of a file, opened the
+  way Alt-o opens one and landed on the spot its tail says; Alt-/
+  completes the name part of the answer, the tail behind the name
+  standing through the round. A number past the end lands on the
+  last line, a column past a row's end on that row's end, and the
+  spot lands mid-viewport (ESC cancels)                |
 | Ctrl-F          | incremental search: every match lights up while
   you type and the prompt counts them, the left and right arrows step
   between matches, a match that left the viewport lands mid-viewport,
@@ -519,6 +522,21 @@ New in 0.3.4:
   the prompt standing, and any other key takes it down, a fresh Tab
   listing again. A Tab that finds nothing, or a directory that cannot
   be read, says so in the bar until the next key
+- Goto names and completion: the Ctrl-G prompt takes the name of a
+  file as well as a line — `src/vted.c:1315` opening the file and
+  landing on its line 1315, the open the Alt-o keys make: a
+  relative name standing beside the file being edited first, the
+  way an #include does, a file already open coming back into view,
+  and a name that opens no file saying so in the bar. Alt-/
+  completes the name part of the answer — the bytes before the
+  ":line:column" tail it may carry — the way the shell's Tab
+  completes a path: one name lands whole, several land the part
+  they agree on with the menu the Tab completion uses standing
+  over the answers, and a take from the menu lands behind the name
+  part, the tail standing through the round and the take so the
+  spot the answer spells survives the completion. A round that
+  finds nothing, or a directory that cannot be read, says so in
+  the bar the way the Tab's round does
 - Replace with confirmation: Ctrl-R asks about one match at a time
   instead of laying every occurrence in at once. The walk starts at
   the cursor and wraps around the buffer the way the search does,

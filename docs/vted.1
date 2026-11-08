@@ -399,10 +399,13 @@ step through the open buffers, wrapping around both ends
 jump to the buffer with that number
 .TP
 .B Ctrl\-G
-go to a line number, or a line with a ":column" tail behind it, the
+go to a line number, a line with a ":column" tail behind it — the
 way a jump tail carries one, both counting from one the way the bar
-counts them; a number past the end goes to the last line, a column
-past a row's end on that row's end, and the spot lands mid-viewport
+counts them — or the name of a file, opened the way Alt\-o opens
+one and landed on the spot its tail says; Alt\-/ completes the name
+part of the answer, the tail behind the name standing through the
+round. A number past the end goes to the last line, a column past
+a row's end on that row's end, and the spot lands mid-viewport
 with wrapping's tall rows counted, ESC cancels
 .TP
 .B Ctrl\-F
