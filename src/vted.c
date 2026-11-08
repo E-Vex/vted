@@ -541,13 +541,17 @@ static void BrowseLayLine(char *line, size_t line_size,
    answered as one: the menu the buffer picker uses lists the names
    the directory holds — a directory with its slash behind it, the
    hidden ones held back the way the Tab completion holds them until
-   a dot takes them in and back out — the arrows and the wheel
-   stepping through them, Enter or a left click walking into a
-   directory and opening a file, Backspace going up a level with the
-   name walked from standing selected, and ESC leaving the editor
-   where it was. Bytes typed while the listing stands narrow it the
-   way the goto prompt carries its answer: the bar carries the
-   filter, the names that carry its bytes anywhere in them stay
+   a dot takes them in and back out — Alt-s turning the sort of
+   them, the names laid by name, by size the largest first or by
+   time the newest first, the way ls -S and ls -t lay their own,
+   the name the selection stands on standing selected through the
+   resort and the bar saying which order stands — the arrows and
+   the wheel stepping through them, Enter or a left click walking
+   into a directory and opening a file, Backspace going up a level
+   with the name walked from standing selected, and ESC leaving the
+   editor where it was. Bytes typed while the listing stands narrow
+   it the way the goto prompt carries its answer: the bar carries
+   the filter, the names that carry its bytes anywhere in them stay
    standing, Backspace gives it a byte back and only then goes up a
    level, and ESC takes it off with the browse standing before it
    cancels. Returns what an open of the pick says in message —
@@ -568,6 +572,15 @@ static int EditorBrowseDirectory(const char *path, char *message,
                                         its answer */
     int filter_len = 0;
     int selection = 0;
+    vted_path_sort_t sort = VTED_PATH_SORT_NAME; /* the order the
+                                       listing lays its names in:
+                                       the alphabet's own until
+                                       Alt-s turns it to the
+                                       bytes or the moments, the
+                                       walk carrying it from
+                                       directory to directory the
+                                       way it carries the hidden
+                                       gate */
     int hidden = 0; /* a dot takes the hidden names in and holds
                        them back again, the listing standing again
                        either way */
@@ -608,18 +621,15 @@ static int EditorBrowseDirectory(const char *path, char *message,
         if (filter_len > 0)
         {
             count = PathListFiltered(here, filter, hidden,
-                                     VTED_PATH_SORT_NAME,
-                                     matches, VTED_PATH_MATCHES);
+                                     sort, matches, VTED_PATH_MATCHES);
         }
         else if (hidden)
         {
-            count = PathListAll(here, VTED_PATH_SORT_NAME,
-                                matches, VTED_PATH_MATCHES);
+            count = PathListAll(here, sort, matches, VTED_PATH_MATCHES);
         }
         else
         {
-            count = PathListMatches(here, VTED_PATH_SORT_NAME,
-                                    matches, VTED_PATH_MATCHES);
+            count = PathListMatches(here, sort, matches, VTED_PATH_MATCHES);
         }
 
         if (count < 0)
@@ -873,6 +883,40 @@ static int EditorBrowseDirectory(const char *path, char *message,
             snprintf(warn, sizeof(warn), "%s",
                      hidden ? "The hidden names are shown"
                             : "The hidden names are held back");
+            continue;
+        }
+
+        if (c == ThemePrompt)
+        {
+            /* Alt-s turns the sort — the s of ls -S, the theme's
+               own key standing only where the text is edited: the
+               listing lays its names by name, then by size the
+               largest first, then by time the newest first, and
+               back by name, the name the selection stands on
+               standing selected through the resort and the bar
+               saying which order stands until the next key. A
+               filter standing stays standing: the sort and the
+               narrowing are the listing's own two questions, asked
+               together */
+            if (count > 0)
+            {
+                snprintf(from, sizeof(from), "%s",
+                         matches[selection].name);
+            }
+            else
+            {
+                from[0] = '\0';
+            }
+
+            sort = sort == VTED_PATH_SORT_NAME ? VTED_PATH_SORT_SIZE
+                   : sort == VTED_PATH_SORT_SIZE ? VTED_PATH_SORT_MTIME
+                                                 : VTED_PATH_SORT_NAME;
+            snprintf(warn, sizeof(warn), "%s",
+                     sort == VTED_PATH_SORT_NAME
+                         ? "Sorted by name"
+                         : sort == VTED_PATH_SORT_SIZE
+                               ? "Sorted by size, the largest first"
+                               : "Sorted by time, the newest first");
             continue;
         }
 
