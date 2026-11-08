@@ -37,6 +37,12 @@
 #define PATH_MENU_LINES 16
 #define PATH_MENU_WIDTH (VTED_PATH_NAME_MAX + 2)
 
+/* how many lines the directory browse draws, and the room one of
+   its lines has: the same window, over the names a directory
+   holds */
+#define BROWSE_LINES 16
+#define BROWSE_WIDTH (VTED_PATH_NAME_MAX + 2)
+
 /* how many screen lines one notch of the wheel scrolls, the way a
    terminal of its own scrolls a page the mouse is over */
 #define MOUSE_WHEEL_LINES 3
@@ -277,12 +283,20 @@ static void EditorLandJump(int line, int column)
     ScreenCenterCursor();
 }
 
+/* walks a directory the way the shell's cd does, for a name that
+   answered as one — the editor's own browser, not the shell's:
+   declared here so the open it hangs off can hand a directory to
+   it */
+static int EditorBrowseDirectory(const char *path, char *message,
+                                 size_t message_size);
+
 /* opens the name the way the Alt-o keys do: a relative name stands
    beside the file being edited first — the way an #include does —
    and as it stands, in the working directory, when that one does
    not answer. A file that is already open just comes back into
    view, and a name that is no file at all says so instead: gf goes
-   to a file that is there, it does not start one. The line and
+   to a file that is there, it does not start one. A directory
+   answers with the browse of it. The line and
    column name the spot the open lands on. Says what happened in
    message — "Opened ..." or the reason no file came open — for the
    caller to put in the bar. Returns 1 when a file came open, 0
@@ -293,7 +307,6 @@ static int EditorOpenNamed(const char *name, int line, int column,
     char beside[PATH_MAX];
     const char *dir = NULL; /* the spelling beside the file being edited */
     const char *open;
-    struct stat info;
 
     /* a relative name beside a file that has a directory of its own:
        the directory the file was opened from answers for it */
@@ -321,12 +334,28 @@ static int EditorOpenNamed(const char *name, int line, int column,
     }
     else
     {
-        /* a name that answered, but as no file: a directory; one that
-           answered nowhere is simply not there */
-        if (stat(name, &info) == 0 || (dir != NULL && stat(dir, &info) == 0))
+        /* a name that answered, but as no file: a directory answers
+           with the browse of it, anything else that answered is no
+           file to go to, and one that answered nowhere is simply
+           not there */
+        struct stat name_info;
+        struct stat dir_info;
+        int name_there = stat(name, &name_info) == 0;
+        int dir_there = dir != NULL && stat(dir, &dir_info) == 0;
+
+        if (name_there && S_ISDIR(name_info.st_mode))
         {
-            snprintf(message, message_size,
-                     "A directory, not a file: %s", name);
+            return EditorBrowseDirectory(name, message, message_size);
+        }
+
+        if (dir_there && S_ISDIR(dir_info.st_mode))
+        {
+            return EditorBrowseDirectory(dir, message, message_size);
+        }
+
+        if (name_there || dir_there)
+        {
+            snprintf(message, message_size, "Not a file: %s", name);
         }
         else
         {
@@ -354,6 +383,347 @@ static int EditorOpenNamed(const char *name, int line, int column,
              vted_buffer.filename, BuffersCurrent() + 1,
              BuffersCount());
     return 1;
+}
+
+/* the length the path shows as, its trailing slash off — the browse
+   names the directory it walks without the slash it carries */
+static int BrowseShownLen(const char *path)
+{
+    int len = (int)strlen(path);
+
+    if (len > 1 && path[len - 1] == '/')
+    {
+        len--;
+    }
+
+    return len;
+}
+
+/* walks a directory the way the shell's cd does, for a name that
+   answered as one: the menu the buffer picker uses lists the names
+   the directory holds — a directory with its slash behind it, the
+   hidden ones held back the way the Tab completion holds them —
+   the arrows and the wheel stepping through them, Enter or a left
+   click walking into a directory and opening a file, Backspace
+   going up a level with the name walked from standing selected,
+   and ESC leaving the editor where it was. Returns what an open of
+   the pick says in message — 1 when a file came open — and says
+   the cancel itself */
+static int EditorBrowseDirectory(const char *path, char *message,
+                                 size_t message_size)
+{
+    char here[PATH_MAX]; /* the directory being listed, slash and all */
+    char into[PATH_MAX]; /* the path a take makes of the answer */
+    vted_path_match_t matches[VTED_PATH_MATCHES];
+    char lines[BROWSE_LINES][BROWSE_WIDTH];
+    const char *shown[BROWSE_LINES];
+    char from[VTED_PATH_NAME_MAX]; /* the name a walk up selects */
+    char warn[96]; /* a word the bar holds until the next key */
+    int selection = 0;
+    size_t len = (size_t)snprintf(here, sizeof(here), "%s", path);
+
+    from[0] = '\0';
+    warn[0] = '\0';
+
+    if (len >= sizeof(here))
+    {
+        snprintf(message, message_size, "Path too long: %s", path);
+        return 0;
+    }
+
+    /* the listing wants the directory's own slash behind it, so the
+       path a take makes is the name laid behind it */
+    if (len == 0 || here[len - 1] != '/')
+    {
+        if (len + 1 >= sizeof(here))
+        {
+            snprintf(message, message_size, "Path too long: %s", path);
+            return 0;
+        }
+
+        here[len] = '/';
+        here[len + 1] = '\0';
+    }
+
+    while (1)
+    {
+        int count = PathListMatches(here, matches, VTED_PATH_MATCHES);
+        int window_first = 0; /* the head of the window a click maps
+                                 into, when a listing was drawn */
+
+        if (count < 0)
+        {
+            /* the directory could not be read: the reason says so,
+               the way the Tab round's reason does */
+            ScreenShowMenu(NULL, 0, 0);
+            snprintf(message, message_size,
+                     "Cannot read the directory: %s", strerror(errno));
+            return 0;
+        }
+
+        /* the listing above names the one the walk up came from, so
+           it stands selected */
+        if (from[0] != '\0')
+        {
+            int i;
+
+            selection = 0;
+
+            for (i = 0; i < count; i++)
+            {
+                if (strcmp(matches[i].name, from) == 0)
+                {
+                    selection = i;
+                    break;
+                }
+            }
+
+            from[0] = '\0';
+        }
+
+        /* a relist that lost the names past the selection takes it
+           back to the last name left */
+        if (count > 0 && selection > count - 1)
+        {
+            selection = count - 1;
+        }
+
+        if (count == 0)
+        {
+            /* an empty directory: the menu stays down, the keys that
+               walk keep working */
+            ScreenShowMenu(NULL, 0, 0);
+        }
+        else
+        {
+            /* a window of the list that follows the selection, the
+               way the buffer picker's window does */
+            int shown_count = count;
+            int first;
+            int i;
+
+            if (shown_count > BROWSE_LINES)
+            {
+                shown_count = BROWSE_LINES;
+            }
+            if (shown_count > vted_editor_config.screen_rows - 2)
+            {
+                shown_count = vted_editor_config.screen_rows - 2;
+            }
+            if (shown_count < 1)
+            {
+                shown_count = 1;
+            }
+
+            first = selection - shown_count / 2;
+            if (first < 0)
+            {
+                first = 0;
+            }
+            if (first > count - shown_count)
+            {
+                first = count - shown_count;
+            }
+
+            for (i = 0; i < shown_count; i++)
+            {
+                snprintf(lines[i], sizeof(lines[i]), "%s%s",
+                         matches[first + i].name,
+                         matches[first + i].is_dir ? "/" : "");
+                shown[i] = lines[i];
+            }
+
+            window_first = first;
+            ScreenShowMenu(shown, shown_count, selection - first);
+        }
+
+        /* the hint, or what a walk that could not happen says, or an
+           empty directory saying so */
+        if (warn[0] != '\0')
+        {
+            SetStatusMessage("%s", warn);
+        }
+        else if (count == 0)
+        {
+            SetStatusMessage("Browse %.*s: empty; Backspace goes up, ESC cancels",
+                             BrowseShownLen(here), here);
+        }
+        else
+        {
+            SetStatusMessage("Browse %.*s: arrows move, Enter or a click takes, Backspace goes up, ESC cancels",
+                             BrowseShownLen(here), here);
+        }
+
+        RefreshScreen();
+
+        int c = ReadKeyPress();
+
+        EditorSuspendIfAsked(c);
+
+        if (c == 0)
+        {
+            /* idle read timeout: just repaint — unless a signal asked
+               the editor to leave, which a browse must not outwait */
+            if (TerminalWantsExit())
+            {
+                break;
+            }
+
+            continue;
+        }
+
+        warn[0] = '\0';
+
+        if (c == 27) /* ESC: the editor stays where it was */
+        {
+            break;
+        }
+
+        if (c == 127)
+        {
+            /* Backspace goes up a level, the name walked from standing
+               selected in the listing above; the root stays the root */
+            size_t end = strlen(here);
+            size_t name_start;
+
+            if (strcmp(here, "/") == 0)
+            {
+                continue;
+            }
+
+            if (end > 0 && here[end - 1] == '/')
+            {
+                end--; /* the trailing slash comes off */
+            }
+
+            name_start = end;
+
+            while (name_start > 0 && here[name_start - 1] != '/')
+            {
+                name_start--;
+            }
+
+            if (end - name_start < sizeof(from))
+            {
+                memcpy(from, here + name_start, end - name_start);
+                from[end - name_start] = '\0';
+            }
+            else
+            {
+                from[0] = '\0'; /* too long to select, the head stands */
+            }
+
+            /* the slash before the name stays; the root keeps its
+               own */
+            if (name_start == 0)
+            {
+                here[0] = '/';
+                here[1] = '\0';
+            }
+            else
+            {
+                here[name_start] = '\0';
+            }
+
+            continue;
+        }
+
+        if (c == '\r' || c == '\n' || c == MousePress)
+        {
+            /* Enter takes the selection, a left click the line drawn
+               under it; a click of another button, or past the list,
+               keeps the browse waiting */
+            int take = selection;
+
+            if (c == MousePress)
+            {
+                take = -1;
+
+                if (MouseLastButton() == 0)
+                {
+                    int line = ScreenMenuLineAt(MouseLastY());
+
+                    if (line >= 0)
+                    {
+                        take = window_first + line;
+                    }
+                }
+
+                if (take < 0)
+                {
+                    continue;
+                }
+            }
+
+            if (count == 0)
+            {
+                continue; /* nothing to take in an empty directory */
+            }
+
+            if (take >= count)
+            {
+                take = count - 1; /* a window line the list no longer has */
+            }
+
+            /* a directory walks in, a file opens: the path the name
+               makes behind the directory being listed */
+            if (snprintf(into, sizeof(into), "%s%s%s", here,
+                         matches[take].name,
+                         matches[take].is_dir ? "/" : "") >=
+                (int)sizeof(into))
+            {
+                snprintf(warn, sizeof(warn),
+                         "The path is too long to walk into");
+                continue;
+            }
+
+            if (matches[take].is_dir)
+            {
+                memcpy(here, into, strlen(into) + 1);
+                selection = 0;
+                continue;
+            }
+
+            ScreenShowMenu(NULL, 0, 0);
+            return EditorOpenNamed(into, 0, 0, message, message_size);
+        }
+
+        if (count > 0 && (c == MouseWheelUp || c == MouseWheelDown))
+        {
+            /* the wheel steps the selection one name the way it does
+               over the buffer list, without the wrap */
+            if (c == MouseWheelUp && selection > 0)
+            {
+                selection--;
+            }
+
+            if (c == MouseWheelDown && selection < count - 1)
+            {
+                selection++;
+            }
+
+            continue;
+        }
+
+        if (count > 0 && c == ArrowUp)
+        {
+            selection = selection > 0 ? selection - 1 : count - 1;
+        }
+        else if (count > 0 && c == ArrowDown)
+        {
+            selection = selection < count - 1 ? selection + 1 : 0;
+        }
+
+        /* any other key only repaints the listing */
+    }
+
+    /* the lines were only borrowed, and the rows under the menu need
+       their own paint back; the bar says the browse was cancelled,
+       the editor standing where it was */
+    ScreenShowMenu(NULL, 0, 0);
+    snprintf(message, message_size, "Cancelled the browse of %.*s",
+             BrowseShownLen(here), here);
+    return 0;
 }
 
 /* one round of the completion a path answer takes: the directory
