@@ -1150,22 +1150,32 @@ def browse_smoke(binary):
     """the browse run: Alt-o on a directory opening the browse of
     it — the name standing beside the file being edited, the way an
     #include does — a take from the menu opening the file under the
-    selection, an empty directory saying so with Backspace going up
-    and the name walked from standing selected, a walk in from the
-    listing above, a left click taking the line drawn under it, ESC
-    cancelling with the editor standing where it was, and a name
-    that is no regular file still told so in the bar"""
+    selection, a walk into a narrower directory painting the rows
+    the wider listing covered, an empty directory saying so with
+    Backspace going up and the name walked from standing selected,
+    a walk in from the listing above, a left click taking the line
+    drawn under it, ESC cancelling with the editor standing where it
+    was, and a name that is no regular file still told so in the
+    bar"""
     import shutil
 
     shutil.rmtree(BROWSE_TREE, ignore_errors=True)
-    os.makedirs(os.path.join(BROWSE_TREE, 'sub'))
+    os.makedirs(os.path.join(BROWSE_TREE, 'sub', 'inner'))
     os.makedirs(os.path.join(BROWSE_TREE, 'empty'))
+
+    # the file the browse opens over reaches the bottom of the
+    # viewport, so the menu it draws covers text rows and not the
+    # tildes below the text, which paint again every frame anyway
+    start_text = ('sub\nempty\nstart again\n' +
+                  ''.join('filler %02d\n' % i for i in range(1, 30)))
     with open(os.path.join(BROWSE_TREE, 'start.txt'), 'w') as f:
-        f.write('sub\nempty\nstart again\n')
+        f.write(start_text)
     with open(os.path.join(BROWSE_TREE, 'sub', 'deep.txt'), 'w') as f:
         f.write('deep one\ndeep two\ndeep three\n')
     with open(os.path.join(BROWSE_TREE, 'sub', 'deeper.txt'), 'w') as f:
         f.write('far one\nfar two\n')
+    with open(os.path.join(BROWSE_TREE, 'sub', 'inner', 'one.txt'), 'w') as f:
+        f.write('innermost\n')
 
     pid, fd = spawn(binary, [os.path.join(BROWSE_TREE, 'start.txt')])
     out = []
@@ -1180,9 +1190,39 @@ def browse_smoke(binary):
     if b'Browse' not in drew or b'sub' not in drew:
         return fail('Alt-o on a directory did not open the browse of it')
 
-    for said in (b'deep.txt', b'deeper.txt'):
+    for said in (b'deep.txt', b'deeper.txt', b'inner/'):
         if said not in drew:
             return fail(f"the browse did not draw '{said.decode()}'")
+
+    # the walk into the narrower directory: the listing of it draws
+    # fewer lines than the one above, and the rows the wider menu
+    # covered paint as text again instead of staying as they were
+    # drawn — the stale lines would be the wider listing standing
+    drive(fd, b'\x1b[B', out)
+    drive(fd, b'\x1b[B', out)
+    out.clear()
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'one.txt' not in drew:
+        return fail('the walk in did not list the directory')
+    if b'filler 17' not in drew:
+        return fail('the rows the wider menu covered did not paint again')
+    for stale in (b'deep.txt', b'deeper.txt'):
+        if stale in drew:
+            return fail(f"the walk in left '{stale.decode()}' standing")
+
+    # Backspace goes up a level, the name walked from standing
+    # selected in the listing above, and the arrows come back to the
+    # head of it
+    drive(fd, BACKSPACE, out)
+    drew = b''.join(out)
+
+    if b'inner/' not in drew:
+        return fail('the walk up did not draw the name walked from')
+
+    drive(fd, b'\x1b[A', out)
+    drive(fd, b'\x1b[A', out)
 
     # Enter takes the selection: deep.txt opens on its first line
     drive(fd, ENTER, out)
@@ -1220,11 +1260,11 @@ def browse_smoke(binary):
     if b'deep.txt' not in drew or b'deeper.txt' not in drew:
         return fail('the walk in did not list the directory')
 
-    # a left click takes the line drawn under it — the second of the
-    # two menu lines, deeper.txt — and the open lands on its first
+    # a left click takes the line drawn under it — the middle of the
+    # three menu lines, deeper.txt — and the open lands on its first
     # line
     out.clear()
-    drive(fd, b'\x1b[<0;1;22M\x1b[<0;1;22m', out)
+    drive(fd, b'\x1b[<0;1;21M\x1b[<0;1;21m', out)
     drew = b''.join(out)
 
     if b'Opened' not in drew or b'deeper.txt' not in drew:
@@ -1265,9 +1305,10 @@ def browse_smoke(binary):
     if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
         return fail(f'exit status {status:#x}')
 
-    for name, said in (('start.txt', 'sub\nempty\nstart again\n'),
+    for name, said in (('start.txt', start_text),
                        ('sub/deep.txt', 'deep one\ndeep two\ndeep three\n'),
-                       ('sub/deeper.txt', 'far one\nfar two\n')):
+                       ('sub/deeper.txt', 'far one\nfar two\n'),
+                       ('sub/inner/one.txt', 'innermost\n')):
         with open(os.path.join(BROWSE_TREE, name)) as f:
             if f.read() != said:
                 return fail(f'the browse run did not leave {name} as written')

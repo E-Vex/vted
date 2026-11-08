@@ -915,8 +915,23 @@ static int menu_selected;
 void ScreenShowMenu(const char *const *lines, int count, int selected)
 {
     /* rows the menu covered were skipped by their own dirty flags
-       while it was up: once it is gone they have to be painted again */
-    if (menu_count > 0 && count == 0)
+       while it was up: once it is gone, or draws fewer lines than it
+       did, they have to be painted again. The count alone says how
+       many rows it draws, for a menu taller than the screen draws
+       only the rows the screen has */
+    int covered = menu_count;
+    int covering = count;
+
+    if (covered > vted_editor_config.screen_rows)
+    {
+        covered = vted_editor_config.screen_rows;
+    }
+    if (covering > vted_editor_config.screen_rows)
+    {
+        covering = vted_editor_config.screen_rows;
+    }
+
+    if (covered > covering)
     {
         ScreenMarkAllDirty();
     }
