@@ -525,10 +525,17 @@ New in 0.3.4:
   editor's own browser, walking the way the shell's cd does. The
   menu the buffer picker uses lists the names the directory holds
   — a directory with its slash behind it, the hidden ones held
-  back the way the Tab completion holds them — a window of them
-  that follows the selection. The arrows and the wheel step
-  through them, Enter or a left click walks into a directory and
-  opens a file, Backspace goes up a level with the name walked
+  back the way the Tab completion holds them — and says behind
+  every name the bytes it holds and the moment it was last
+  changed, the way `ls` lays its own columns: the size
+  right-aligned against the moment, both ending at the screen's
+  right edge — the size in the units a hand reads (K, M, G and T,
+  each a thousand and twenty-four of the one below), the moment
+  the year, the month, the day, the hour and the minute, and a
+  name never cut inside a character where its own room runs out.
+  A window of them follows the selection. The arrows and the wheel
+  step through them, Enter or a left click walks into a directory
+  and opens a file, Backspace goes up a level with the name walked
   from standing selected in the listing above, and ESC leaves the
   editor where it was, the bar saying the browse was cancelled.
   A dot toggles the hidden names: held back the way the Tab
