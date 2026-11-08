@@ -569,9 +569,11 @@ static void BrowseLayLine(char *line, size_t line_size,
    resort and the bar saying which order stands — Alt-a making a
    name in the directory being listed, the prompt taking the name
    and a trailing slash making a directory of it, the listing
-   standing again with the name it gained selected — the arrows
-   and the wheel stepping through them, Enter or a left click
-   walking into a directory and
+   standing again with the name it gained selected — Alt-r moving
+   the name under the selection to another name in the same
+   directory, what the name holds coming with it — the arrows and
+   the wheel stepping through them, Enter or a left click walking
+   into a directory and
    opening a file, Backspace going up a level
    with the name walked from standing selected, and ESC leaving the
    editor where it was. Bytes typed while the listing stands narrow
@@ -1028,6 +1030,82 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
                 /* the listing stands whole so the name it gained
                    shows, the way a walk in lands on a whole listing */
+                filter_len = 0;
+                filter[0] = '\0';
+            }
+
+            continue;
+        }
+
+        if (c == BrowseRename && count > 0)
+        {
+            /* Alt-r moves the name under the selection to another
+               name in the same directory: the prompt opens with the
+               name standing in it — the hand editing what stands —
+               and what the name holds comes with it, the listing
+               standing again with the name under its new name
+               selected, the filter off so the name shows */
+            char label[VTED_PATH_NAME_MAX + 24];
+            char name[VTED_PATH_NAME_MAX];
+            char *answer;
+
+            snprintf(label, sizeof(label), "Rename %s to: ",
+                     matches[selection].name);
+            answer = EditorPrompt(label, matches[selection].name);
+
+            if (answer == NULL)
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "Cancelled the rename");
+                continue;
+            }
+
+            if (strcmp(answer, matches[selection].name) == 0)
+            {
+                free(answer);
+                snprintf(warn, sizeof(warn), "%s",
+                         "The name stands as it was");
+                continue;
+            }
+
+            if (strchr(answer, '/') != NULL)
+            {
+                free(answer);
+                snprintf(warn, sizeof(warn), "%s",
+                         "A name, not a path: the slash stays out of it");
+                continue;
+            }
+
+            if (strlen(answer) >= sizeof(name))
+            {
+                free(answer);
+                snprintf(warn, sizeof(warn), "%s",
+                         "The name is too long for a listing to carry");
+                continue;
+            }
+
+            snprintf(name, sizeof(name), "%s", answer);
+            free(answer);
+
+            if (PathRenameName(here, matches[selection].name, name) != 0)
+            {
+                int saved = errno;
+
+                snprintf(warn, sizeof(warn), "Cannot rename: %s",
+                         saved != 0 ? strerror(saved)
+                                    : "the name did not move");
+            }
+            else
+            {
+                char preview[40]; /* the name as the bar holds it */
+
+                BrowseNamePreview(name, preview, (int)sizeof(preview));
+                snprintf(warn, sizeof(warn), "Renamed to %s", preview);
+                snprintf(from, sizeof(from), "%s", name);
+
+                /* the listing stands whole so the name under its new
+                   name shows, the way a walk in lands on a whole
+                   listing */
                 filter_len = 0;
                 filter[0] = '\0';
             }
