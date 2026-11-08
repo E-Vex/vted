@@ -110,12 +110,13 @@
 #
 # A browse run walks the directory browse the way a hand would: Alt-o
 # on a directory opening the browse of it — the name standing beside
-# the file being edited — a take from the menu opening the file under
-# the selection, an empty directory saying so with Backspace going
-# up and the name walked from standing selected, a walk in from the
-# listing above, a left click taking the line drawn under it, ESC
-# cancelling with the editor standing where it was, and a name that
-# is no regular file still told so in the bar.
+# the file being edited — the size and the time of a name said behind
+# it the way ls lays its own columns, a take from the menu opening the
+# file under the selection, an empty directory saying so with
+# Backspace going up and the name walked from standing selected, a
+# walk in from the listing above, a left click taking the line drawn
+# under it, ESC cancelling with the editor standing where it was, and
+# a name that is no regular file still told so in the bar.
 #
 # A prompt run walks the Alt-o of the message bar the way a hand
 # would: a search whose query names a file with a :line:column tail
@@ -1149,8 +1150,10 @@ def gocomplete_smoke(binary):
 def browse_smoke(binary):
     """the browse run: Alt-o on a directory opening the browse of
     it — the name standing beside the file being edited, the way an
-    #include does — a take from the menu opening the file under the
-    selection, a walk into a narrower directory painting the rows
+    #include does — the size and the time of a name said behind it
+    the way ls lays its own columns, a take from the menu opening
+    the file under the selection, a walk into a narrower directory
+    painting the rows
     the wider listing covered, the hidden names held back until a
     dot takes them in and back out with the selection standing
     through it and a take from the hidden ones opening one, the
@@ -1179,6 +1182,10 @@ def browse_smoke(binary):
         f.write(start_text)
     with open(os.path.join(BROWSE_TREE, 'sub', 'deep.txt'), 'w') as f:
         f.write('deep one\ndeep two\ndeep three\n')
+    # the moment the clock was set to, so the walk asks after a time
+    # it knows — the size is the 29 bytes the file was written with
+    os.utime(os.path.join(BROWSE_TREE, 'sub', 'deep.txt'),
+             (1715000000, 1715000000))
     with open(os.path.join(BROWSE_TREE, 'sub', 'deeper.txt'), 'w') as f:
         f.write('far one\nfar two\n')
     with open(os.path.join(BROWSE_TREE, 'sub', '.secret'), 'w') as f:
@@ -1202,6 +1209,15 @@ def browse_smoke(binary):
     for said in (b'deep.txt', b'deeper.txt', b'inner/'):
         if said not in drew:
             return fail(f"the browse did not draw '{said.decode()}'")
+
+    # the browse says the size and the time of every name: the bytes
+    # the name holds and the moment its clock was set to, laid behind
+    # the name the way ls lays its own columns, both ending at the
+    # screen's right edge
+    when = time.strftime('%Y-%m-%d %H:%M',
+                         time.localtime(1715000000)).encode()
+    if b'29 ' + when not in drew:
+        return fail('the browse did not say the size and the time of deep.txt')
 
     # the walk into the narrower directory: the listing of it draws
     # fewer lines than the one above, and the rows the wider menu
