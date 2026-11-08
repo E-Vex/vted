@@ -168,6 +168,8 @@ ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
 ALT_S = b'\x1bs'    # Alt-s: the sort of the browse (the theme elsewhere)
 ALT_A = b'\x1ba'    # Alt-a: a name made in the directory the browse lists
 ALT_R = b'\x1br'    # Alt-r: the name under the selection moved to another
+ALT_W = b'\x1bw'    # Alt-w: the lines, the words and the bytes of the
+                    # name under the selection, the way wc counts them
 DELETE = b'\x1b[3~'  # Delete: the name under the selection taken away
 ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
 ALT_PERCENT = b'\x1b%'  # Alt-%: the jump to the lit partner
@@ -194,6 +196,7 @@ GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
 GOTO_TREE = '/tmp/vted-smoke-goto-tree'  # the tree the goto's Alt-/ walks
 BROWSE_TREE = '/tmp/vted-smoke-browse'  # the tree the Alt-o browse walks
 FILEOPS_TREE = '/tmp/vted-smoke-fileops'  # the tree the makes and moves walk in
+COUNT_TREE = '/tmp/vted-smoke-count'  # the tree the word count walks in
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
@@ -1835,6 +1838,119 @@ def fileops_smoke(binary):
     return 0
 
 
+def count_smoke(binary):
+    """the word count run: Alt-w asking the counting of the name
+    under the selection of the browse, the way the shell's wc
+    counts a file — the lines its newlines make, the words the runs
+    of bytes between the blanks make and the bytes themselves, a
+    last line without its own newline behind it making no line, a
+    file of nothing but blanks holding no word at all, an empty one
+    holding nothing, a directory saying it holds nothing to count,
+    and the bar carrying the counts only until the next key"""
+    import shutil
+
+    shutil.rmtree(COUNT_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(COUNT_TREE, 'inner', 'subdir'))
+
+    start_text = ('inner\n' +
+                  ''.join('filler %02d\n' % i for i in range(1, 30)))
+    with open(os.path.join(COUNT_TREE, 'start.txt'), 'w') as f:
+        f.write(start_text)
+    # the shapes the counting tells apart: blanks only, two lines of
+    # three words, a last line without its own newline, and nothing
+    # at all
+    with open(os.path.join(COUNT_TREE, 'inner', 'blank.txt'), 'w') as f:
+        f.write(' \t\n \n\n')
+    with open(os.path.join(COUNT_TREE, 'inner', 'counted.txt'), 'w') as f:
+        f.write('one two\nthree\n')
+    with open(os.path.join(COUNT_TREE, 'inner', 'tailed.txt'), 'w') as f:
+        f.write('hello')
+    with open(os.path.join(COUNT_TREE, 'inner', 'zero.txt'), 'w') as f:
+        pass
+
+    pid, fd = spawn(binary, [os.path.join(COUNT_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on the first line opens the browse of the directory, and
+    # the selection starts on its first name: the blanks-only one
+    drive(fd, ALT_O, out)
+    out.clear()
+    drive(fd, ALT_W, out)
+    drew = b''.join(out)
+
+    if b'blank.txt: 3 lines, 0 words, 6 bytes' not in drew:
+        return fail('Alt-w did not say the counts of the blanks-only file')
+
+    # two lines of three words, fourteen bytes
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # ArrowDown: onto the next name
+    drive(fd, ALT_W, out)
+    drew = b''.join(out)
+
+    if b'counted.txt: 2 lines, 3 words, 14 bytes' not in drew:
+        return fail('Alt-w did not say the counts of the counted file')
+
+    # a directory is no file to count
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # ArrowDown: onto the next name
+    drive(fd, ALT_W, out)
+    drew = b''.join(out)
+
+    if b'A directory: nothing to count' not in drew:
+        return fail('Alt-w did not say the directory holds nothing to count')
+
+    # a last line without its own newline behind it makes no line
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # ArrowDown: onto the next name
+    drive(fd, ALT_W, out)
+    drew = b''.join(out)
+
+    if b'tailed.txt: 0 lines, 1 words, 5 bytes' not in drew:
+        return fail('Alt-w did not leave the newline-less tail out of the lines')
+
+    # an empty file holds nothing at all
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # ArrowDown: onto the next name
+    drive(fd, ALT_W, out)
+    drew = b''.join(out)
+
+    if b'zero.txt: 0 lines, 0 words, 0 bytes' not in drew:
+        return fail('Alt-w did not say the empty file holds nothing')
+
+    # the bar carries the counts only until the next key: the arrow
+    # clears the word and the frame says the listing as it stands
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # ArrowDown: onto the next name
+    drew = b''.join(out)
+
+    if b'0 lines, 0 words, 0 bytes' in drew:
+        return fail('the counts stood past the key that answers them')
+
+    # ESC cancels the browse and the tree is back as it began
+    drive(fd, ESC, out)
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(os.path.join(COUNT_TREE, 'start.txt')) as f:
+        if f.read() != start_text:
+            return fail('the word count run touched start.txt')
+
+    if sorted(os.listdir(os.path.join(COUNT_TREE, 'inner'))) != \
+            ['blank.txt', 'counted.txt', 'subdir', 'tailed.txt', 'zero.txt']:
+        return fail('the word count run left the directory changed')
+
+    print('smoke: OK - walked the word count of the browse')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -2287,7 +2403,7 @@ def main() -> int:
         or quote_smoke(binary) or jump_smoke(binary) \
         or goto_smoke(binary) or gocomplete_smoke(binary) \
         or browse_smoke(binary) or fileops_smoke(binary) \
-        or prompt_smoke(binary) or match_smoke(binary)
+        or count_smoke(binary) or prompt_smoke(binary) or match_smoke(binary)
 
 
 if __name__ == '__main__':
