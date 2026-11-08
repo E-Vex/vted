@@ -118,6 +118,16 @@
 # under it, ESC cancelling with the editor standing where it was, and
 # a name that is no regular file still told so in the bar.
 #
+# A file operations run walks the makes, the moves and the takes
+# of the browse the way a hand would: Alt-a making a name in the
+# directory being listed — a file, a directory with the slash that
+# says its kind, a name already there saying so, a path rejected —
+# Alt-r moving the name under the selection to another with the
+# prompt carrying the name standing in it, and Delete asking after
+# the name under the selection, n keeping it and y taking it, a
+# directory holding a name of its own refusing to go until the
+# name inside is gone.
+#
 # A prompt run walks the Alt-o of the message bar the way a hand
 # would: a search whose query names a file with a :line:column tail
 # opened with Alt-o and landing on the spot it says, a query that
@@ -156,6 +166,9 @@ ALT_SLASH = b'\x1b/'  # Alt-/: complete the word left of the cursor
 ESC = b'\x1b'         # ESC: cancel the prompt
 ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
 ALT_S = b'\x1bs'    # Alt-s: the sort of the browse (the theme elsewhere)
+ALT_A = b'\x1ba'    # Alt-a: a name made in the directory the browse lists
+ALT_R = b'\x1br'    # Alt-r: the name under the selection moved to another
+DELETE = b'\x1b[3~'  # Delete: the name under the selection taken away
 ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
 ALT_PERCENT = b'\x1b%'  # Alt-%: the jump to the lit partner
 END = b'\x1b[F'      # End: the cursor at the row's end
@@ -180,6 +193,7 @@ QUOTE = '/tmp/vted-smoke-quote.txt'  # the buffer the quotes wrap in
 GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
 GOTO_TREE = '/tmp/vted-smoke-goto-tree'  # the tree the goto's Alt-/ walks
 BROWSE_TREE = '/tmp/vted-smoke-browse'  # the tree the Alt-o browse walks
+FILEOPS_TREE = '/tmp/vted-smoke-fileops'  # the tree the makes and moves walk in
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
@@ -1597,6 +1611,230 @@ def browse_smoke(binary):
     return 0
 
 
+def fileops_smoke(binary):
+    """the file operations run: names made in the directory the
+    browse lists — a file, a directory with the slash that says its
+    kind, a name already there saying so, a path rejected, and a
+    cancel — the name under the selection moved to another with
+    what it holds coming along, the name as it stood saying so and
+    nothing moving, the delete asked after and answered, n keeping
+    the name and y taking it, and a directory holding a name of
+    its own refusing to go until the name inside is gone"""
+    import shutil
+
+    shutil.rmtree(FILEOPS_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(FILEOPS_TREE, 'inner'))
+
+    start_text = ('inner\n' +
+                  ''.join('filler %02d\n' % i for i in range(1, 30)))
+    with open(os.path.join(FILEOPS_TREE, 'start.txt'), 'w') as f:
+        f.write(start_text)
+
+    pid, fd = spawn(binary, [os.path.join(FILEOPS_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on the first line opens the browse of the empty
+    # directory, and Alt-a makes a name in it: an empty file
+    drive(fd, ALT_O, out)
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, b'fresh.txt', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Created fresh.txt' not in drew:
+        return fail('Alt-a did not make the name in the listing')
+    if b'fresh.txt' not in drew:
+        return fail('the made name did not stand in the listing')
+
+    # a name already there is not made again
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, b'fresh.txt', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Cannot create: File exists' not in drew:
+        return fail('a name already there was made again')
+
+    # a path is not a name
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, b'a/b', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'A name, not a path' not in drew:
+        return fail('a path was taken for a name')
+
+    # a trailing slash makes a directory of the name
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, b'made-dir/', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Created made-dir/' not in drew:
+        return fail('the trailing slash did not make a directory')
+    if b'made-dir/' not in drew:
+        return fail('the made directory did not stand in the listing')
+
+    # ESC cancels the create, the listing standing
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'Cancelled the create' not in drew:
+        return fail('ESC did not cancel the create')
+
+    # Alt-r moves the name under the selection: the prompt opens
+    # with the name standing in it, the hand clearing it and typing
+    # the new one — the listing [fresh.txt, made-dir/] has
+    # made-dir selected from the make, so a step up wraps to
+    # fresh.txt
+    drive(fd, b'\x1b[A', out)
+    out.clear()
+    drive(fd, ALT_R, out)
+    drive(fd, BACKSPACE * 9, out)
+    drive(fd, b'moved.txt', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Renamed to moved.txt' not in drew:
+        return fail('Alt-r did not move the name')
+
+    # a key clears the word and the frame says the listing as it
+    # stands: the moved name in it, the old one gone — the prompt's
+    # own label carried the old name while it stood
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'moved.txt' not in drew:
+        return fail('the moved name did not stand in the listing')
+    if b'fresh.txt' in drew:
+        return fail('the old name stayed after the move')
+
+    # the name as it stood says so and nothing moves
+    out.clear()
+    drive(fd, ALT_R, out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'The name stands as it was' not in drew:
+        return fail('the name as it stood did not say so')
+
+    # ESC cancels the rename
+    out.clear()
+    drive(fd, ALT_R, out)
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'Cancelled the rename' not in drew:
+        return fail('ESC did not cancel the rename')
+
+    # the Delete key asks after the name under the selection — the
+    # step down from made-dir landing on moved.txt — and n keeps it
+    drive(fd, b'\x1b[B', out)
+    out.clear()
+    drive(fd, DELETE, out)
+    drew = b''.join(out)
+
+    if b"Delete 'moved.txt'? y deletes" not in drew:
+        return fail('the Delete key did not ask after the name')
+
+    out.clear()
+    drive(fd, b'n', out)
+    drew = b''.join(out)
+
+    if b'Deleted' in drew or b'moved.txt' not in drew:
+        return fail('n did not keep the name')
+
+    # y takes it, the listing losing it
+    out.clear()
+    drive(fd, DELETE, out)
+    drive(fd, b'y', out)
+    drew = b''.join(out)
+
+    if b'Deleted moved.txt' not in drew:
+        return fail('y did not take the name away')
+
+    # a key clears the word, and the listing no longer holds the
+    # name — made-dir the only one left
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'moved.txt' in drew:
+        return fail('the listing still held the taken name')
+
+    # a directory holding a name of its own refuses to go: walk in,
+    # make one, walk up, ask, and the bar says why it stays
+    drive(fd, ENTER, out)
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, b'inside.txt', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Created inside.txt' not in drew:
+        return fail('Alt-a did not make a name inside the directory')
+
+    drive(fd, BACKSPACE, out)
+    out.clear()
+    drive(fd, DELETE, out)
+    drive(fd, b'y', out)
+    drew = b''.join(out)
+
+    if b'Cannot delete: Directory not empty' not in drew:
+        return fail('a directory holding a name did not refuse to go')
+    if b'made-dir/' not in drew:
+        return fail('the refusing directory did not stay in the listing')
+
+    # the name inside gone, the directory goes too
+    drive(fd, ENTER, out)
+    out.clear()
+    drive(fd, DELETE, out)
+    drive(fd, b'y', out)
+    drew = b''.join(out)
+
+    if b'Deleted inside.txt' not in drew:
+        return fail('the name inside the directory did not go')
+
+    drive(fd, BACKSPACE, out)
+    out.clear()
+    drive(fd, DELETE, out)
+    drive(fd, b'y', out)
+    drew = b''.join(out)
+
+    if b'Deleted made-dir' not in drew:
+        return fail('the emptied directory did not go')
+
+    # ESC cancels the browse and the tree is back as it began
+    drive(fd, ESC, out)
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(os.path.join(FILEOPS_TREE, 'start.txt')) as f:
+        if f.read() != start_text:
+            return fail('the file operations run touched start.txt')
+
+    if os.listdir(os.path.join(FILEOPS_TREE, 'inner')):
+        return fail('the file operations run left a name behind')
+
+    print('smoke: OK - walked the file operations of the browse')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -2048,7 +2286,8 @@ def main() -> int:
         or electric_smoke(binary) or wrap_smoke(binary) \
         or quote_smoke(binary) or jump_smoke(binary) \
         or goto_smoke(binary) or gocomplete_smoke(binary) \
-        or browse_smoke(binary) or prompt_smoke(binary) or match_smoke(binary)
+        or browse_smoke(binary) or fileops_smoke(binary) \
+        or prompt_smoke(binary) or match_smoke(binary)
 
 
 if __name__ == '__main__':
