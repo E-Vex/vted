@@ -618,7 +618,8 @@ static int EditorBrowseDirectory(const char *path, char *message,
         }
         else
         {
-            count = PathListMatches(here, matches, VTED_PATH_MATCHES);
+            count = PathListMatches(here, VTED_PATH_SORT_NAME,
+                                    matches, VTED_PATH_MATCHES);
         }
 
         if (count < 0)
@@ -1012,7 +1013,10 @@ static int PromptCompletePath(char *answer, int length,
                               int *menu, int *selection,
                               char *notice, size_t notice_size)
 {
-    int found = PathListMatches(answer, matches, VTED_PATH_MATCHES);
+    /* the completion reads the alphabet's own order, the way the
+       shell's own Tab does */
+    int found = PathListMatches(answer, VTED_PATH_SORT_NAME,
+                                matches, VTED_PATH_MATCHES);
     int dir_span = PromptDirSpan(answer);
 
     *menu = 0;

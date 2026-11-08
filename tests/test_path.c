@@ -22,7 +22,8 @@ static vted_path_match_t matches[VTED_PATH_MATCHES];
    when the directory itself did not answer */
 static int List(const char *typed)
 {
-    return PathListMatches(typed, matches, VTED_PATH_MATCHES);
+    return PathListMatches(typed, VTED_PATH_SORT_NAME,
+                           matches, VTED_PATH_MATCHES);
 }
 
 static void MakeDir(const char *path)

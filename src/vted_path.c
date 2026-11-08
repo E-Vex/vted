@@ -207,7 +207,8 @@ static int CollectMatches(DIR *handle, const char *dir,
     return count;
 }
 
-int PathListMatches(const char *typed, vted_path_match_t *out, int max)
+int PathListMatches(const char *typed, vted_path_sort_t sort,
+                    vted_path_match_t *out, int max)
 {
     char dir[PATH_JOIN_MAX];
     const char *prefix;
@@ -223,10 +224,8 @@ int PathListMatches(const char *typed, vted_path_match_t *out, int max)
         return -1; /* the reason stands in errno for the caller */
     }
 
-    /* the completion reads the alphabet's own order, the way the
-       shell's own completion does */
     count = CollectMatches(handle, dir, prefix, NULL, 0,
-                           VTED_PATH_SORT_NAME, out, max);
+                           sort, out, max);
     closedir(handle);
     return count;
 }

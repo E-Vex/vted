@@ -48,11 +48,13 @@ typedef struct
    slash is the prefix every answering name starts with. A name that
    starts with a dot answers only a prefix that starts with one, the
    way the shell's completion holds the hidden names back until they
-   are asked for. The answers come out sorted, at most max of them,
-   each saying whether it names a directory, the bytes it holds and
-   the second it was last changed. Returns their count, or -1 when
-   the directory itself cannot be read */
-int PathListMatches(const char *typed, vted_path_match_t *out, int max);
+   are asked for. The answers come out in the order sort asks — the
+   completion itself reading the alphabet's own — at most max of
+   them, each saying whether it names a directory, the bytes it
+   holds and the second it was last changed. Returns their count, or
+   -1 when the directory itself cannot be read */
+int PathListMatches(const char *typed, vted_path_sort_t sort,
+                    vted_path_match_t *out, int max);
 
 /* lists the names the directory the path names holds that carry the
    filter's bytes anywhere in them — not only at their heads, the way
