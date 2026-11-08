@@ -383,10 +383,12 @@ selection    |
   directory, when that one does not answer; a file that is already
   open just comes back into view, a directory opens the browse of
   it — the menu the buffer picker uses listing the names it holds,
-  the arrows and the wheel stepping through, Enter or a left click
-  walking into a directory and opening a file, Backspace going up
-  a level with the name walked from standing selected, ESC leaving
-  the editor where it was — and a name that is not there, or one
+  the hidden ones held back until a dot takes them in and back out,
+  the name the selection stands on standing through it, the arrows
+  and the wheel stepping through, Enter or a left click walking
+  into a directory and opening a file, Backspace going up a level
+  with the name walked from standing selected, ESC leaving the
+  editor where it was — and a name that is not there, or one
   that is no regular file, says so in the bar: gf goes to a file
   that is there, it does not start one. The name
   can carry a ":line:column" tail, the way a compiler names a spot,
@@ -526,10 +528,15 @@ New in 0.3.4:
   opens a file, Backspace goes up a level with the name walked
   from standing selected in the listing above, and ESC leaves the
   editor where it was, the bar saying the browse was cancelled.
-  The prompts that open a named file — the searches' Alt-o among
-  them, and the goto's answer — browse the same way, and a name
-  that answers as neither a file nor a directory is still told so
-  in the bar
+  A dot toggles the hidden names: held back the way the Tab
+  completion holds them until the dot takes them in, . and ..
+  staying back either way as the walk itself and its way up, the
+  name the selection stands on standing selected through the
+  relisting, and the bar saying which way they stand until the
+  next key. The prompts that open a named file — the searches'
+  Alt-o among them, and the goto's answer — browse the same way,
+  and a name that answers as neither a file nor a directory is
+  still told so in the bar
 - Path completion: Tab in the Open and Save-as prompts completes the
   path typed so far, the way the shell's Tab does. The directory the
   path names answers with the names that start with what follows its
