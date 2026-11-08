@@ -1,6 +1,7 @@
 /* opendir() and stat() are POSIX, not ISO C11 */
 #define _POSIX_C_SOURCE 200809L
 /*===============================*/
+#include <ctype.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -398,4 +399,92 @@ int PathDeleteName(const char *dir, const char *name)
     }
 
     return unlink(path) == 0 ? 0 : -1;
+}
+
+/* the room one round of the counting reads at a time: a file walks
+   into the counts a room at a time, so a file of any size is
+   counted without ever standing whole in the memory */
+#define COUNT_CHUNK 4096
+
+int PathCountName(const char *dir, const char *name,
+                  vted_path_counts_t *out)
+{
+    char path[PATH_JOIN_MAX];
+    struct stat info;
+    FILE *file;
+    unsigned char chunk[COUNT_CHUNK];
+    size_t got;
+    int in_word = 0; /* the counting stands inside a word: the next
+                        blank byte ends it */
+
+    out->lines = 0;
+    out->words = 0;
+    out->bytes = 0;
+
+    if (NamePath(dir, name, path, (int)sizeof(path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    if (stat(path, &info) != 0)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    if (S_ISDIR(info.st_mode))
+    {
+        /* a directory is no file to count, the way wc says nothing
+           of one */
+        errno = EISDIR;
+        return -1;
+    }
+
+    file = fopen(path, "rb");
+
+    if (file == NULL)
+    {
+        return -1;
+    }
+
+    while ((got = fread(chunk, 1, sizeof(chunk), file)) > 0)
+    {
+        size_t i;
+
+        for (i = 0; i < got; i++)
+        {
+            if (chunk[i] == '\n')
+            {
+                out->lines++;
+            }
+
+            /* a word is a run of bytes between the blanks, the way
+               wc counts them: the first byte of one after a blank
+               — or before any, at the file's own head — makes the
+               word, the blanks inside a run keeping it going */
+            if (isspace(chunk[i]))
+            {
+                in_word = 0;
+            }
+            else if (!in_word)
+            {
+                in_word = 1;
+                out->words++;
+            }
+        }
+
+        out->bytes += (long long)got;
+    }
+
+    if (ferror(file))
+    {
+        int saved = errno;
+
+        fclose(file);
+        errno = saved;
+        return -1;
+    }
+
+    fclose(file);
+    return 0;
 }

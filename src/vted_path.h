@@ -117,4 +117,27 @@ int PathRenameName(const char *dir, const char *from, const char *to);
    when it stayed, the reason standing in errno for the caller */
 int PathDeleteName(const char *dir, const char *name);
 
+/* the counts the shell's wc makes of a file: the lines its
+   newlines make, the words the runs of bytes between the blanks
+   make, and the bytes themselves */
+typedef struct
+{
+    long long lines; /* the newlines the file holds, each ending a
+                        line the way wc counts them */
+    long long words; /* the runs of non-blank bytes the file holds,
+                        a word ending where a blank one comes */
+    long long bytes; /* the bytes the file holds, all of them */
+} vted_path_counts_t;
+
+/* counts the name in the directory the path names the way the
+   shell's wc counts a file: the lines its newlines make — a last
+   line without its own newline behind it not making one, the way
+   wc counts — the words the runs of bytes between the blanks make,
+   and the bytes themselves. A directory is no file to count and
+   says no, the way wc says nothing of one. Returns 0 with the
+   counts laid in *out, or -1 when the name could not be read, the
+   reason standing in errno for the caller */
+int PathCountName(const char *dir, const char *name,
+                  vted_path_counts_t *out);
+
 #endif
