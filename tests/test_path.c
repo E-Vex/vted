@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 /*===============================*/
 #include "tests/vted_test.h"
@@ -43,6 +45,46 @@ static void MakeFile(const char *path)
     }
 
     fclose(file);
+}
+
+/* writes the bytes a file holds, so a listing can be asked after
+   sizes it knows */
+static void FillFile(const char *path, const char *bytes)
+{
+    FILE *file = fopen(path, "wb");
+    size_t len = strlen(bytes);
+
+    if (file == NULL)
+    {
+        perror(path);
+        exit(1);
+    }
+
+    if (fwrite(bytes, 1, len, file) != len)
+    {
+        perror(path);
+        exit(1);
+    }
+
+    fclose(file);
+}
+
+/* sets the moment a name was last changed, so a listing can be
+   asked after a time it knows the same way */
+static void SetMtime(const char *path, long long seconds)
+{
+    struct timespec when[2];
+
+    when[0].tv_sec = (time_t)seconds;
+    when[0].tv_nsec = 0;
+    when[1].tv_sec = (time_t)seconds;
+    when[1].tv_nsec = 0;
+
+    if (utimensat(AT_FDCWD, path, when, 0) != 0)
+    {
+        perror(path);
+        exit(1);
+    }
 }
 
 static void BuildTree(void)
@@ -372,6 +414,40 @@ static void TestFilteredListing(void)
               -1);
 }
 
+static void TestListingTellsTheMetadata(void)
+{
+    /* the bytes a name holds and the second it was last changed come
+       with the name: a file of ten bytes saying ten, an empty one
+       nothing, the moment the clock was set to saying itself — and a
+       directory carrying its own the same way, the room its listing
+       takes on the disk */
+    FillFile("alpha.txt", "0123456789");
+    FillFile("beta.txt", "vted");
+    SetMtime("alpha.txt", 1700000000);
+    SetMtime("beta.txt", 1600000000);
+    SetMtime(sub, 1500000000);
+
+    CHECK_INT(List(""), 6);
+    CHECK_INT(matches[0].size, 10);
+    CHECK_INT(matches[0].mtime, 1700000000);
+    CHECK_INT(matches[1].size, 4);
+    CHECK_INT(matches[1].mtime, 1600000000);
+    CHECK_INT(matches[4].size, 0); /* note: an empty file holds nothing */
+    CHECK_INT(matches[5].mtime, 1500000000);
+
+    /* the filtered listing says the same word for a name */
+    CHECK_INT(PathListFiltered(".", "beta", 0, matches,
+                               VTED_PATH_MATCHES), 1);
+    CHECK_INT(matches[0].size, 4);
+    CHECK_INT(matches[0].mtime, 1600000000);
+
+    /* and the every-name listing the same word again, a name among
+       the hidden ones keeping its own */
+    CHECK_INT(PathListAll(".", matches, VTED_PATH_MATCHES), 8);
+    CHECK_INT(matches[2].size, 10); /* alpha.txt, third among them all */
+    CHECK_INT(matches[2].mtime, 1700000000);
+}
+
 int main(void)
 {
     BuildTree();
@@ -382,6 +458,7 @@ int main(void)
     TestEveryNameListing();
     TestSharedStem();
     TestStemSplitsCharacters();
+    TestListingTellsTheMetadata();
     TestListingHoldsWhatItHolds();
     TestFilteredListing();
 
