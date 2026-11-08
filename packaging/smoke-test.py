@@ -1151,12 +1151,14 @@ def browse_smoke(binary):
     it — the name standing beside the file being edited, the way an
     #include does — a take from the menu opening the file under the
     selection, a walk into a narrower directory painting the rows
-    the wider listing covered, an empty directory saying so with
-    Backspace going up and the name walked from standing selected,
-    a walk in from the listing above, a left click taking the line
-    drawn under it, ESC cancelling with the editor standing where it
-    was, and a name that is no regular file still told so in the
-    bar"""
+    the wider listing covered, the hidden names held back until a
+    dot takes them in and back out with the selection standing
+    through it and a take from the hidden ones opening one, an
+    empty directory saying so with Backspace going up and the name
+    walked from standing selected, a walk in from the listing
+    above, a left click taking the line drawn under it, ESC
+    cancelling with the editor standing where it was, and a name
+    that is no regular file still told so in the bar"""
     import shutil
 
     shutil.rmtree(BROWSE_TREE, ignore_errors=True)
@@ -1174,6 +1176,8 @@ def browse_smoke(binary):
         f.write('deep one\ndeep two\ndeep three\n')
     with open(os.path.join(BROWSE_TREE, 'sub', 'deeper.txt'), 'w') as f:
         f.write('far one\nfar two\n')
+    with open(os.path.join(BROWSE_TREE, 'sub', '.secret'), 'w') as f:
+        f.write('hidden one\nhidden two\n')
     with open(os.path.join(BROWSE_TREE, 'sub', 'inner', 'one.txt'), 'w') as f:
         f.write('innermost\n')
 
@@ -1272,6 +1276,54 @@ def browse_smoke(binary):
     if b'Ln 1/2' not in drew:
         return fail('the click did not open on the first line')
 
+    # the hidden names stay back the way the Tab completion holds
+    # them, until a dot takes them in and back out again: the
+    # selection stands through the relisting, and a take from the
+    # hidden ones opens one
+    drive(fd, CTRL_G, out)
+    drive(fd, (BROWSE_TREE + '/sub').encode(), out)
+    out.clear()
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'.secret' in drew:
+        return fail('the browse drew a hidden name without being asked to')
+    if b'deep.txt' not in drew:
+        return fail('the browse did not draw the plain names')
+
+    drive(fd, b'.', out)
+    drew = b''.join(out)
+
+    if b'.secret' not in drew:
+        return fail('the dot did not take the hidden names in')
+    if b'The hidden names are shown' not in drew:
+        return fail('the bar did not say the hidden names are shown')
+
+    # a second dot holds them back again, the name the selection
+    # stands on standing through both rounds
+    out.clear()
+    drive(fd, b'.', out)
+    drew = b''.join(out)
+
+    if b'.secret' in drew:
+        return fail('the second dot did not hold the hidden names back')
+    if b'The hidden names are held back' not in drew:
+        return fail('the bar did not say the hidden names are held back')
+
+    # a third takes them in again: the selection stood on deep.txt
+    # through the rounds, so the up arrow steps onto the hidden file
+    # and the take opens it
+    drive(fd, b'.', out)
+    drive(fd, b'\x1b[A', out)
+    out.clear()
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'.secret' not in drew:
+        return fail('the take did not open the hidden file')
+    if b'Ln 1/2' not in drew:
+        return fail('the hidden file did not open on its first line')
+
     # ESC cancels the browse, the editor standing where it was
     drive(fd, CTRL_G, out)
     drive(fd, (BROWSE_TREE + '/sub').encode(), out)
@@ -1282,7 +1334,7 @@ def browse_smoke(binary):
 
     if b'Cancelled the browse' not in drew:
         return fail('ESC did not cancel the browse')
-    if b'far one' not in drew:
+    if b'hidden one' not in drew:
         return fail('the cancel did not leave the editor where it was')
 
     # a name that answers as no regular file — a fifo — is told so in
@@ -1308,6 +1360,7 @@ def browse_smoke(binary):
     for name, said in (('start.txt', start_text),
                        ('sub/deep.txt', 'deep one\ndeep two\ndeep three\n'),
                        ('sub/deeper.txt', 'far one\nfar two\n'),
+                       ('sub/.secret', 'hidden one\nhidden two\n'),
                        ('sub/inner/one.txt', 'innermost\n')):
         with open(os.path.join(BROWSE_TREE, name)) as f:
             if f.read() != said:
