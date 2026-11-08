@@ -1,5 +1,6 @@
 /* mkdtemp() and mkdir() are POSIX, not ISO C11 */
 #define _POSIX_C_SOURCE 200809L
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -529,6 +530,84 @@ static void TestSortedListings(void)
     unlink("srt04");
 }
 
+static void TestNameOperations(void)
+{
+    /* a name is made — an empty file the exclusive way, a directory
+       of its own — moved to another name with what it holds coming
+       along, and taken away, a file outright and a directory only
+       when it holds nothing of its own */
+    CHECK_INT(PathCreateFile(".", "made.txt"), 0);
+    CHECK_INT(List("made."), 1);
+    CHECK_STR(matches[0].name, "made.txt");
+    CHECK_INT(matches[0].size, 0);
+    CHECK_INT(matches[0].is_dir, 0);
+
+    /* a name already there is not made again */
+    CHECK_INT(PathCreateFile(".", "made.txt"), -1);
+    CHECK_INT(errno, EEXIST);
+
+    /* a directory of its own, empty and ready to walk into */
+    CHECK_INT(PathCreateDir(".", "made-dir"), 0);
+    CHECK_INT(List("made"), 2);
+    CHECK_STR(matches[0].name, "made-dir");
+    CHECK_INT(matches[0].is_dir, 1);
+    CHECK_STR(matches[1].name, "made.txt");
+
+    CHECK_INT(PathCreateDir(".", "made-dir"), -1);
+
+    /* the move: what the name holds comes with it, the old name
+       gone */
+    FillFile("made.txt", "what it holds");
+    CHECK_INT(PathRenameName(".", "made.txt", "moved.txt"), 0);
+    CHECK_INT(List("moved"), 1);
+    CHECK_STR(matches[0].name, "moved.txt");
+    CHECK_INT(matches[0].size, 13);
+    CHECK_INT(List("made.txt"), 0);
+
+    /* a move onto a name of the other kind says no, both names
+       standing as they were */
+    CHECK_INT(PathRenameName(".", "moved.txt", "made-dir"), -1);
+    CHECK_INT(List("moved"), 1);
+    CHECK_INT(List("made"), 1);
+
+    /* a file goes outright */
+    CHECK_INT(PathDeleteName(".", "moved.txt"), 0);
+    CHECK_INT(List("moved"), 0);
+
+    /* an empty directory goes too */
+    CHECK_INT(PathDeleteName(".", "made-dir"), 0);
+    CHECK_INT(List("made"), 0);
+
+    /* a directory holding a name of its own stays: the round never
+       reaches into it behind the walk's back */
+    CHECK_INT(PathCreateDir(".", "kept"), 0);
+    CHECK_INT(PathCreateFile("kept", "inside"), 0);
+    CHECK_INT(PathDeleteName(".", "kept"), -1);
+    CHECK_INT(errno, ENOTEMPTY);
+    CHECK_INT(List("kept"), 1);
+    CHECK_INT(matches[0].is_dir, 1);
+
+    CHECK_INT(PathDeleteName("kept", "inside"), 0);
+    CHECK_INT(PathDeleteName(".", "kept"), 0);
+
+    /* a directory moves like any name, what it holds coming along */
+    CHECK_INT(PathCreateDir(".", "hold-a"), 0);
+    CHECK_INT(PathCreateFile("hold-a", "inside"), 0);
+    CHECK_INT(PathRenameName(".", "hold-a", "hold-b"), 0);
+    CHECK_INT(List("hold-"), 1);
+    CHECK_STR(matches[0].name, "hold-b");
+    CHECK_INT(matches[0].is_dir, 1);
+    CHECK_INT(PathDeleteName("hold-b", "inside"), 0);
+    CHECK_INT(PathDeleteName(".", "hold-b"), 0);
+
+    /* a name that is not there says no, and a directory that is
+       not there says no to a make */
+    CHECK_INT(PathDeleteName(".", "gone"), -1);
+    CHECK_INT(PathCreateFile("nodir", "x"), -1);
+    CHECK_INT(PathCreateDir("nodir", "x"), -1);
+    CHECK_INT(PathRenameName(".", "gone", "elsewhere"), -1);
+}
+
 int main(void)
 {
     BuildTree();
@@ -543,6 +622,7 @@ int main(void)
     TestSortedListings();
     TestListingHoldsWhatItHolds();
     TestFilteredListing();
+    TestNameOperations();
 
     TakeTreeDown();
 
