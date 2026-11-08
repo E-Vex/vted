@@ -552,8 +552,23 @@ New in 0.3.4:
   until the next key, and the walk carries the sort from directory
   to directory the way it carries the hidden gate; a filter
   standing stays standing, the sort and the narrowing the
-  listing's own two questions, asked together. Bytes typed while
-  the listing stands narrow it, the
+  listing's own two questions, asked together. Alt-a makes a name
+  in the directory being listed — the prompt taking the name, a
+  trailing slash making a directory of it, the slash the listing
+  itself puts behind one — the answer a name, not a path, and the
+  listing standing again with the name it gained selected, the
+  bar saying what came of it. Alt-r moves the name under the
+  selection to another name in the same directory, the prompt
+  opening with the name standing in it and what the name holds
+  coming with it; the name as it stood says so and nothing moves.
+  Delete takes the name under the selection away, the bar asking
+  first — y deleting, any other key keeping — a file going
+  outright and a directory only when it holds nothing of its own,
+  the shell's rm without its -r, one that holds something saying
+  why it stays. A rename or a delete does not chase the name into
+  the open buffers: a buffer keeps what it holds, the way the
+  shell's mv and rm leave an open editor its own copy. Bytes typed
+  while the listing stands narrow it, the
   way the goto prompt carries its answer: the filter spells
   itself out in the bar as it is typed, and the names that carry
   its bytes anywhere in them — not only at their heads, the way
