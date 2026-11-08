@@ -287,6 +287,91 @@ static void TestListingHoldsWhatItHolds(void)
               "cap063");
 }
 
+static void TestFilteredListing(void)
+{
+    char wide[512];
+
+    /* the filtered listing answers with the names that carry the
+       filter's bytes anywhere in them, not only at their heads —
+       the middle is where a filter asks, the head only one of the
+       places a name can carry them — and all of them come out
+       sorted the way every listing sorts them */
+    CHECK_INT(PathListFiltered(".", "mmon", 0, matches, VTED_PATH_MATCHES),
+              2);
+    CHECK_STR(matches[0].name, "common1.c");
+    CHECK_STR(matches[1].name, "common2.h");
+
+    CHECK_INT(PathListFiltered(".", "alph", 0, matches, VTED_PATH_MATCHES),
+              1);
+    CHECK_STR(matches[0].name, "alpha.txt");
+
+    /* the dot of a name is a byte like any other: a filter can ask
+       after it in the middle of a name */
+    CHECK_INT(PathListFiltered(".", ".txt", 0, matches, VTED_PATH_MATCHES),
+              2);
+    CHECK_STR(matches[0].name, "alpha.txt");
+    CHECK_STR(matches[1].name, "beta.txt");
+
+    /* the hidden names stay back the way the browse holds them,
+       until the round takes them in — the filter asking after a
+       hidden name does not take it in by itself */
+    CHECK_INT(PathListFiltered(".", "hid", 0, matches, VTED_PATH_MATCHES), 0);
+    CHECK_INT(PathListFiltered(".", "hid", 1, matches, VTED_PATH_MATCHES), 1);
+    CHECK_STR(matches[0].name, ".hidden");
+    CHECK_INT(matches[0].is_dir, 0);
+
+    /* . and .. stay back even taken in, the walk and its way up */
+    CHECK_INT(PathListFiltered(".", ".", 1, matches, VTED_PATH_MATCHES), 6);
+    CHECK_STR(matches[0].name, ".git");
+    CHECK_STR(matches[1].name, ".hidden");
+    CHECK_STR(matches[2].name, "alpha.txt");
+    CHECK_STR(matches[3].name, "beta.txt");
+    CHECK_STR(matches[4].name, "common1.c");
+    CHECK_STR(matches[5].name, "common2.h");
+
+    /* a filter nothing carries answers with none, and one too long
+       for any name to carry answers the same — no name the listing
+       holds is that long */
+    CHECK_INT(PathListFiltered(".", "zz", 0, matches, VTED_PATH_MATCHES), 0);
+    memset(wide, 'z', sizeof(wide) - 1);
+    wide[sizeof(wide) - 1] = '\0';
+    CHECK_INT(PathListFiltered(".", wide, 0, matches, VTED_PATH_MATCHES), 0);
+
+    /* a directory named with its trailing slash answers the same
+       way, its names saying whether they name directories */
+    CHECK_INT(PathListFiltered("sub/", "e", 0, matches, VTED_PATH_MATCHES),
+              2);
+    CHECK_STR(matches[0].name, "deeper");
+    CHECK_STR(matches[1].name, "inner.txt");
+    CHECK_INT(matches[0].is_dir, 1);
+    CHECK_INT(matches[1].is_dir, 0);
+
+    CHECK_INT(PathListFiltered("sub/", "de", 0, matches, VTED_PATH_MATCHES),
+              1);
+    CHECK_STR(matches[0].name, "deeper");
+    CHECK_INT(matches[0].is_dir, 1);
+
+    /* the bytes of a name in another script are bytes like any
+       other: a filter can ask after the ones a character carries */
+    MakeFile("caf\303\251.txt");
+    CHECK_INT(PathListFiltered(".", "\303\251", 0,
+                               matches, VTED_PATH_MATCHES), 1);
+    CHECK_STR(matches[0].name, "caf\303\251.txt");
+    unlink("caf\303\251.txt");
+
+    /* the room runs out the way it does for every listing: the
+       names the sort puts first stay standing */
+    CHECK_INT(PathListFiltered(".", "cap", 0, matches, 3), 3);
+    CHECK_STR(matches[0].name, "cap000");
+    CHECK_STR(matches[1].name, "cap001");
+    CHECK_STR(matches[2].name, "cap002");
+
+    /* a directory that is not there to answer says so apart from an
+       empty answer */
+    CHECK_INT(PathListFiltered("nodir", "x", 0, matches, VTED_PATH_MATCHES),
+              -1);
+}
+
 int main(void)
 {
     BuildTree();
@@ -298,6 +383,7 @@ int main(void)
     TestSharedStem();
     TestStemSplitsCharacters();
     TestListingHoldsWhatItHolds();
+    TestFilteredListing();
 
     TakeTreeDown();
 
