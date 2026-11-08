@@ -73,6 +73,9 @@ typedef enum
     BrowseRename, /* Alt-r: the name under the selection of the
                      browse moved to another name in the same
                      directory */
+    BrowseCount,  /* Alt-w: the lines, the words and the bytes of
+                     the name under the selection of the browse,
+                     the way wc counts them */
     ElectricBracketsToggle, /* Alt-(: the electric bracket pairs on
                                or off */
     SuspendEditor,   /* Alt-z: hand the terminal back to the shell and

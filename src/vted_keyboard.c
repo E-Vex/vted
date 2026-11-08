@@ -518,6 +518,16 @@ int ParseArrowKey(void)
         return BrowseRename;
     }
 
+    /* Alt-w says the lines, the words and the bytes of the name
+       under the selection of the browse: w for word count, the way
+       the shell's wc names itself — a plain w is a character of the
+       text and stays one, and the key answers only where a listing
+       stands */
+    if (introducer == 'w')
+    {
+        return BrowseCount;
+    }
+
     /* Alt-( turns the electric bracket pairs on and off: the bracket
        itself, spelled with Alt, telling its own kind what to do — a
        plain ( is a character of the text and stays one */

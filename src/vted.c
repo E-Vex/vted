@@ -571,7 +571,9 @@ static void BrowseLayLine(char *line, size_t line_size,
    and a trailing slash making a directory of it, the listing
    standing again with the name it gained selected — Alt-r moving
    the name under the selection to another name in the same
-   directory, what the name holds coming with it, and Delete
+   directory, what the name holds coming with it, Alt-w saying the
+   lines, the words and the bytes of the name under the selection
+   the way wc counts them, and Delete
    taking the name under the selection away once the bar's y says
    so — the arrows and
    the wheel stepping through them, Enter or a left click walking
@@ -1147,6 +1149,50 @@ static int EditorBrowseDirectory(const char *path, char *message,
                    listing */
                 filter_len = 0;
                 filter[0] = '\0';
+            }
+
+            continue;
+        }
+
+        if (c == BrowseCount && count > 0)
+        {
+            /* Alt-w says the lines, the words and the bytes of the
+               name under the selection, the way wc counts them: the
+               lines its newlines make — a last line without its own
+               newline behind it not making one — the words the runs
+               of bytes between the blanks make, and the bytes
+               themselves, the bar carrying the counts until the
+               next key. A directory is no file to count, and a name
+               that cannot be read says why */
+            if (matches[selection].is_dir)
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "A directory: nothing to count");
+            }
+            else
+            {
+                vted_path_counts_t counts;
+
+                if (PathCountName(here, matches[selection].name,
+                                  &counts) == 0)
+                {
+                    char preview[40]; /* the name as the bar holds it */
+
+                    BrowseNamePreview(matches[selection].name, preview,
+                                      (int)sizeof(preview));
+                    snprintf(warn, sizeof(warn),
+                             "%s: %lld lines, %lld words, %lld bytes",
+                             preview, counts.lines, counts.words,
+                             counts.bytes);
+                }
+                else
+                {
+                    int saved = errno;
+
+                    snprintf(warn, sizeof(warn), "Cannot count: %s",
+                             saved != 0 ? strerror(saved)
+                                        : "the name did not answer");
+                }
             }
 
             continue;
