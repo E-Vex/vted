@@ -155,6 +155,7 @@ ALT_DOT = b'\x1b.'    # Alt-.: the buffer after the current one
 ALT_SLASH = b'\x1b/'  # Alt-/: complete the word left of the cursor
 ESC = b'\x1b'         # ESC: cancel the prompt
 ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
+ALT_S = b'\x1bs'    # Alt-s: the sort of the browse (the theme elsewhere)
 ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
 ALT_PERCENT = b'\x1b%'  # Alt-%: the jump to the lit partner
 END = b'\x1b[F'      # End: the cursor at the row's end
@@ -1151,7 +1152,8 @@ def browse_smoke(binary):
     """the browse run: Alt-o on a directory opening the browse of
     it — the name standing beside the file being edited, the way an
     #include does — the size and the time of a name said behind it
-    the way ls lays its own columns, a take from the menu opening
+    the way ls lays its own columns, Alt-s turning the sort from
+    name to size to time and back, a take from the menu opening
     the file under the selection, a walk into a narrower directory
     painting the rows
     the wider listing covered, the hidden names held back until a
@@ -1190,6 +1192,12 @@ def browse_smoke(binary):
         f.write('far one\nfar two\n')
     with open(os.path.join(BROWSE_TREE, 'sub', '.secret'), 'w') as f:
         f.write('hidden one\nhidden two\n')
+    # a name far bigger than the rest and older than them all, so
+    # the sort has a size and a moment to turn on
+    with open(os.path.join(BROWSE_TREE, 'sub', 'vast.bin'), 'w') as f:
+        f.write('v' * 6000)
+    os.utime(os.path.join(BROWSE_TREE, 'sub', 'vast.bin'),
+             (1610000000, 1610000000))
     with open(os.path.join(BROWSE_TREE, 'sub', 'inner', 'one.txt'), 'w') as f:
         f.write('innermost\n')
 
@@ -1218,6 +1226,45 @@ def browse_smoke(binary):
                          time.localtime(1715000000)).encode()
     if b'29 ' + when not in drew:
         return fail('the browse did not say the size and the time of deep.txt')
+
+    # the listing lays its names by name to start: deep.txt before
+    # vast.bin, the alphabet's own order
+    if drew.find(b'deep.txt') > drew.find(b'vast.bin'):
+        return fail('the listing did not lay its names by name')
+
+    # Alt-s turns the sort: by size the vast one first — six
+    # thousand bytes said as 5.9K — the bar saying which order
+    # stands; by time deep.txt first again, its moment the newer
+    # one; and the third press lays the names by name again, the
+    # walk below standing as it was
+    out.clear()
+    drive(fd, ALT_S, out)
+    drew = b''.join(out)
+
+    if b'Sorted by size, the largest first' not in drew:
+        return fail('Alt-s did not turn the sort to the size')
+    if b'5.9K' not in drew:
+        return fail('the size sort did not say the vast size right')
+    if drew.find(b'vast.bin') > drew.find(b'deep.txt'):
+        return fail('the size sort did not lay the largest first')
+
+    out.clear()
+    drive(fd, ALT_S, out)
+    drew = b''.join(out)
+
+    if b'Sorted by time, the newest first' not in drew:
+        return fail('Alt-s did not turn the sort to the time')
+    if drew.find(b'deep.txt') > drew.find(b'vast.bin'):
+        return fail('the time sort did not lay the newest first')
+
+    out.clear()
+    drive(fd, ALT_S, out)
+    drew = b''.join(out)
+
+    if b'Sorted by name' not in drew:
+        return fail('Alt-s did not turn the sort back to the name')
+    if drew.find(b'deep.txt') > drew.find(b'vast.bin'):
+        return fail('the name sort did not lay the names by name')
 
     # the walk into the narrower directory: the listing of it draws
     # fewer lines than the one above, and the rows the wider menu
@@ -1285,11 +1332,11 @@ def browse_smoke(binary):
     if b'deep.txt' not in drew or b'deeper.txt' not in drew:
         return fail('the walk in did not list the directory')
 
-    # a left click takes the line drawn under it — the middle of the
-    # three menu lines, deeper.txt — and the open lands on its first
+    # a left click takes the line drawn under it — the second of the
+    # four menu lines, deeper.txt — and the open lands on its first
     # line
     out.clear()
-    drive(fd, b'\x1b[<0;1;21M\x1b[<0;1;21m', out)
+    drive(fd, b'\x1b[<0;1;20M\x1b[<0;1;20m', out)
     drew = b''.join(out)
 
     if b'Opened' not in drew or b'deeper.txt' not in drew:
@@ -1540,6 +1587,7 @@ def browse_smoke(binary):
                        ('sub/deep.txt', 'deep one\ndeep two\ndeep three\n'),
                        ('sub/deeper.txt', 'far one\nfar two\n'),
                        ('sub/.secret', 'hidden one\nhidden two\n'),
+                       ('sub/vast.bin', 'v' * 6000),
                        ('sub/inner/one.txt', 'innermost\n')):
         with open(os.path.join(BROWSE_TREE, name)) as f:
             if f.read() != said:
