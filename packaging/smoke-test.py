@@ -108,6 +108,15 @@
 # standing through a round and a take — the open landing on the spot
 # it spells — and a prefix nothing answers told so in the bar.
 #
+# A browse run walks the directory browse the way a hand would: Alt-o
+# on a directory opening the browse of it — the name standing beside
+# the file being edited — a take from the menu opening the file under
+# the selection, an empty directory saying so with Backspace going
+# up and the name walked from standing selected, a walk in from the
+# listing above, a left click taking the line drawn under it, ESC
+# cancelling with the editor standing where it was, and a name that
+# is no regular file still told so in the bar.
+#
 # A prompt run walks the Alt-o of the message bar the way a hand
 # would: a search whose query names a file with a :line:column tail
 # opened with Alt-o and landing on the spot it says, a query that
@@ -168,6 +177,7 @@ WRAP = '/tmp/vted-smoke-wrap.txt'  # the buffer the wrap wraps in
 QUOTE = '/tmp/vted-smoke-quote.txt'  # the buffer the quotes wrap in
 GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
 GOTO_TREE = '/tmp/vted-smoke-goto-tree'  # the tree the goto's Alt-/ walks
+BROWSE_TREE = '/tmp/vted-smoke-browse'  # the tree the Alt-o browse walks
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
@@ -1136,6 +1146,136 @@ def gocomplete_smoke(binary):
     return 0
 
 
+def browse_smoke(binary):
+    """the browse run: Alt-o on a directory opening the browse of
+    it — the name standing beside the file being edited, the way an
+    #include does — a take from the menu opening the file under the
+    selection, an empty directory saying so with Backspace going up
+    and the name walked from standing selected, a walk in from the
+    listing above, a left click taking the line drawn under it, ESC
+    cancelling with the editor standing where it was, and a name
+    that is no regular file still told so in the bar"""
+    import shutil
+
+    shutil.rmtree(BROWSE_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(BROWSE_TREE, 'sub'))
+    os.makedirs(os.path.join(BROWSE_TREE, 'empty'))
+    with open(os.path.join(BROWSE_TREE, 'start.txt'), 'w') as f:
+        f.write('sub\nempty\nstart again\n')
+    with open(os.path.join(BROWSE_TREE, 'sub', 'deep.txt'), 'w') as f:
+        f.write('deep one\ndeep two\ndeep three\n')
+    with open(os.path.join(BROWSE_TREE, 'sub', 'deeper.txt'), 'w') as f:
+        f.write('far one\nfar two\n')
+
+    pid, fd = spawn(binary, [os.path.join(BROWSE_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # the cursor starts on "sub" at the head of the first line: Alt-o
+    # opens the browse of it, the relative name standing beside the
+    # file being edited
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'Browse' not in drew or b'sub' not in drew:
+        return fail('Alt-o on a directory did not open the browse of it')
+
+    for said in (b'deep.txt', b'deeper.txt'):
+        if said not in drew:
+            return fail(f"the browse did not draw '{said.decode()}'")
+
+    # Enter takes the selection: deep.txt opens on its first line
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'deep.txt' not in drew:
+        return fail('the take from the browse did not open the file')
+    if b'Ln 1/3' not in drew:
+        return fail('the open did not land on the first line')
+
+    # the goto names an empty directory: the browse says so, and
+    # Backspace goes up a level with the name walked from standing
+    # selected in the listing above
+    drive(fd, CTRL_G, out)
+    drive(fd, (BROWSE_TREE + '/empty').encode(), out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'empty;' not in drew:
+        return fail('an empty directory did not say so in the bar')
+
+    drive(fd, BACKSPACE, out)
+    drew = b''.join(out)
+
+    if b'empty/' not in drew:
+        return fail('the walk up did not draw the name walked from')
+
+    # the arrows walk the listing: down twice onto sub, Enter walks
+    # in, and the menu of it lists its files again
+    drive(fd, b'\x1b[B', out)
+    drive(fd, b'\x1b[B', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'deep.txt' not in drew or b'deeper.txt' not in drew:
+        return fail('the walk in did not list the directory')
+
+    # a left click takes the line drawn under it — the second of the
+    # two menu lines, deeper.txt — and the open lands on its first
+    # line
+    out.clear()
+    drive(fd, b'\x1b[<0;1;22M\x1b[<0;1;22m', out)
+    drew = b''.join(out)
+
+    if b'Opened' not in drew or b'deeper.txt' not in drew:
+        return fail('the click did not take the line drawn under it')
+    if b'Ln 1/2' not in drew:
+        return fail('the click did not open on the first line')
+
+    # ESC cancels the browse, the editor standing where it was
+    drive(fd, CTRL_G, out)
+    drive(fd, (BROWSE_TREE + '/sub').encode(), out)
+    drive(fd, ENTER, out)
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'Cancelled the browse' not in drew:
+        return fail('ESC did not cancel the browse')
+    if b'far one' not in drew:
+        return fail('the cancel did not leave the editor where it was')
+
+    # a name that answers as no regular file — a fifo — is told so in
+    # the bar, the way it always was
+    os.mkfifo(os.path.join(BROWSE_TREE, 'pipe'))
+    drive(fd, CTRL_G, out)
+    drive(fd, (BROWSE_TREE + '/pipe').encode(), out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Not a file' not in drew:
+        return fail('a name that is no regular file was not told so')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    for name, said in (('start.txt', 'sub\nempty\nstart again\n'),
+                       ('sub/deep.txt', 'deep one\ndeep two\ndeep three\n'),
+                       ('sub/deeper.txt', 'far one\nfar two\n')):
+        with open(os.path.join(BROWSE_TREE, name)) as f:
+            if f.read() != said:
+                return fail(f'the browse run did not leave {name} as written')
+
+    print('smoke: OK - walked the Alt-o directory browse')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -1587,7 +1727,7 @@ def main() -> int:
         or electric_smoke(binary) or wrap_smoke(binary) \
         or quote_smoke(binary) or jump_smoke(binary) \
         or goto_smoke(binary) or gocomplete_smoke(binary) \
-        or prompt_smoke(binary) or match_smoke(binary)
+        or browse_smoke(binary) or prompt_smoke(binary) or match_smoke(binary)
 
 
 if __name__ == '__main__':
