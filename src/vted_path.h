@@ -35,6 +35,20 @@ typedef struct
    -1 when the directory itself cannot be read */
 int PathListMatches(const char *typed, vted_path_match_t *out, int max);
 
+/* lists the names the directory the path names holds that carry the
+   filter's bytes anywhere in them — not only at their heads, the way
+   the answering listing's prefix asks, but in the middle too, the
+   way a narrowing of a listing asks after the names worth taking.
+   The hidden ones are held back or taken in as take_hidden says, the
+   way the browse holds them, and . and .. stay back either way, the
+   walk and its way up. The answers come out sorted, at most max of
+   them, a directory wider than the listing answering with the names
+   the sort puts first, each saying whether it names a directory.
+   Returns their count, or -1 when the directory itself cannot be
+   read */
+int PathListFiltered(const char *dir, const char *filter, int take_hidden,
+                     vted_path_match_t *out, int max);
+
 /* lists every name the directory the path names holds — the ones
    that start with a dot among them, . and .. held back as the walk
    itself and its way up, which the browse names by its own keys —

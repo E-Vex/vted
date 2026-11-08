@@ -83,9 +83,13 @@ static int NameIsDir(const char *dir, const char *name)
    every name the directory holds answers and . and .. stay back,
    the walk and its way up, which the browse names by its own keys —
    and a name too long for a match to carry is passed over rather
-   than cut. Returns the count of the names it laid */
+   than cut. A filter, when one stands, asks after the bytes a name
+   carries anywhere in it, not only at its head, so the round answers
+   with the names that carry them somewhere. Returns the count of the
+   names it laid */
 static int CollectMatches(DIR *handle, const char *dir,
-                          const char *prefix, int take_hidden,
+                          const char *prefix, const char *filter,
+                          int take_hidden,
                           vted_path_match_t *out, int max)
 {
     struct dirent *entry;
@@ -125,6 +129,14 @@ static int CollectMatches(DIR *handle, const char *dir,
            anyway, and one that starts another way is not an answer */
         if (name_len >= sizeof(out->name) ||
             strncmp(name, prefix, prefix_len) != 0)
+        {
+            continue;
+        }
+
+        /* the filter asks after the bytes a name carries anywhere in
+           it, not only at its head: a name that carries them nowhere
+           is not an answer either */
+        if (filter != NULL && strstr(name, filter) == NULL)
         {
             continue;
         }
@@ -173,7 +185,25 @@ int PathListMatches(const char *typed, vted_path_match_t *out, int max)
         return -1; /* the reason stands in errno for the caller */
     }
 
-    count = CollectMatches(handle, dir, prefix, 0, out, max);
+    count = CollectMatches(handle, dir, prefix, NULL, 0, out, max);
+    closedir(handle);
+    return count;
+}
+
+int PathListFiltered(const char *dir, const char *filter, int take_hidden,
+                     vted_path_match_t *out, int max)
+{
+    DIR *handle;
+    int count;
+
+    handle = opendir(dir);
+
+    if (handle == NULL)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    count = CollectMatches(handle, dir, "", filter, take_hidden, out, max);
     closedir(handle);
     return count;
 }
@@ -190,7 +220,7 @@ int PathListAll(const char *dir, vted_path_match_t *out, int max)
         return -1; /* the reason stands in errno for the caller */
     }
 
-    count = CollectMatches(handle, dir, "", 1, out, max);
+    count = CollectMatches(handle, dir, "", NULL, 1, out, max);
     closedir(handle);
     return count;
 }
