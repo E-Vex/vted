@@ -773,6 +773,61 @@ int PathCopyName(const char *from_dir, const char *name,
     return -1;
 }
 
+int PathMoveName(const char *from_dir, const char *name,
+                 const char *to_dir)
+{
+    char from_path[PATH_JOIN_MAX];
+    char to_path[PATH_JOIN_MAX];
+    struct stat info;
+
+    if (NamePath(from_dir, name, from_path,
+                 (int)sizeof(from_path)) != 0 ||
+        NamePath(to_dir, name, to_path, (int)sizeof(to_path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    /* a name already standing in the other directory is not written
+       over: rename alone would take the standing name's place
+       without a word, the way the shell's mv does, and the browse
+       never does */
+    if (lstat(to_path, &info) == 0)
+    {
+        errno = EEXIST;
+        return -1;
+    }
+
+    /* the one rename the disk makes of a move inside a filesystem:
+       the name's own inode crosses directories with everything it
+       holds, no byte ever read */
+    if (rename(from_path, to_path) == 0)
+    {
+        return 0;
+    }
+
+    if (errno != EXDEV)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    /* the two directories stand on different filesystems, where the
+       disk itself cannot move a name: the name walks across as a
+       copy, and what it held walks out behind it, the way the
+       shell's mv falls back to its own copy and take away */
+    if (PathCopyName(from_dir, name, to_dir) != 0)
+    {
+        return -1;
+    }
+
+    if (RemoveTree(from_path) != 0)
+    {
+        return -1; /* the copy stands, the old tree stayed behind */
+    }
+
+    return 0;
+}
+
 /* the room one round of the counting reads at a time: a file walks
    into the counts a room at a time, so a file of any size is
    counted without ever standing whole in the memory */

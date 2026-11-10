@@ -130,6 +130,17 @@ int PathDeleteName(const char *dir, const char *name);
 int PathCopyName(const char *from_dir, const char *name,
                  const char *to_dir);
 
+/* moves the name a directory holds into the other directory it is
+   given, what the name holds coming with it: the move the shell's
+   mv makes from one directory to another — one rename inside a
+   filesystem, a copy and a taking away across two of them. A name
+   already standing in the other directory is not written over, the
+   way the copy never writes over one. Returns 0 when the name
+   moved, -1 when it did not, the reason standing in errno for the
+   caller */
+int PathMoveName(const char *from_dir, const char *name,
+                 const char *to_dir);
+
 /* the counts the shell's wc makes of a file: the lines its
    newlines make, the words the runs of bytes between the blanks
    make, and the bytes themselves */
