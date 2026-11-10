@@ -1641,8 +1641,9 @@ def fileops_smoke(binary):
     the name under the selection moved to another with
     what it holds coming along, the name as it stood saying so and
     nothing moving, the delete asked after and answered, n keeping
-    the name and y taking it, and a directory holding a name of
-    its own refusing to go until the name inside is gone"""
+    the name and y taking it, a directory holding a name of
+    its own refusing to go until the name inside is gone, and the d
+    the question offers a directory taking the tree it holds"""
     import shutil
 
     shutil.rmtree(FILEOPS_TREE, ignore_errors=True)
@@ -1859,6 +1860,57 @@ def fileops_smoke(binary):
 
     if b'Deleted made-dir' not in drew:
         return fail('the emptied directory did not go')
+
+    # a directory asked after answers its d with the whole tree
+    # taken: the empty listing stands, so a create makes the tree
+    # again — a leaf made inside it coming open — and the d the
+    # question offers takes the tree with the walk never going back
+    # in
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, b'wood/', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Created wood/' not in drew:
+        return fail('the create did not make the tree again')
+
+    drive(fd, ENTER, out)
+    out.clear()
+    drive(fd, ALT_A, out)
+    drive(fd, b'leaf.txt', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Opened /tmp/vted-smoke-fileops/inner/wood/leaf.txt' not in drew:
+        return fail('the leaf did not come open straight from its make')
+
+    drive(fd, b'\x1b1', out)
+    out.clear()
+    drive(fd, ALT_O, out)
+    drive(fd, DELETE, out)
+    drew = b''.join(out)
+
+    if b"Delete 'wood'? y deletes it when empty" not in drew:
+        return fail('the directory question did not say how y deletes')
+    if b'd takes the tree' not in drew:
+        return fail('the directory question did not offer the tree')
+
+    out.clear()
+    drive(fd, b'd', out)
+    drew = b''.join(out)
+
+    if b'Deleted wood with its tree' not in drew:
+        return fail('the d did not take the tree away')
+
+    # a key clears the word, and the listing no longer holds the
+    # tree it took
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'wood/' in drew:
+        return fail('the listing still held the taken tree')
 
     # ESC cancels the browse and the tree is back as it began
     drive(fd, ESC, out)
