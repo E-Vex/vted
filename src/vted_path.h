@@ -117,6 +117,16 @@ int PathRenameName(const char *dir, const char *from, const char *to);
    when it stayed, the reason standing in errno for the caller */
 int PathDeleteName(const char *dir, const char *name);
 
+/* copies the name a directory holds into the other directory it is
+   given, a file its bytes: the copy never writes over a name already
+   standing in the other directory, the exclusive way the create
+   never makes a name again, and the permissions the file holds come
+   with its bytes. Returns 0 when the name came to stand in the other
+   directory, -1 when it did not, the reason standing in errno for
+   the caller */
+int PathCopyName(const char *from_dir, const char *name,
+                 const char *to_dir);
+
 /* the counts the shell's wc makes of a file: the lines its
    newlines make, the words the runs of bytes between the blanks
    make, and the bytes themselves */

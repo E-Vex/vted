@@ -401,6 +401,133 @@ int PathDeleteName(const char *dir, const char *name)
     return unlink(path) == 0 ? 0 : -1;
 }
 
+/* the room one round of the copying reads and writes at a time: a
+   file walks into its copy a room at a time, so a file of any size
+   is copied without ever standing whole in the memory */
+#define COPY_CHUNK 16384
+
+/* copies the file at one path to the other, a room at a time: the
+   name the destination gets is not made again — the exclusive way
+   the create makes one — and the permissions the file holds come
+   with its bytes. A copy that cannot finish leaves nothing of
+   itself behind. Returns 0 when the bytes came across, -1 when
+   they did not, the reason standing in errno for the caller */
+static int CopyFileBytes(const char *from_path, const char *to_path,
+                         const struct stat *info)
+{
+    FILE *from = fopen(from_path, "rb");
+    FILE *to;
+    unsigned char chunk[COPY_CHUNK];
+    size_t got;
+    int failed; /* the reason a copy that could not finish left
+                   standing in errno */
+
+    if (from == NULL)
+    {
+        return -1;
+    }
+
+    /* the x of the mode makes the copy exclusive: a name already
+       standing in the other directory is not written over */
+    to = fopen(to_path, "wx");
+
+    if (to == NULL)
+    {
+        int saved = errno;
+
+        fclose(from);
+        errno = saved;
+        return -1;
+    }
+
+    failed = 0;
+
+    while ((got = fread(chunk, 1, sizeof(chunk), from)) > 0)
+    {
+        if (fwrite(chunk, 1, got, to) != got)
+        {
+            failed = errno != 0 ? errno : EIO;
+            break;
+        }
+    }
+
+    if (!failed && ferror(from))
+    {
+        failed = errno != 0 ? errno : EIO;
+    }
+
+    /* the permissions come with the bytes, set while the file is
+       still open so no other hand ever sees them half way */
+    if (!failed && fchmod(fileno(to),
+                          (mode_t)(info->st_mode & 07777)) != 0)
+    {
+        failed = errno;
+    }
+
+    if (failed)
+    {
+        fclose(to); /* the stream only comes down, the reason
+                       already standing */
+    }
+    else if (fclose(to) != 0)
+    {
+        failed = errno != 0 ? errno : EIO;
+    }
+
+    fclose(from);
+
+    if (failed)
+    {
+        /* a copy that could not finish leaves nothing of itself
+           behind, the disk standing as it stood */
+        unlink(to_path);
+        errno = failed;
+        return -1;
+    }
+
+    return 0;
+}
+
+int PathCopyName(const char *from_dir, const char *name,
+                 const char *to_dir)
+{
+    char from_path[PATH_JOIN_MAX];
+    char to_path[PATH_JOIN_MAX];
+    struct stat info;
+
+    if (NamePath(from_dir, name, from_path,
+                 (int)sizeof(from_path)) != 0 ||
+        NamePath(to_dir, name, to_path, (int)sizeof(to_path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    /* the link itself is looked at, not what it points at: a link
+       is a name of its own kind, and what it points at is no
+       business of the copy's */
+    if (lstat(from_path, &info) != 0)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    if (S_ISREG(info.st_mode))
+    {
+        return CopyFileBytes(from_path, to_path, &info);
+    }
+
+    if (S_ISDIR(info.st_mode))
+    {
+        /* a directory is a tree of its own, walked by the copy of
+           its own round */
+        errno = EISDIR;
+        return -1;
+    }
+
+    errno = EOPNOTSUPP;
+    return -1;
+}
+
 /* the room one round of the counting reads at a time: a file walks
    into the counts a room at a time, so a file of any size is
    counted without ever standing whole in the memory */
