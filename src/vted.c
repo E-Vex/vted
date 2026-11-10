@@ -303,6 +303,11 @@ static int EditorBrowseDirectory(const char *path, char *message,
    the prompt standing where the listing does */
 static char *EditorPrompt(const char *label, const char *initial);
 
+/* asks the bar for an answer the way the open prompt does, Tab
+   completing the path typed so far: declared here so the browse can
+   ask for the directory a copy or a move lands in */
+static char *EditorPromptPath(const char *label, const char *initial);
+
 /* opens the name the way the Alt-o keys do: a relative name stands
    beside the file being edited first — the way an #include does —
    and as it stands, in the working directory, when that one does
@@ -571,7 +576,10 @@ static void BrowseLayLine(char *line, size_t line_size,
    and a trailing slash making a directory of it, the listing
    standing again with the name it gained selected — Alt-r moving
    the name under the selection to another name in the same
-   directory, what the name holds coming with it, Alt-w saying the
+   directory, what the name holds coming with it — Alt-c copying
+   the name under the selection into another directory, the prompt
+   asking for the destination with Tab completing it and what the
+   name holds coming with it — Alt-w saying the
    lines, the words and the bytes of the name under the selection
    the way wc counts them, and Delete
    taking the name under the selection away once the bar's y says
@@ -1151,6 +1159,55 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 filter[0] = '\0';
             }
 
+            continue;
+        }
+
+        if (c == BracketColorPrompt && count > 0)
+        {
+            /* Alt-c copies the name under the selection into another
+               directory: the prompt asks for the destination, opening
+               with the directory being listed standing in it and Tab
+               completing the path the way the open prompt's Tab does
+               — the bracket color's own key standing only where the
+               text is edited, the way the theme's own Alt-s stands.
+               What the name holds comes with it — a file its bytes,
+               a directory its whole tree — and the name stands in
+               the listing still, a copy and not a move */
+            char label[VTED_PATH_NAME_MAX + 24];
+            char *answer;
+
+            snprintf(label, sizeof(label), "Copy %s to: ",
+                     matches[selection].name);
+            answer = EditorPromptPath(label, here);
+
+            if (answer == NULL)
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "Cancelled the copy");
+                continue;
+            }
+
+            if (PathCopyName(here, matches[selection].name, answer) != 0)
+            {
+                int saved = errno;
+
+                snprintf(warn, sizeof(warn), "Cannot copy: %s",
+                         saved != 0 ? strerror(saved)
+                                    : "the name did not come across");
+            }
+            else
+            {
+                char preview[40]; /* the name as the bar holds it */
+
+                BrowseNamePreview(matches[selection].name, preview,
+                                  (int)sizeof(preview));
+                snprintf(warn, sizeof(warn), "Copied %s%s to %s",
+                         preview,
+                         matches[selection].is_dir ? "/" : "",
+                         answer);
+            }
+
+            free(answer);
             continue;
         }
 
