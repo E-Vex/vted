@@ -1,5 +1,6 @@
 /* mkdtemp() and mkdir() are POSIX, not ISO C11 */
 #define _POSIX_C_SOURCE 200809L
+#include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -608,6 +609,157 @@ static void TestNameOperations(void)
     CHECK_INT(PathRenameName(".", "gone", "elsewhere"), -1);
 }
 
+/* takes a name and everything it holds away, the way the shell's rm
+   -r does: the rounds below leave their trees standing, and the
+   round after them starts from a clean one */
+static void TakeNameAway(const char *path)
+{
+    char inside[512];
+    DIR *handle = opendir(path);
+    struct dirent *entry;
+
+    if (handle == NULL)
+    {
+        unlink(path); /* a name of any other kind goes outright */
+        return;
+    }
+
+    while ((entry = readdir(handle)) != NULL)
+    {
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0)
+        {
+            continue;
+        }
+
+        snprintf(inside, sizeof(inside), "%s/%s", path, entry->d_name);
+        TakeNameAway(inside);
+    }
+
+    closedir(handle);
+    rmdir(path);
+}
+
+/* the counting asked of the copy a round made, so the round knows
+   the bytes came across: -1 says the name did not answer at all */
+static long long CountedBytes(const char *dir, const char *name)
+{
+    vted_path_counts_t counts;
+
+    return PathCountName(dir, name, &counts) == 0 ? counts.bytes : -1;
+}
+
+static void TestCopyMoveNames(void)
+{
+    /* a file copies into another directory, its bytes and its
+       permissions coming with it and the name it left standing
+       where it was */
+    struct stat info;
+    char aim[256];
+    ssize_t aim_len;
+
+    FillFile("carry.txt", "what it holds");
+    MakeDir("away");
+    chmod("carry.txt", 0741);
+    CHECK_INT(PathCopyName(".", "carry.txt", "away"), 0);
+    CHECK_INT(CountedBytes("away", "carry.txt"), 13);
+    CHECK_INT(stat("away/carry.txt", &info), 0);
+    CHECK_INT(info.st_mode & 07777, 0741);
+    CHECK_INT(List("carry"), 1);
+
+    /* a name already standing in the other directory is not
+       written over */
+    CHECK_INT(PathCopyName(".", "carry.txt", "away"), -1);
+    CHECK_INT(errno, EEXIST);
+    CHECK_INT(CountedBytes("away", "carry.txt"), 13);
+
+    /* a link copies as the link it is, its own pointing coming
+       across */
+    CHECK_INT(symlink("aim", "pointed"), 0);
+    CHECK_INT(PathCopyName(".", "pointed", "away"), 0);
+    aim_len = readlink("away/pointed", aim, sizeof(aim) - 1);
+    CHECK_INT(aim_len >= 0, 1);
+    aim[aim_len > 0 ? aim_len : 0] = '\0';
+    CHECK_STR(aim, "aim");
+
+    /* a directory copies as the tree it holds: the names inside
+       laid in with it, the nest inside walked the same way, the
+       link inside kept its pointing, and the permissions the
+       directory holds coming to it once it is full */
+    MakeDir("tree");
+    FillFile("tree/inside.txt", "the inside");
+    MakeDir("tree/nest");
+    FillFile("tree/nest/deep.txt", "the depth");
+    CHECK_INT(symlink("inside.txt", "tree/point"), 0);
+    chmod("tree", 0750);
+    CHECK_INT(PathCopyName(".", "tree", "away"), 0);
+    CHECK_INT(PathListAll("away/tree", VTED_PATH_SORT_NAME,
+                          matches, VTED_PATH_MATCHES), 3);
+    CHECK_STR(matches[0].name, "inside.txt");
+    CHECK_STR(matches[1].name, "nest");
+    CHECK_STR(matches[2].name, "point");
+    CHECK_INT(CountedBytes("away/tree", "inside.txt"), 10);
+    CHECK_INT(CountedBytes("away/tree/nest", "deep.txt"), 9);
+    aim_len = readlink("away/tree/point", aim, sizeof(aim) - 1);
+    CHECK_INT(aim_len >= 0, 1);
+    aim[aim_len > 0 ? aim_len : 0] = '\0';
+    CHECK_STR(aim, "inside.txt");
+    CHECK_INT(stat("away/tree", &info), 0);
+    CHECK_INT(info.st_mode & 07777, 0750);
+    CHECK_INT(List("tree/"), 3);
+
+    /* a directory is not copied onto the spot it stands in, nor
+       into the tree it holds — the tree it would make holding
+       itself forever */
+    CHECK_INT(PathCopyName(".", "tree", "tree"), -1);
+    CHECK_INT(errno, EEXIST);
+    CHECK_INT(PathCopyName(".", "tree", "tree/nest"), -1);
+    CHECK_INT(errno, EINVAL);
+    CHECK_INT(List("tree/n"), 1);
+
+    /* a directory that is not there says no to a copy */
+    CHECK_INT(PathCopyName(".", "tree", "nodir"), -1);
+    CHECK_INT(errno, ENOENT);
+
+    /* a move takes the name into the other directory, what it
+       holds coming with it and the old name gone */
+    FillFile("shift.txt", "moving on");
+    CHECK_INT(PathMoveName(".", "shift.txt", "away"), 0);
+    CHECK_INT(List("shift"), 0);
+    CHECK_INT(CountedBytes("away", "shift.txt"), 9);
+
+    /* a move onto a name already standing says no, both names
+       standing as they were */
+    FillFile("shift.txt", "again");
+    CHECK_INT(PathMoveName(".", "shift.txt", "away"), -1);
+    CHECK_INT(errno, EEXIST);
+    CHECK_INT(List("shift"), 1);
+    CHECK_INT(CountedBytes("away", "shift.txt"), 9);
+
+    /* a directory moves with its tree, the old name gone */
+    MakeDir("walk");
+    FillFile("walk/held.txt", "held");
+    CHECK_INT(PathMoveName(".", "walk", "away"), 0);
+    CHECK_INT(List("walk"), 0);
+    CHECK_INT(CountedBytes("away/walk", "held.txt"), 4);
+
+    /* a move into a directory that is not there says no, and a
+       directory is not moved into itself */
+    CHECK_INT(PathMoveName(".", "shift.txt", "nodir"), -1);
+    CHECK_INT(errno, ENOENT);
+    CHECK_INT(List("shift"), 1);
+    CHECK_INT(PathMoveName(".", "tree", "tree/nest"), -1);
+    CHECK_INT(errno, EINVAL);
+
+    /* the names the round made go the way the rounds above take
+       theirs down */
+    unlink("carry.txt");
+    unlink("pointed");
+    unlink("shift.txt");
+    TakeNameAway("tree");
+    TakeNameAway("away");
+}
+
 static void TestCountingName(void)
 {
     /* the shell's wc asked of one name: the lines its newlines
@@ -708,6 +860,7 @@ int main(void)
     TestListingHoldsWhatItHolds();
     TestFilteredListing();
     TestNameOperations();
+    TestCopyMoveNames();
     TestCountingName();
 
     TakeTreeDown();
