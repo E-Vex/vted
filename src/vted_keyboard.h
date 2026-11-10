@@ -76,6 +76,9 @@ typedef enum
     BrowseCount,  /* Alt-w: the lines, the words and the bytes of
                      the name under the selection of the browse,
                      the way wc counts them */
+    BrowseMark,   /* Alt-v: the name under the selection of the
+                     browse marked or unmarked, the marked names
+                     the copy and the move take together */
     ElectricBracketsToggle, /* Alt-(: the electric bracket pairs on
                                or off */
     SuspendEditor,   /* Alt-z: hand the terminal back to the shell and

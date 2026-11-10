@@ -528,6 +528,16 @@ int ParseArrowKey(void)
         return BrowseCount;
     }
 
+    /* Alt-v turns the mark of the name under the selection of the
+       browse on and off: v the way vi's v starts a visual selection,
+       the marked names the copy and the move take together — a plain
+       v is a character of the text and stays one, and the key
+       answers only where a listing stands */
+    if (introducer == 'v')
+    {
+        return BrowseMark;
+    }
+
     /* Alt-( turns the electric bracket pairs on and off: the bracket
        itself, spelled with Alt, telling its own kind what to do — a
        plain ( is a character of the text and stays one */

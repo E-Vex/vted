@@ -485,31 +485,46 @@ static void BrowseNamePreview(const char *name, char *out, int room)
     out[len] = '\0';
 }
 
-/* lays one line of the browse: the name — a slash behind it when it
-   names a directory — laid one character at a time and never cut
-   inside one where its own room ends, and behind it the bytes the
-   name holds and the moment it was last changed, the way ls lays
-   its own columns: the size right-aligned against the moment, both
-   ending at the screen's right edge — or at the line's own room
-   when the screen is wider than a line holds */
+/* lays one line of the browse: the mark the name carries first — a
+   star when it stands marked, the room it takes left open when it
+   does not, so the names of a listing stand aligned either way —
+   then the name — a slash behind it when it names a directory —
+   laid one character at a time and never cut inside one where its
+   own room ends, and behind it the bytes the name holds and the
+   moment it was last changed, the way ls lays its own columns: the
+   size right-aligned against the moment, both ending at the
+   screen's right edge — or at the line's own room when the screen
+   is wider than a line holds */
 static void BrowseLayLine(char *line, size_t line_size,
-                          const vted_path_match_t *match)
+                          const vted_path_match_t *match, int marked)
 {
     int screen = vted_editor_config.screen_cols;
     int edge = screen < (int)line_size - 1 ? screen : (int)line_size - 1;
-    int room = edge - BROWSE_META_CELLS - 1; /* the name's own room */
+    int room = edge - BROWSE_META_CELLS - 3; /* the name's own room,
+                                                the mark's two cells
+                                                out of it */
     int slash_room = match->is_dir ? 1 : 0;
-    int cells = 0; /* the cells the name and its slash have taken */
+    int cells = 2; /* the cells the mark, the name and its slash have
+                      taken: the mark's two laid before the name */
     int laid = 0;  /* the bytes of the name laid into the line */
+    int at = 0;    /* the bytes laid into the line so far */
     int name_len = (int)strlen(match->name);
     int pad;
-    int at;
     char size_text[BROWSE_SIZE_CELLS + 4];
     char time_text[BROWSE_TIME_CELLS + 4];
 
     if (room < 1)
     {
         room = 1;
+    }
+
+    /* the mark the line leads with: the star of a marked name, the
+       two cells left open for an unmarked one — a line too narrow
+       to hold even them laying nothing at all */
+    if (line_size > 3)
+    {
+        memcpy(line, marked ? "* " : "  ", (size_t)2);
+        at = 2;
     }
 
     /* the name takes its own room, the slash of a directory
@@ -538,8 +553,8 @@ static void BrowseLayLine(char *line, size_t line_size,
         cells += width;
     }
 
-    memcpy(line, match->name, (size_t)laid);
-    at = laid;
+    memcpy(line + at, match->name, (size_t)laid);
+    at += laid;
 
     if (match->is_dir && at < (int)line_size - 1)
     {
@@ -563,6 +578,47 @@ static void BrowseLayLine(char *line, size_t line_size,
              pad, "", BROWSE_SIZE_CELLS, size_text, time_text);
 }
 
+/* where the mark the browse holds for a name stands: its place
+   among them, or -1 when no mark does */
+static int BrowseFindMark(const char marks[][VTED_PATH_NAME_MAX],
+                          int marked_count, const char *name)
+{
+    int i;
+
+    for (i = 0; i < marked_count; i++)
+    {
+        if (strcmp(marks[i], name) == 0)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+/* takes the mark the browse holds for a name away: the marks
+   behind it stepping into the room it leaves. Returns whether a
+   mark stood for the name at all */
+static int BrowseDropMark(char marks[][VTED_PATH_NAME_MAX],
+                          int *marked_count, const char *name)
+{
+    int at = BrowseFindMark(marks, *marked_count, name);
+    int i;
+
+    if (at < 0)
+    {
+        return 0;
+    }
+
+    for (i = at; i < *marked_count - 1; i++)
+    {
+        strcpy(marks[i], marks[i + 1]);
+    }
+
+    (*marked_count)--;
+    return 1;
+}
+
 /* walks a directory the way the shell's cd does, for a name that
    answered as one: the menu the buffer picker uses lists the names
    the directory holds — a directory with its slash behind it, the
@@ -584,7 +640,10 @@ static void BrowseLayLine(char *line, size_t line_size,
    selection into another directory the same way, the listing
    losing it — Alt-w saying the
    lines, the words and the bytes of the name under the selection
-   the way wc counts them, and Delete
+   the way wc counts them — Alt-v turning the mark of the name
+   under the selection, the marked names a star before them in the
+   listing and the copy and the move taking them together — and
+   Delete
    taking the name under the selection away once the bar's y says
    so — a directory asked after standing with the d of the tree it
    holds beside the y — the arrows and
@@ -616,6 +675,15 @@ static int EditorBrowseDirectory(const char *path, char *message,
     char asking[VTED_PATH_NAME_MAX]; /* the name the Delete key
                                          asks after, held while the
                                          bar carries its question */
+    char marks[VTED_PATH_MATCHES][VTED_PATH_NAME_MAX]; /* the names
+                                          the Alt-v stands a star
+                                          before, the copy and the
+                                          move taking them all
+                                          together — names of the
+                                          directory being listed,
+                                          the walk leaving them
+                                          behind when it goes */
+    int marked_count = 0; /* how many names the marks stand for */
     int deleting = 0; /* the bar is asking after the name in
                          asking: 1 asks after a file or an empty
                          directory, y taking it away — 2 asks
@@ -761,7 +829,9 @@ static int EditorBrowseDirectory(const char *path, char *message,
             for (i = 0; i < shown_count; i++)
             {
                 BrowseLayLine(lines[i], sizeof(lines[i]),
-                              &matches[first + i]);
+                              &matches[first + i],
+                              BrowseFindMark(marks, marked_count,
+                                             matches[first + i].name) >= 0);
                 shown[i] = lines[i];
             }
 
@@ -772,7 +842,9 @@ static int EditorBrowseDirectory(const char *path, char *message,
         /* the hint, or what a walk that could not happen says, or an
            empty directory saying so — the filter carried in the bar
            the way a prompt carries its answer, so the narrowing
-           stands spelled out while it narrows */
+           stands spelled out while it narrows, and the marks saying
+           how many stand when any do, the listing carrying their
+           stars itself while a filter narrows it */
         if (warn[0] != '\0')
         {
             SetStatusMessage("%s", warn);
@@ -792,8 +864,22 @@ static int EditorBrowseDirectory(const char *path, char *message,
         }
         else if (count == 0)
         {
-            SetStatusMessage("Browse %.*s: empty; Backspace goes up, ESC cancels",
-                             BrowseShownLen(here), here);
+            if (marked_count > 0)
+            {
+                SetStatusMessage("Browse %.*s: empty, %d marked; Backspace goes up, ESC cancels",
+                                 BrowseShownLen(here), here,
+                                 marked_count);
+            }
+            else
+            {
+                SetStatusMessage("Browse %.*s: empty; Backspace goes up, ESC cancels",
+                                 BrowseShownLen(here), here);
+            }
+        }
+        else if (marked_count > 0)
+        {
+            SetStatusMessage("Browse %.*s: %d marked, Alt-c copies them, Alt-m moves them; Backspace goes up, ESC cancels",
+                             BrowseShownLen(here), here, marked_count);
         }
         else
         {
@@ -842,6 +928,8 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
                 if (PathDeleteTree(here, asking) == 0)
                 {
+                    /* the mark the taken name carried goes with it */
+                    BrowseDropMark(marks, &marked_count, asking);
                     BrowseNamePreview(asking, preview,
                                       (int)sizeof(preview));
                     snprintf(warn, sizeof(warn),
@@ -863,6 +951,8 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
                 if (PathDeleteName(here, asking) == 0)
                 {
+                    /* the mark the taken name carried goes with it */
+                    BrowseDropMark(marks, &marked_count, asking);
                     BrowseNamePreview(asking, preview,
                                       (int)sizeof(preview));
                     snprintf(warn, sizeof(warn), "Deleted %s",
@@ -967,6 +1057,10 @@ static int EditorBrowseDirectory(const char *path, char *message,
             {
                 here[name_start] = '\0';
             }
+
+            /* the marks stay behind with the directory walked out
+               of: the listing above answers none of them */
+            marked_count = 0;
 
             continue;
         }
@@ -1201,6 +1295,18 @@ static int EditorBrowseDirectory(const char *path, char *message,
             {
                 char preview[40]; /* the name as the bar holds it */
 
+                /* the mark the name carried follows it under its
+                   new name: the hand renamed it, not the mark's
+                   round */
+                if (BrowseDropMark(marks, &marked_count,
+                                   matches[selection].name) &&
+                    marked_count < VTED_PATH_MATCHES)
+                {
+                    snprintf(marks[marked_count],
+                             sizeof(marks[marked_count]), "%s", name);
+                    marked_count++;
+                }
+
                 BrowseNamePreview(name, preview, (int)sizeof(preview));
                 snprintf(warn, sizeof(warn), "Renamed to %s", preview);
                 snprintf(from, sizeof(from), "%s", name);
@@ -1354,6 +1460,48 @@ static int EditorBrowseDirectory(const char *path, char *message,
             continue;
         }
 
+        if (c == BrowseMark && count > 0)
+        {
+            /* Alt-v turns the mark of the name under the selection
+               on and off — v the way vi's v starts a visual
+               selection: the name stands a star before it in the
+               listing, and the copy and the move take every marked
+               name together. The marks belong to the directory
+               being listed: a walk in or up leaves them behind, a
+               rename carries the one it renames with the name, and
+               a delete takes the mark of the name it took away */
+            char preview[40]; /* the name as the bar holds it */
+
+            if (BrowseFindMark(marks, marked_count,
+                               matches[selection].name) >= 0)
+            {
+                BrowseDropMark(marks, &marked_count,
+                               matches[selection].name);
+                BrowseNamePreview(matches[selection].name, preview,
+                                  (int)sizeof(preview));
+                snprintf(warn, sizeof(warn), "Unmarked %s",
+                         preview);
+            }
+            else if (marked_count < VTED_PATH_MATCHES)
+            {
+                snprintf(marks[marked_count],
+                         sizeof(marks[marked_count]), "%s",
+                         matches[selection].name);
+                marked_count++;
+                BrowseNamePreview(matches[selection].name, preview,
+                                  (int)sizeof(preview));
+                snprintf(warn, sizeof(warn), "Marked %s", preview);
+            }
+            else
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "The marks are full: the listing holds no "
+                         "more names than they do");
+            }
+
+            continue;
+        }
+
         if (c == DeleteKey && count > 0)
         {
             /* Delete asks after the name under the selection: the
@@ -1443,11 +1591,14 @@ static int EditorBrowseDirectory(const char *path, char *message,
             {
                 /* the walk in takes the filter off: the listing it
                    lands on stands whole, its own narrowing its own
-                   round */
+                   round — and the marks stay behind with the
+                   directory they name, the one it lands on holding
+                   none of them */
                 memcpy(here, into, strlen(into) + 1);
                 selection = 0;
                 filter_len = 0;
                 filter[0] = '\0';
+                marked_count = 0;
                 continue;
             }
 
