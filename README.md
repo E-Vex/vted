@@ -589,7 +589,12 @@ New in 0.3.4:
   first — y deleting, any other key keeping — a file going
   outright and a directory only when it holds nothing of its own,
   the shell's rm without its -r, one that holds something saying
-  why it stays. A rename or a delete does not chase the name into
+  why it stays. The question a directory is asked carries a d of
+  its own, answering it with the directory taken along with the
+  tree it holds the way rm -r does — the names inside first, the
+  empty shell last, a tree the round cannot finish standing as it
+  stood with the bar saying where it stopped. A rename or a delete
+  does not chase the name into
   the open buffers: a buffer keeps what it holds, the way the
   shell's mv and rm leave an open editor its own copy. Bytes typed
   while the listing stands narrow it, the
