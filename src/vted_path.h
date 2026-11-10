@@ -118,12 +118,15 @@ int PathRenameName(const char *dir, const char *from, const char *to);
 int PathDeleteName(const char *dir, const char *name);
 
 /* copies the name a directory holds into the other directory it is
-   given, a file its bytes: the copy never writes over a name already
-   standing in the other directory, the exclusive way the create
-   never makes a name again, and the permissions the file holds come
-   with its bytes. Returns 0 when the name came to stand in the other
-   directory, -1 when it did not, the reason standing in errno for
-   the caller */
+   given: a file its bytes, a directory its whole tree — the names
+   inside laid in as the copy walks them, a link its own pointing —
+   the permissions every name holds coming with it. The copy never
+   writes over a name already standing in the other directory, the
+   exclusive way the create never makes a name again, and a
+   directory is not copied into itself — the tree it would make
+   holding itself forever. Returns 0 when the name came to stand in
+   the other directory, -1 when it did not, the reason standing in
+   errno for the caller */
 int PathCopyName(const char *from_dir, const char *name,
                  const char *to_dir);
 

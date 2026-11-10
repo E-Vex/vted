@@ -1,11 +1,16 @@
-/* opendir() and stat() are POSIX, not ISO C11 */
-#define _POSIX_C_SOURCE 200809L
+/* opendir(), stat() and the XSI realpath() are POSIX, not ISO C11;
+   the XOPEN spelling of 700 brings the realpath of the containment
+   look with it, everything the POSIX spelling brought still
+   standing */
+#define _XOPEN_SOURCE 700
 /*===============================*/
 #include <ctype.h>
 #include <dirent.h>
+#include <limits.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 /*===============================*/
@@ -406,6 +411,137 @@ int PathDeleteName(const char *dir, const char *name)
    is copied without ever standing whole in the memory */
 #define COPY_CHUNK 16384
 
+/* takes the tree a path names away, the way the shell's rm -r does:
+   the names inside first, the empty shell last. Returns 0 when the
+   tree is gone, -1 when some of it stayed, the reason standing in
+   errno for the caller */
+static int RemoveTree(const char *path)
+{
+    struct stat info;
+    DIR *handle;
+    struct dirent *entry;
+
+    if (lstat(path, &info) != 0)
+    {
+        return -1; /* the reason stands in errno for the caller */
+    }
+
+    if (!S_ISDIR(info.st_mode))
+    {
+        return unlink(path) == 0 ? 0 : -1;
+    }
+
+    handle = opendir(path);
+
+    if (handle == NULL)
+    {
+        return -1;
+    }
+
+    while ((entry = readdir(handle)) != NULL)
+    {
+        char inside[PATH_JOIN_MAX];
+
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0)
+        {
+            continue;
+        }
+
+        if (NamePath(path, entry->d_name, inside,
+                     (int)sizeof(inside)) != 0)
+        {
+            int saved = ENAMETOOLONG;
+
+            closedir(handle);
+            errno = saved;
+            return -1;
+        }
+
+        if (RemoveTree(inside) != 0)
+        {
+            int saved = errno;
+
+            closedir(handle);
+            errno = saved;
+            return -1;
+        }
+    }
+
+    closedir(handle);
+
+    return rmdir(path) == 0 ? 0 : -1;
+}
+
+/* says whether the directory a copy would land in stands inside the
+   tree it copies — the tree holding itself, which no copy could
+   ever finish. The one look takes the paths as the disk lays them,
+   the links along the way spoken through. Returns 1 with the reason
+   standing in errno when it does, 0 when it does not */
+static int NameHoldsItself(const char *from_path, const char *to_dir)
+{
+    char held[PATH_MAX]; /* the tree the copy walks */
+    char holder[PATH_MAX]; /* the directory it would land in */
+    size_t held_len;
+
+    if (realpath(from_path, held) == NULL ||
+        realpath(to_dir, holder) == NULL)
+    {
+        return 0; /* the reason stands in errno for the caller */
+    }
+
+    held_len = strlen(held);
+
+    if (strcmp(held, holder) == 0)
+    {
+        /* the name would land on itself, the way it does when the
+           other directory is the one being listed */
+        errno = EEXIST;
+        return 1;
+    }
+
+    if (strncmp(held, holder, held_len) == 0 &&
+        holder[held_len] == '/')
+    {
+        /* a name cannot hold itself: the tree it would make would
+           walk into itself forever */
+        errno = EINVAL;
+        return 1;
+    }
+
+    return 0;
+}
+
+/* copies the link at one path to the other as the link it is: its
+   own pointing comes across, not what it points at, the way the
+   shell's cp -P keeps one. Returns 0 when the link came across, -1
+   when it did not, the reason standing in errno for the caller */
+static int CopyLink(const char *from_path, const char *to_path)
+{
+    char aim[PATH_JOIN_MAX]; /* where the link points */
+    ssize_t len = readlink(from_path, aim, sizeof(aim) - 1);
+
+    if (len < 0)
+    {
+        return -1;
+    }
+
+    if ((size_t)len >= sizeof(aim) - 1)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    aim[len] = '\0';
+
+    if (symlink(aim, to_path) != 0)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
 /* copies the file at one path to the other, a room at a time: the
    name the destination gets is not made again — the exclusive way
    the create makes one — and the permissions the file holds come
@@ -488,6 +624,106 @@ static int CopyFileBytes(const char *from_path, const char *to_path,
     return 0;
 }
 
+/* copies the directory tree at one path to the other: a shell of
+   its own is made to fill, the names inside laid in as the walk
+   finds them, and the permissions the directory holds come to it
+   only once it is full — a read-only directory still lets its own
+   copy be filled. A copy that cannot finish takes what it laid
+   back down. Returns 0 when the tree came across, -1 when it did
+   not, the reason standing in errno for the caller */
+static int CopyDirTree(const char *from_path, const char *to_path,
+                       const struct stat *info)
+{
+    DIR *handle;
+    struct dirent *entry;
+
+    if (mkdir(to_path, 0700) != 0)
+    {
+        return -1;
+    }
+
+    handle = opendir(from_path);
+
+    if (handle == NULL)
+    {
+        int saved = errno;
+
+        RemoveTree(to_path);
+        errno = saved;
+        return -1;
+    }
+
+    while ((entry = readdir(handle)) != NULL)
+    {
+        char from_inside[PATH_JOIN_MAX];
+        char to_inside[PATH_JOIN_MAX];
+        struct stat inside;
+
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0)
+        {
+            continue;
+        }
+
+        if (NamePath(from_path, entry->d_name, from_inside,
+                     (int)sizeof(from_inside)) != 0 ||
+            NamePath(to_path, entry->d_name, to_inside,
+                     (int)sizeof(to_inside)) != 0)
+        {
+            int saved = ENAMETOOLONG;
+
+            closedir(handle);
+            RemoveTree(to_path);
+            errno = saved;
+            return -1;
+        }
+
+        if (lstat(from_inside, &inside) != 0)
+        {
+            int saved = errno;
+
+            closedir(handle);
+            RemoveTree(to_path);
+            errno = saved;
+            return -1;
+        }
+
+        /* the name inside copies the way its kind says: a file its
+           bytes, a directory its own tree, a link its own pointing,
+           any other kind no copy at all */
+        if ((S_ISREG(inside.st_mode)
+                 ? CopyFileBytes(from_inside, to_inside, &inside)
+                 : S_ISDIR(inside.st_mode)
+                       ? CopyDirTree(from_inside, to_inside, &inside)
+                       : S_ISLNK(inside.st_mode)
+                             ? CopyLink(from_inside, to_inside)
+                             : (errno = EOPNOTSUPP, -1)) != 0)
+        {
+            int saved = errno;
+
+            closedir(handle);
+            RemoveTree(to_path);
+            errno = saved;
+            return -1;
+        }
+    }
+
+    closedir(handle);
+
+    /* the directory full, its own permissions come to it — the
+       shell it was filled through standing open no longer */
+    if (chmod(to_path, (mode_t)(info->st_mode & 07777)) != 0)
+    {
+        int saved = errno;
+
+        RemoveTree(to_path);
+        errno = saved;
+        return -1;
+    }
+
+    return 0;
+}
+
 int PathCopyName(const char *from_dir, const char *name,
                  const char *to_dir)
 {
@@ -518,10 +754,19 @@ int PathCopyName(const char *from_dir, const char *name,
 
     if (S_ISDIR(info.st_mode))
     {
-        /* a directory is a tree of its own, walked by the copy of
-           its own round */
-        errno = EISDIR;
-        return -1;
+        /* a directory is not copied into itself, and never onto the
+           spot it already stands in */
+        if (NameHoldsItself(from_path, to_dir))
+        {
+            return -1; /* the reason stands in errno */
+        }
+
+        return CopyDirTree(from_path, to_path, &info);
+    }
+
+    if (S_ISLNK(info.st_mode))
+    {
+        return CopyLink(from_path, to_path);
     }
 
     errno = EOPNOTSUPP;
