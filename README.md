@@ -561,6 +561,21 @@ New in 0.3.4:
   selection to another name in the same directory, the prompt
   opening with the name standing in it and what the name holds
   coming with it; the name as it stood says so and nothing moves.
+  Alt-c copies the name under the selection into another directory
+  — the bracket color's own key standing only where the text is
+  edited, the way the theme's own Alt-s stands: the prompt asks for
+  the destination, opening with the directory being listed standing
+  in it and Tab completing the path the way the open prompt's Tab
+  does, and what the name holds comes with it — a file its bytes, a
+  directory its whole tree, a link its own pointing, the
+  permissions coming with them — the name standing in the listing
+  still, a copy and not a move. A name already standing in the
+  other directory is not written over, the bar saying so; a
+  directory is not copied into itself either. Alt-m moves the name
+  under the selection into another directory the same way — the
+  viewport's own middle key standing only where the text is edited
+  — the listing losing the name, and a name already standing there
+  saying so.
   Alt-w says the lines, the words and the bytes of the name under
   the selection — w for word count, the way the shell's wc counts
   them: the lines its newlines make, a last line without its own
