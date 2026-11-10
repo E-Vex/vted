@@ -579,7 +579,9 @@ static void BrowseLayLine(char *line, size_t line_size,
    directory, what the name holds coming with it — Alt-c copying
    the name under the selection into another directory, the prompt
    asking for the destination with Tab completing it and what the
-   name holds coming with it — Alt-w saying the
+   name holds coming with it — Alt-m moving the name under the
+   selection into another directory the same way, the listing
+   losing it — Alt-w saying the
    lines, the words and the bytes of the name under the selection
    the way wc counts them, and Delete
    taking the name under the selection away once the bar's y says
@@ -1202,6 +1204,52 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 BrowseNamePreview(matches[selection].name, preview,
                                   (int)sizeof(preview));
                 snprintf(warn, sizeof(warn), "Copied %s%s to %s",
+                         preview,
+                         matches[selection].is_dir ? "/" : "",
+                         answer);
+            }
+
+            free(answer);
+            continue;
+        }
+
+        if (c == ViewportMiddle && count > 0)
+        {
+            /* Alt-m moves the name under the selection into another
+               directory: the prompt asks for the destination the way
+               Alt-c does — the viewport's own middle key standing
+               only where the text is edited — and what the name
+               holds comes with it, the listing losing the name the
+               way it loses one the Delete key takes */
+            char label[VTED_PATH_NAME_MAX + 24];
+            char *answer;
+
+            snprintf(label, sizeof(label), "Move %s to: ",
+                     matches[selection].name);
+            answer = EditorPromptPath(label, here);
+
+            if (answer == NULL)
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "Cancelled the move");
+                continue;
+            }
+
+            if (PathMoveName(here, matches[selection].name, answer) != 0)
+            {
+                int saved = errno;
+
+                snprintf(warn, sizeof(warn), "Cannot move: %s",
+                         saved != 0 ? strerror(saved)
+                                    : "the name did not go across");
+            }
+            else
+            {
+                char preview[40]; /* the name as the bar holds it */
+
+                BrowseNamePreview(matches[selection].name, preview,
+                                  (int)sizeof(preview));
+                snprintf(warn, sizeof(warn), "Moved %s%s to %s",
                          preview,
                          matches[selection].is_dir ? "/" : "",
                          answer);
