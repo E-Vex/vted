@@ -128,6 +128,18 @@
 # directory holding a name of its own refusing to go until the
 # name inside is gone.
 #
+# A copy and move run walks the cross-directory rounds of the browse
+# the way a hand would: Alt-c copying the name under the selection
+# into another directory — the destination prompt opening with the
+# directory being listed standing in it, its path completed the way
+# the open prompt's Tab completes one, the bytes coming with it and
+# the name standing in the listing still — a copy onto a name
+# already standing told so, a directory copied as the tree it holds,
+# Alt-m moving the name under the selection into another directory
+# with the listing losing it, a move onto a name already standing
+# told so, and ESC cancelling either prompt with the listing
+# standing.
+#
 # A prompt run walks the Alt-o of the message bar the way a hand
 # would: a search whose query names a file with a :line:column tail
 # opened with Alt-o and landing on the spot it says, a query that
@@ -168,6 +180,10 @@ ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
 ALT_S = b'\x1bs'    # Alt-s: the sort of the browse (the theme elsewhere)
 ALT_A = b'\x1ba'    # Alt-a: a name made in the directory the browse lists
 ALT_R = b'\x1br'    # Alt-r: the name under the selection moved to another
+ALT_C = b'\x1bc'    # Alt-c: the name under the selection copied to
+                    # another directory (the bracket color elsewhere)
+ALT_M = b'\x1bm'    # Alt-m: the name under the selection moved to
+                    # another directory (the viewport middle elsewhere)
 ALT_W = b'\x1bw'    # Alt-w: the lines, the words and the bytes of the
                     # name under the selection, the way wc counts them
 DELETE = b'\x1b[3~'  # Delete: the name under the selection taken away
@@ -196,6 +212,8 @@ GOTO = '/tmp/vted-smoke-goto.txt'  # the buffer the jumps land in
 GOTO_TREE = '/tmp/vted-smoke-goto-tree'  # the tree the goto's Alt-/ walks
 BROWSE_TREE = '/tmp/vted-smoke-browse'  # the tree the Alt-o browse walks
 FILEOPS_TREE = '/tmp/vted-smoke-fileops'  # the tree the makes and moves walk in
+COPYMOVE_TREE = '/tmp/vted-smoke-copymove'  # the tree the cross-directory
+                                            # copy and move walk in
 COUNT_TREE = '/tmp/vted-smoke-count'  # the tree the word count walks in
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
@@ -1838,6 +1856,200 @@ def fileops_smoke(binary):
     return 0
 
 
+def copymove_smoke(binary):
+    """the copy and move run: Alt-c copying the name under the
+    selection of the browse into another directory — the destination
+    prompt opening with the directory being listed standing in it,
+    its path completed the way the open prompt's Tab completes one,
+    the bytes coming with it and the name standing in the listing
+    still — a copy onto a name already standing told so, a directory
+    copied as the tree it holds, Alt-m moving the name under the
+    selection into another directory with the listing losing it, a
+    move onto a name already standing told so, and ESC cancelling
+    either prompt with the listing standing"""
+    import shutil
+
+    shutil.rmtree(COPYMOVE_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(COPYMOVE_TREE, 'inner'))
+    os.makedirs(os.path.join(COPYMOVE_TREE, 'far'))
+    os.makedirs(os.path.join(COPYMOVE_TREE, 'inner', 'packed'))
+
+    start_text = ('inner\n' +
+                  ''.join('filler %02d\n' % i for i in range(1, 30)))
+    with open(os.path.join(COPYMOVE_TREE, 'start.txt'), 'w') as f:
+        f.write(start_text)
+    with open(os.path.join(COPYMOVE_TREE, 'inner', 'fresh.txt'), 'w') as f:
+        f.write('the copy walks\n')
+    with open(os.path.join(COPYMOVE_TREE, 'inner', 'bring.txt'), 'w') as f:
+        f.write('the move walks\n')
+    with open(os.path.join(COPYMOVE_TREE, 'inner', 'packed',
+                           'held.txt'), 'w') as f:
+        f.write('held inside\n')
+
+    far = os.path.join(COPYMOVE_TREE, 'far')
+    here = os.path.join(COPYMOVE_TREE, 'inner') + '/'
+
+    pid, fd = spawn(binary, [os.path.join(COPYMOVE_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on the first line opens the browse of the directory —
+    # the listing [bring.txt, fresh.txt, packed/] — and a step down
+    # lands on fresh.txt, whose Alt-c asks for the destination of
+    # the copy: the prompt opening with the directory being listed
+    # standing in it, the hand clearing it and typing the far
+    # directory, Tab completing the tree's own name the way the open
+    # prompt's Tab does
+    drive(fd, ALT_O, out)
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drive(fd, ALT_C, out)
+    drive(fd, BACKSPACE * len(here), out)
+    drive(fd, b'/tmp/vted-smoke-copym', out)
+    drive(fd, b'\t', out)
+    drive(fd, b'far', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Copied fresh.txt to ' + far.encode() not in drew:
+        return fail('Alt-c did not copy the name into the far directory')
+
+    # the bytes came with it, and the name stands in the listing
+    # still — a copy, not a move
+    with open(os.path.join(far, 'fresh.txt')) as f:
+        if f.read() != 'the copy walks\n':
+            return fail('the copy did not carry the bytes')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'fresh.txt' not in drew:
+        return fail('the copied name left the listing')
+
+    # a copy onto a name already standing is told so, both standing
+    # as they were
+    out.clear()
+    drive(fd, b'\x1b[A', out)
+    drive(fd, ALT_C, out)
+    drive(fd, BACKSPACE * len(here), out)
+    drive(fd, far.encode(), out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Cannot copy: File exists' not in drew:
+        return fail('a copy onto a standing name was not told so')
+
+    # a directory copies as the tree it holds: the step down lands on
+    # packed, and the file inside comes with it
+    drive(fd, b'\x1b[B', out)
+    out.clear()
+    drive(fd, ALT_C, out)
+    drive(fd, BACKSPACE * len(here), out)
+    drive(fd, far.encode(), out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Copied packed/ to ' + far.encode() not in drew:
+        return fail('Alt-c did not copy the directory with its tree')
+
+    with open(os.path.join(far, 'packed', 'held.txt')) as f:
+        if f.read() != 'held inside\n':
+            return fail('the tree copy did not carry the file inside')
+
+    # Alt-m moves the name under the selection into another
+    # directory: the step down from packed lands on bring.txt, and
+    # the listing loses it
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drive(fd, ALT_M, out)
+    drive(fd, BACKSPACE * len(here), out)
+    drive(fd, far.encode(), out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Moved bring.txt to ' + far.encode() not in drew:
+        return fail('Alt-m did not move the name into the far directory')
+
+    with open(os.path.join(far, 'bring.txt')) as f:
+        if f.read() != 'the move walks\n':
+            return fail('the move did not carry the bytes')
+
+    # a key clears the word, and the listing no longer holds the
+    # name — fresh.txt and packed the two left
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'bring.txt' in drew:
+        return fail('the listing still held the moved name')
+    if b'packed/' not in drew or b'fresh.txt' not in drew:
+        return fail('the listing lost a name that stayed')
+
+    # a move onto a name already standing is told so, the name
+    # staying in the listing
+    out.clear()
+    drive(fd, b'\x1b[A', out)
+    drive(fd, ALT_M, out)
+    drive(fd, BACKSPACE * len(here), out)
+    drive(fd, far.encode(), out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Cannot move: File exists' not in drew:
+        return fail('a move onto a standing name was not told so')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'packed/' not in drew:
+        return fail('the refusing name left the listing')
+
+    # ESC cancels either prompt, the listing standing
+    out.clear()
+    drive(fd, ALT_C, out)
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'Cancelled the copy' not in drew:
+        return fail('ESC did not cancel the copy prompt')
+
+    out.clear()
+    drive(fd, ALT_M, out)
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'Cancelled the move' not in drew:
+        return fail('ESC did not cancel the move prompt')
+
+    # ESC cancels the browse and the editor leaves clean, the tree
+    # carrying the proof of the whole walk
+    drive(fd, ESC, out)
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(os.path.join(COPYMOVE_TREE, 'start.txt')) as f:
+        if f.read() != start_text:
+            return fail('the copy and move run touched start.txt')
+
+    if sorted(os.listdir(os.path.join(COPYMOVE_TREE, 'inner'))) != \
+            ['fresh.txt', 'packed']:
+        return fail('the copy and move run left a name behind')
+    if sorted(os.listdir(far)) != ['bring.txt', 'fresh.txt', 'packed']:
+        return fail('the far directory did not hold what walked into it')
+
+    print('smoke: OK - walked the copy and the move of the browse')
+    return 0
+
+
 def count_smoke(binary):
     """the word count run: Alt-w asking the counting of the name
     under the selection of the browse, the way the shell's wc
@@ -2403,6 +2615,7 @@ def main() -> int:
         or quote_smoke(binary) or jump_smoke(binary) \
         or goto_smoke(binary) or gocomplete_smoke(binary) \
         or browse_smoke(binary) or fileops_smoke(binary) \
+        or copymove_smoke(binary) \
         or count_smoke(binary) or prompt_smoke(binary) or match_smoke(binary)
 
 
