@@ -760,6 +760,54 @@ static void TestCopyMoveNames(void)
     TakeNameAway("away");
 }
 
+/* the tree a name holds coming away with it, the way the shell's
+   rm -r does: a file outright, an empty shell, a tree gone whole,
+   a name that is not there, and a shell the round cannot reach
+   into saying why it stayed */
+static void TestDeleteTrees(void)
+{
+    /* a file goes outright, the way the plain delete takes it */
+    FillFile("tree.txt", "what it holds");
+    CHECK_INT(PathDeleteTree(".", "tree.txt"), 0);
+    CHECK_INT(List("tree.txt"), 0);
+
+    /* an empty shell goes too */
+    MakeDir("shell");
+    CHECK_INT(PathDeleteTree(".", "shell"), 0);
+    CHECK_INT(List("shell"), 0);
+
+    /* a tree goes whole: the names inside first, the shells they
+       sat in behind them, a link taken as the link it is */
+    MakeDir("forest");
+    FillFile("forest/inside.txt", "the inside");
+    MakeDir("forest/nest");
+    FillFile("forest/nest/deep.txt", "the depth");
+    CHECK_INT(symlink("inside.txt", "forest/point"), 0);
+    CHECK_INT(PathDeleteTree(".", "forest"), 0);
+    CHECK_INT(List("forest"), 0);
+
+    /* a name that is not there says no */
+    CHECK_INT(PathDeleteTree(".", "gone"), -1);
+    CHECK_INT(errno, ENOENT);
+
+    /* a shell the hand cannot write into keeps what it holds: the
+       round stops where it cannot reach and says why, the names
+       before the one it stopped at gone for good */
+    MakeDir("sealed");
+    FillFile("sealed/inside.txt", "the inside");
+    chmod("sealed", 0555);
+    CHECK_INT(PathDeleteTree(".", "sealed"), -1);
+    CHECK_INT(errno, EACCES);
+    CHECK_INT(PathListAll("sealed", VTED_PATH_SORT_NAME,
+                          matches, VTED_PATH_MATCHES), 1);
+    CHECK_STR(matches[0].name, "inside.txt");
+
+    /* the room open again, the round takes the tree whole */
+    chmod("sealed", 0755);
+    CHECK_INT(PathDeleteTree(".", "sealed"), 0);
+    CHECK_INT(List("sealed"), 0);
+}
+
 static void TestCountingName(void)
 {
     /* the shell's wc asked of one name: the lines its newlines
@@ -861,6 +909,7 @@ int main(void)
     TestFilteredListing();
     TestNameOperations();
     TestCopyMoveNames();
+    TestDeleteTrees();
     TestCountingName();
 
     TakeTreeDown();
