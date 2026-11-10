@@ -117,6 +117,15 @@ int PathRenameName(const char *dir, const char *from, const char *to);
    when it stayed, the reason standing in errno for the caller */
 int PathDeleteName(const char *dir, const char *name);
 
+/* takes the name a directory holds away with everything behind it:
+   a file outright, a directory its whole tree — the names inside
+   taken first, the empty shell last, the shell's rm with its -r.
+   A tree the round cannot finish stands as it stood, the names
+   taken before the one that stayed gone for good, the reason
+   standing in errno for the caller. Returns 0 when the name is
+   gone, -1 when some of it stayed */
+int PathDeleteTree(const char *dir, const char *name);
+
 /* copies the name a directory holds into the other directory it is
    given: a file its bytes, a directory its whole tree — the names
    inside laid in as the copy walks them, a link its own pointing —

@@ -473,6 +473,21 @@ static int RemoveTree(const char *path)
     return rmdir(path) == 0 ? 0 : -1;
 }
 
+int PathDeleteTree(const char *dir, const char *name)
+{
+    char path[PATH_JOIN_MAX];
+
+    if (NamePath(dir, name, path, (int)sizeof(path)) != 0)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    /* the tree round does the asking: a file goes as one, a
+       directory its names first and its own shell last */
+    return RemoveTree(path);
+}
+
 /* says whether the directory a copy would land in stands inside the
    tree it copies — the tree holding itself, which no copy could
    ever finish. The one look takes the paths as the disk lays them,
