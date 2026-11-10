@@ -557,7 +557,9 @@ New in 0.3.4:
   trailing slash making a directory of it, the slash the listing
   itself puts behind one — the answer a name, not a path, and the
   listing standing again with the name it gained selected, the
-  bar saying what came of it. Alt-r moves the name under the
+  bar saying what came of it; a file comes open straight from the
+  prompt that made it, the empty buffer waiting for the words the
+  way the open prompt's own opens wait. Alt-r moves the name under the
   selection to another name in the same directory, the prompt
   opening with the name standing in it and what the name holds
   coming with it; the name as it stood says so and nothing moves.
