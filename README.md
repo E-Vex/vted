@@ -578,6 +578,19 @@ New in 0.3.4:
   viewport's own middle key standing only where the text is edited
   — the listing losing the name, and a name already standing there
   saying so.
+  Alt-v turns the mark of the name under the selection — v the way
+  vi's v starts a visual selection: the marked name stands a star
+  before it in the listing, the bar saying how many marks stand —
+  and takes the mark back off the name it stood for by the same
+  key. The marks belong to the directory being listed: a walk in
+  or up leaves them behind with it, a rename carries the one it
+  renames with the name, and a delete takes the mark of the name
+  it took away. The copy and the move take every marked name
+  together when any stand — the prompt asking for the destination
+  once and saying how many go, the round stopping at the first
+  name that says no with the bar saying how far it came and why it
+  stopped, the marks standing for another try — and a round that
+  took every name across takes the marks with it.
   Alt-w says the lines, the words and the bytes of the name under
   the selection — w for word count, the way the shell's wc counts
   them: the lines its newlines make, a last line without its own
