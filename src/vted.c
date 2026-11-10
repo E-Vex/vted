@@ -572,8 +572,9 @@ static void BrowseLayLine(char *line, size_t line_size,
    time the newest first, the way ls -S and ls -t lay their own,
    the name the selection stands on standing selected through the
    resort and the bar saying which order stands — Alt-a making a
-   name in the directory being listed, the prompt taking the name
-   and a trailing slash making a directory of it, the listing
+   name in the directory being listed, the prompt taking the name,
+   a file coming open straight from the prompt that made it and a
+   trailing slash making a directory of it, the listing
    standing again with the name it gained selected — Alt-r moving
    the name under the selection to another name in the same
    directory, what the name holds coming with it — Alt-c copying
@@ -1003,11 +1004,13 @@ static int EditorBrowseDirectory(const char *path, char *message,
             /* Alt-a makes a name in the directory being listed: the
                prompt takes the name — a trailing slash making a
                directory of it, the slash the listing itself puts
-               behind one — and the listing stands again with the
-               name it gained standing selected, the filter off so
-               the name shows. The prompt answers in the directory
-               being listed, not the working one, so it completes
-               nothing: a name, not a path */
+               behind one — a file coming open straight from the
+               prompt that made it, and a directory keeping the
+               listing standing again with the name it gained
+               standing selected, the filter off so the name shows.
+               The prompt answers in the directory being listed, not
+               the working one, so it completes nothing: a name, not
+               a path */
             char label[PATH_MAX + 32];
             char name[VTED_PATH_NAME_MAX];
             char *answer;
@@ -1075,6 +1078,21 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 char preview[40]; /* the name as the bar holds it */
 
                 BrowseNamePreview(name, preview, (int)sizeof(preview));
+
+                if (!make_dir &&
+                    snprintf(into, sizeof(into), "%s%s", here, name) <
+                        (int)sizeof(into))
+                {
+                    /* a file comes open straight from the prompt
+                       that made it: the empty buffer waiting for the
+                       words, the way the open prompt opens one — the
+                       create saying what it made by handing it over,
+                       the way a take from the listing does */
+                    ScreenShowMenu(NULL, 0, 0);
+                    return EditorOpenNamed(into, 0, 0,
+                                           message, message_size);
+                }
+
                 snprintf(warn, sizeof(warn), "Created %s%s", preview,
                          make_dir ? "/" : "");
                 snprintf(from, sizeof(from), "%s", name);

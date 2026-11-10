@@ -120,8 +120,9 @@
 #
 # A file operations run walks the makes, the moves and the takes
 # of the browse the way a hand would: Alt-a making a name in the
-# directory being listed — a file, a directory with the slash that
-# says its kind, a name already there saying so, a path rejected —
+# directory being listed — a file coming open straight from the
+# prompt, a directory with the slash that says its kind keeping the
+# listing, a name already there saying so, a path rejected —
 # Alt-r moving the name under the selection to another with the
 # prompt carrying the name standing in it, and Delete asking after
 # the name under the selection, n keeping it and y taking it, a
@@ -1634,9 +1635,10 @@ def browse_smoke(binary):
 
 def fileops_smoke(binary):
     """the file operations run: names made in the directory the
-    browse lists — a file, a directory with the slash that says its
-    kind, a name already there saying so, a path rejected, and a
-    cancel — the name under the selection moved to another with
+    browse lists — a file coming open straight from the prompt, a
+    directory with the slash that says its kind keeping the listing,
+    a name already there saying so, a path rejected, and a cancel —
+    the name under the selection moved to another with
     what it holds coming along, the name as it stood saying so and
     nothing moving, the delete asked after and answered, n keeping
     the name and y taking it, and a directory holding a name of
@@ -1656,7 +1658,9 @@ def fileops_smoke(binary):
     time.sleep(0.3)
 
     # Alt-o on the first line opens the browse of the empty
-    # directory, and Alt-a makes a name in it: an empty file
+    # directory, and Alt-a makes a name in it: an empty file coming
+    # open straight from the prompt, the buffer waiting for the
+    # words the way the open prompt's own opens wait
     drive(fd, ALT_O, out)
     out.clear()
     drive(fd, ALT_A, out)
@@ -1664,8 +1668,18 @@ def fileops_smoke(binary):
     drive(fd, ENTER, out)
     drew = b''.join(out)
 
-    if b'Created fresh.txt' not in drew:
-        return fail('Alt-a did not make the name in the listing')
+    if b'Opened /tmp/vted-smoke-fileops/inner/fresh.txt' not in drew:
+        return fail('Alt-a did not open the file it made')
+    if b'buffer 2 of 2' not in drew:
+        return fail('the made file did not come open as its own buffer')
+
+    # the name made stands in the listing: back to the first buffer,
+    # whose Alt-o opens the browse again with the name in it
+    drive(fd, b'\x1b1', out)
+    out.clear()
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
     if b'fresh.txt' not in drew:
         return fail('the made name did not stand in the listing')
 
@@ -1792,7 +1806,10 @@ def fileops_smoke(binary):
         return fail('the listing still held the taken name')
 
     # a directory holding a name of its own refuses to go: walk in,
-    # make one, walk up, ask, and the bar says why it stays
+    # make one — the made file coming open, the way the first one
+    # did, the walk back into the directory going through the first
+    # buffer's own Alt-o — walk up, ask, and the bar says why it
+    # stays
     drive(fd, ENTER, out)
     out.clear()
     drive(fd, ALT_A, out)
@@ -1800,10 +1817,20 @@ def fileops_smoke(binary):
     drive(fd, ENTER, out)
     drew = b''.join(out)
 
-    if b'Created inside.txt' not in drew:
-        return fail('Alt-a did not make a name inside the directory')
+    if b'Opened /tmp/vted-smoke-fileops/inner/made-dir/inside.txt' \
+            not in drew:
+        return fail('Alt-a did not open the file it made inside the '
+                    'directory')
 
-    drive(fd, BACKSPACE, out)
+    drive(fd, b'\x1b1', out)
+    out.clear()
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'made-dir/' not in drew:
+        return fail('the made directory did not stand in the listing')
+
+    # the listing above holds made-dir alone, its delete asked there
     out.clear()
     drive(fd, DELETE, out)
     drive(fd, b'y', out)
