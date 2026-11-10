@@ -586,7 +586,8 @@ static void BrowseLayLine(char *line, size_t line_size,
    lines, the words and the bytes of the name under the selection
    the way wc counts them, and Delete
    taking the name under the selection away once the bar's y says
-   so — the arrows and
+   so — a directory asked after standing with the d of the tree it
+   holds beside the y — the arrows and
    the wheel stepping through them, Enter or a left click walking
    into a directory and
    opening a file, Backspace going up a level
@@ -607,7 +608,7 @@ static int EditorBrowseDirectory(const char *path, char *message,
     char lines[BROWSE_LINES][BROWSE_WIDTH];
     const char *shown[BROWSE_LINES];
     char from[VTED_PATH_NAME_MAX]; /* the name a walk up selects */
-    char warn[96]; /* a word the bar holds until the next key */
+    char warn[128]; /* a word the bar holds until the next key */
     char filter[VTED_PATH_NAME_MAX]; /* the bytes the listing is
                                         narrowed to, carried in the
                                         bar the way a prompt carries
@@ -616,8 +617,11 @@ static int EditorBrowseDirectory(const char *path, char *message,
                                          asks after, held while the
                                          bar carries its question */
     int deleting = 0; /* the bar is asking after the name in
-                         asking: y takes it away, any other key
-                         keeps it */
+                         asking: 1 asks after a file or an empty
+                         directory, y taking it away — 2 asks
+                         after a directory, d taking the tree it
+                         holds as well — and any other key keeps
+                         the name */
     int filter_len = 0;
     int selection = 0;
     vted_path_sort_t sort = VTED_PATH_SORT_NAME; /* the order the
@@ -820,11 +824,40 @@ static int EditorBrowseDirectory(const char *path, char *message,
         if (deleting)
         {
             /* the question the Delete key left stands answered by
-               this key: y takes the name away, any other key keeps
-               it, the listing standing either way */
+               this key: y takes the name away — a directory only
+               when it holds nothing of its own — d takes a
+               directory with the tree it holds, the shell's rm
+               with its -r, and any other key keeps the name, the
+               listing standing either way. The d only stands for
+               the tree where the question offered it: a d asked
+               after a file keeps it, the way any other key does */
+            int asked_tree = deleting == 2; /* the question named
+                                               the tree answer */
+
             deleting = 0;
 
-            if (c == 'y' || c == 'Y')
+            if (asked_tree && (c == 'd' || c == 'D'))
+            {
+                char preview[40]; /* the name as the bar holds it */
+
+                if (PathDeleteTree(here, asking) == 0)
+                {
+                    BrowseNamePreview(asking, preview,
+                                      (int)sizeof(preview));
+                    snprintf(warn, sizeof(warn),
+                             "Deleted %s with its tree", preview);
+                }
+                else
+                {
+                    int saved = errno;
+
+                    snprintf(warn, sizeof(warn), "Cannot delete: %s",
+                             saved != 0 ? strerror(saved)
+                                        : "the tree stayed");
+                }
+            }
+
+            else if (c == 'y' || c == 'Y')
             {
                 char preview[40]; /* the name as the bar holds it */
 
@@ -1329,16 +1362,31 @@ static int EditorBrowseDirectory(const char *path, char *message,
                own tail — and the next key answers it, y taking the
                name away and any other key keeping it. A file goes
                outright, a directory only when it holds nothing of
-               its own, the shell's rm without its -r */
+               its own — the shell's rm without its -r — unless the
+               d the question offers a directory takes the tree it
+               holds, the way rm -r does */
             char preview[40];
 
             snprintf(asking, sizeof(asking), "%s",
                      matches[selection].name);
             BrowseNamePreview(asking, preview, (int)sizeof(preview));
-            snprintf(warn, sizeof(warn),
-                     "Delete '%s'? y deletes, any other key keeps it",
-                     preview);
-            deleting = 1;
+
+            if (matches[selection].is_dir)
+            {
+                snprintf(warn, sizeof(warn),
+                         "Delete '%s'? y deletes it when empty, "
+                         "d takes the tree, any other key keeps it",
+                         preview);
+                deleting = 2;
+            }
+            else
+            {
+                snprintf(warn, sizeof(warn),
+                         "Delete '%s'? y deletes, any other key keeps it",
+                         preview);
+                deleting = 1;
+            }
+
             continue;
         }
 
