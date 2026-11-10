@@ -1323,20 +1323,37 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
         if (c == BracketColorPrompt && count > 0)
         {
-            /* Alt-c copies the name under the selection into another
-               directory: the prompt asks for the destination, opening
-               with the directory being listed standing in it and Tab
-               completing the path the way the open prompt's Tab does
-               — the bracket color's own key standing only where the
-               text is edited, the way the theme's own Alt-s stands.
-               What the name holds comes with it — a file its bytes,
-               a directory its whole tree — and the name stands in
-               the listing still, a copy and not a move */
+            /* Alt-c copies into another directory: the name under
+               the selection when no marks stand, every marked name
+               together when any do — the prompt asking for the
+               destination once either way, opening with the
+               directory being listed standing in it and Tab
+               completing the path the way the open prompt's Tab
+               does — the bracket color's own key standing only
+               where the text is edited, the way the theme's own
+               Alt-s stands. What a name holds comes with it — a
+               file its bytes, a directory its whole tree — and the
+               names stand in the listing still, a copy and not a
+               move. The marked round goes name by name and stops
+               at the first one that says no, the bar saying how
+               many came across and why it stopped, the marks
+               standing so the round can be asked again once the
+               way is clear; a round that took every name across
+               takes the marks with it, the round done */
             char label[VTED_PATH_NAME_MAX + 24];
             char *answer;
 
-            snprintf(label, sizeof(label), "Copy %s to: ",
-                     matches[selection].name);
+            if (marked_count > 0)
+            {
+                snprintf(label, sizeof(label), "Copy %d marked to: ",
+                         marked_count);
+            }
+            else
+            {
+                snprintf(label, sizeof(label), "Copy %s to: ",
+                         matches[selection].name);
+            }
+
             answer = EditorPromptPath(label, here);
 
             if (answer == NULL)
@@ -1346,7 +1363,42 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 continue;
             }
 
-            if (PathCopyName(here, matches[selection].name, answer) != 0)
+            if (marked_count > 0)
+            {
+                int done = 0;
+                int i;
+
+                for (i = 0; i < marked_count; i++)
+                {
+                    if (PathCopyName(here, marks[i], answer) != 0)
+                    {
+                        int saved = errno;
+                        char preview[40];
+
+                        BrowseNamePreview(marks[i], preview,
+                                          (int)sizeof(preview));
+                        snprintf(warn, sizeof(warn),
+                                 "Copied %d of %d to %s, %s stayed: %s",
+                                 done, marked_count, answer, preview,
+                                 saved != 0 ? strerror(saved)
+                                            : "the name did not come "
+                                              "across");
+                        break;
+                    }
+
+                    done++;
+                }
+
+                if (done == marked_count)
+                {
+                    snprintf(warn, sizeof(warn), "Copied %d %s to %s",
+                             done, done == 1 ? "name" : "names",
+                             answer);
+                    marked_count = 0;
+                }
+            }
+            else if (PathCopyName(here, matches[selection].name,
+                                  answer) != 0)
             {
                 int saved = errno;
 
@@ -1372,17 +1424,33 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
         if (c == ViewportMiddle && count > 0)
         {
-            /* Alt-m moves the name under the selection into another
-               directory: the prompt asks for the destination the way
-               Alt-c does — the viewport's own middle key standing
-               only where the text is edited — and what the name
-               holds comes with it, the listing losing the name the
-               way it loses one the Delete key takes */
+            /* Alt-m moves into another directory the way Alt-c
+               copies: the name under the selection when no marks
+               stand, every marked name together when any do — the
+               viewport's own middle key standing only where the
+               text is edited — and what a name holds comes with it,
+               the listing losing each name the way it loses one the
+               Delete key takes. The marked round goes name by name
+               and stops at the first one that says no, the bar
+               saying how many went across and why it stopped, the
+               marks standing so the round can be asked again; a
+               round that took every name across takes the marks
+               with it, the names gone from the listing and the
+               marks gone with them */
             char label[VTED_PATH_NAME_MAX + 24];
             char *answer;
 
-            snprintf(label, sizeof(label), "Move %s to: ",
-                     matches[selection].name);
+            if (marked_count > 0)
+            {
+                snprintf(label, sizeof(label), "Move %d marked to: ",
+                         marked_count);
+            }
+            else
+            {
+                snprintf(label, sizeof(label), "Move %s to: ",
+                         matches[selection].name);
+            }
+
             answer = EditorPromptPath(label, here);
 
             if (answer == NULL)
@@ -1392,7 +1460,42 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 continue;
             }
 
-            if (PathMoveName(here, matches[selection].name, answer) != 0)
+            if (marked_count > 0)
+            {
+                int done = 0;
+                int i;
+
+                for (i = 0; i < marked_count; i++)
+                {
+                    if (PathMoveName(here, marks[i], answer) != 0)
+                    {
+                        int saved = errno;
+                        char preview[40];
+
+                        BrowseNamePreview(marks[i], preview,
+                                          (int)sizeof(preview));
+                        snprintf(warn, sizeof(warn),
+                                 "Moved %d of %d to %s, %s stayed: %s",
+                                 done, marked_count, answer, preview,
+                                 saved != 0 ? strerror(saved)
+                                            : "the name did not go "
+                                              "across");
+                        break;
+                    }
+
+                    done++;
+                }
+
+                if (done == marked_count)
+                {
+                    snprintf(warn, sizeof(warn), "Moved %d %s to %s",
+                             done, done == 1 ? "name" : "names",
+                             answer);
+                    marked_count = 0;
+                }
+            }
+            else if (PathMoveName(here, matches[selection].name,
+                                  answer) != 0)
             {
                 int saved = errno;
 
