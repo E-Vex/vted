@@ -187,6 +187,9 @@ ALT_M = b'\x1bm'    # Alt-m: the name under the selection moved to
                     # another directory (the viewport middle elsewhere)
 ALT_W = b'\x1bw'    # Alt-w: the lines, the words and the bytes of the
                     # name under the selection, the way wc counts them
+ALT_V = b'\x1bv'    # Alt-v: the name under the selection of the browse
+                    # marked or unmarked, the copy and the move taking
+                    # the marked names together
 DELETE = b'\x1b[3~'  # Delete: the name under the selection taken away
 ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
 ALT_PERCENT = b'\x1b%'  # Alt-%: the jump to the lit partner
@@ -217,6 +220,7 @@ COPYMOVE_TREE = '/tmp/vted-smoke-copymove'  # the tree the cross-directory
                                             # copy and move walk in
 COUNT_TREE = '/tmp/vted-smoke-count'  # the tree the word count walks in
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
+MARKS_TREE = '/tmp/vted-smoke-marks'  # the tree the marks walk in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
 
@@ -2242,6 +2246,208 @@ def count_smoke(binary):
     return 0
 
 
+def marks_smoke(binary):
+    """the marks run: Alt-v standing a mark before the name under
+    the selection and taking it back off — the star the listing
+    carries the marked names by, the count the bar says — the copy
+    and the move asking for the destination once and taking every
+    marked name across, a round that went whole taking the marks
+    with it, a round that could not finish saying how far it came
+    and why it stopped with the marks standing for another try, and
+    the move of one marked name losing it from the listing"""
+    import shutil
+
+    shutil.rmtree(MARKS_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(MARKS_TREE, 'pile', 'away'))
+
+    with open(os.path.join(MARKS_TREE, 'start.txt'), 'w') as f:
+        f.write('pile\nfiller one\n')
+    with open(os.path.join(MARKS_TREE, 'pile', 'one.txt'), 'w') as f:
+        f.write('one one\n')
+    with open(os.path.join(MARKS_TREE, 'pile', 'two.txt'), 'w') as f:
+        f.write('two two two\n')
+    with open(os.path.join(MARKS_TREE, 'pile', 'three.txt'), 'w') as f:
+        f.write('three\n')
+
+    pid, fd = spawn(binary, [os.path.join(MARKS_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on "pile" opens the browse of it: the listing laid with
+    # away first, the names the alphabet lays after it behind it
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'away/' not in drew or b'one.txt' not in drew \
+            or b'three.txt' not in drew or b'two.txt' not in drew:
+        return fail('the browse of the pile did not stand')
+
+    # Alt-v stands a mark before the name under the selection —
+    # away the first — and takes it back off: the star the listing
+    # carries the marked name by, the bar saying what stands
+    out.clear()
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked away' not in drew:
+        return fail('Alt-v did not mark the name under the selection')
+    if b'* away/' not in drew:
+        return fail('the marked name did not stand a star before it')
+
+    out.clear()
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Unmarked away' not in drew:
+        return fail('Alt-v did not take the mark back off')
+    if b'* away/' in drew:
+        return fail('the mark taken back off left its star behind')
+
+    # two marks stand: one.txt and three.txt, the bar saying how
+    # many stand once the keys that marked them are past
+    drive(fd, b'\x1b[B', out)   # down to one.txt
+    out.clear()
+    drive(fd, ALT_V, out)
+    drive(fd, b'\x1b[B', out)   # down to three.txt
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked one.txt' not in drew or b'Marked three.txt' not in drew:
+        return fail('the two marks did not stand')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down to two.txt, the bar saying the marks
+    drew = b''.join(out)
+
+    if b'2 marked' not in drew:
+        return fail('the bar did not say how many marks stand')
+
+    # Alt-c with marks standing asks for the destination once, the
+    # prompt saying how many go: the round taking both across, the
+    # names standing in the pile still
+    out.clear()
+    drive(fd, ALT_C, out)
+    drew = b''.join(out)
+
+    if b'Copy 2 marked to:' not in drew:
+        return fail('the copy prompt did not say how many go')
+
+    drive(fd, b'away', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Copied 2 names to /tmp/vted-smoke-marks/pile/away' not in drew:
+        return fail('the marked copy did not say the names it took')
+
+    for name, held in (('one.txt', 'one one\n'),
+                       ('three.txt', 'three\n')):
+        with open(os.path.join(MARKS_TREE, 'pile', 'away', name)) as f:
+            if f.read() != held:
+                return fail(f'the copy of {name} did not carry its bytes')
+
+    with open(os.path.join(MARKS_TREE, 'pile', 'one.txt')) as f:
+        if f.read() != 'one one\n':
+            return fail('the copy took the name it copied away')
+
+    # a round that went whole takes the marks with it: the hint
+    # back to the listing's own, no mark the bar counts
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'Alt-c copies them' in drew:
+        return fail('the whole round did not take the marks with it')
+
+    # a round that cannot finish says how far it came and why it
+    # stopped: away cannot move into itself — and the mark stands
+    # for another try
+    out.clear()
+    drive(fd, ALT_V, out)       # away the selection stands on, marked
+    drive(fd, ALT_M, out)
+    drew = b''.join(out)
+
+    if b'Move 1 marked to:' not in drew:
+        return fail('the move prompt did not say how many go')
+
+    drive(fd, b'away', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Moved 0 of 1 to /tmp/vted-smoke-marks/pile/away, away stayed' \
+            not in drew:
+        return fail('the round did not say why the move stayed')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down to one.txt, the bar saying the mark
+    drew = b''.join(out)
+
+    if b'1 marked' not in drew:
+        return fail('the failed round did not keep the mark standing')
+
+    # back up to away, the mark taken back off for the next round
+    out.clear()
+    drive(fd, b'\x1b[A', out)
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Unmarked away' not in drew:
+        return fail('the mark did not come off for the next round')
+
+    out.clear()
+    drive(fd, b'\x1b[A', out)   # up wraps to two.txt
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked two.txt' not in drew:
+        return fail('the mark before the move did not stand')
+
+    out.clear()
+    drive(fd, ALT_M, out)
+    drive(fd, b'away', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Moved 1 name to /tmp/vted-smoke-marks/pile/away' not in drew:
+        return fail('the marked move did not go across')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)
+    drew = b''.join(out)
+
+    if b'two.txt' in drew:
+        return fail('the listing still held the moved name')
+    if b'Alt-c copies them' in drew:
+        return fail('the move round did not take the mark with it')
+
+    # ESC cancels the browse and the pile stands as the rounds left
+    # it
+    drive(fd, ESC, out)
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(os.path.join(MARKS_TREE, 'start.txt')) as f:
+        if f.read() != 'pile\nfiller one\n':
+            return fail('the marks run touched start.txt')
+
+    if sorted(os.listdir(os.path.join(MARKS_TREE, 'pile'))) != \
+            ['away', 'one.txt', 'three.txt']:
+        return fail('the pile did not stand as the rounds left it')
+
+    if sorted(os.listdir(os.path.join(MARKS_TREE, 'pile', 'away'))) != \
+            ['one.txt', 'three.txt', 'two.txt']:
+        return fail('the away did not hold the names the rounds took it')
+
+    print('smoke: OK - walked the marks of the browse')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -2695,7 +2901,8 @@ def main() -> int:
         or goto_smoke(binary) or gocomplete_smoke(binary) \
         or browse_smoke(binary) or fileops_smoke(binary) \
         or copymove_smoke(binary) \
-        or count_smoke(binary) or prompt_smoke(binary) or match_smoke(binary)
+        or count_smoke(binary) or marks_smoke(binary) \
+        or prompt_smoke(binary) or match_smoke(binary)
 
 
 if __name__ == '__main__':
