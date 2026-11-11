@@ -882,7 +882,7 @@ static int EditorBrowseDirectory(const char *path, char *message,
         }
         else if (marked_count > 0)
         {
-            SetStatusMessage("Browse %.*s: %d marked, Alt-c copies them, Alt-m moves them; Backspace goes up, ESC cancels",
+            SetStatusMessage("Browse %.*s: %d marked, Alt-V marks all, Alt-i inverts, Alt-c copies them, Alt-m moves them; Backspace goes up, ESC cancels",
                              BrowseShownLen(here), here, marked_count);
         }
         else
