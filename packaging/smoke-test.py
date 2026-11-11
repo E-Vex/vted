@@ -190,6 +190,12 @@ ALT_W = b'\x1bw'    # Alt-w: the lines, the words and the bytes of the
 ALT_V = b'\x1bv'    # Alt-v: the name under the selection of the browse
                     # marked or unmarked, the copy and the move taking
                     # the marked names together
+ALT_V_CAP = b'\x1bV'  # Alt-V: every name the browse lists marked at
+                      # once, the marks all off again when every name
+                      # carries one
+ALT_I = b'\x1bi'    # Alt-i: the marks of the browse turned over, the
+                    # marked and the unmarked trading places (the wrap
+                    # indent elsewhere)
 DELETE = b'\x1b[3~'  # Delete: the name under the selection taken away
 ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
 ALT_PERCENT = b'\x1b%'  # Alt-%: the jump to the lit partner
@@ -221,6 +227,7 @@ COPYMOVE_TREE = '/tmp/vted-smoke-copymove'  # the tree the cross-directory
 COUNT_TREE = '/tmp/vted-smoke-count'  # the tree the word count walks in
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MARKS_TREE = '/tmp/vted-smoke-marks'  # the tree the marks walk in
+MASS_TREE = '/tmp/vted-smoke-mass'  # the tree the mass marks walk in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
 
@@ -2448,6 +2455,168 @@ def marks_smoke(binary):
     return 0
 
 
+def mass_marks_smoke(binary):
+    """the mass marks run: Alt-V standing a mark before every name
+    the listing holds at once and taking them all off again when
+    every name carries one, Alt-i turning the marks the listing
+    holds over — the marked and the unmarked trading places — the
+    mass keys acting on the listing a filter narrows to, the mark
+    out of the narrowed listing standing behind, and the marks the
+    inversion stands feeding the copy the way the single mark does"""
+    import shutil
+
+    shutil.rmtree(MASS_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(MASS_TREE, 'pile', 'away'))
+
+    with open(os.path.join(MASS_TREE, 'start.txt'), 'w') as f:
+        f.write('pile\nfiller one\n')
+    with open(os.path.join(MASS_TREE, 'pile', 'one.txt'), 'w') as f:
+        f.write('one one\n')
+    with open(os.path.join(MASS_TREE, 'pile', 'three.txt'), 'w') as f:
+        f.write('three\n')
+    with open(os.path.join(MASS_TREE, 'pile', 'two.txt'), 'w') as f:
+        f.write('two two two\n')
+
+    pid, fd = spawn(binary, [os.path.join(MASS_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on "pile" opens the browse of it: away the first, the
+    # three files the alphabet lays behind it
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'away/' not in drew or b'one.txt' not in drew \
+            or b'three.txt' not in drew or b'two.txt' not in drew:
+        return fail('the browse of the pile did not stand')
+
+    # Alt-V stands a mark before every name the listing holds: the
+    # bar saying how many came under the one key, the stars standing
+    # before the four
+    out.clear()
+    drive(fd, ALT_V_CAP, out)
+    drew = b''.join(out)
+
+    if b'Marked 4 names' not in drew:
+        return fail('Alt-V did not say how many names it marked')
+    for starred in (b'* away/', b'* one.txt', b'* three.txt',
+                    b'* two.txt'):
+        if starred not in drew:
+            return fail(f'Alt-V left {starred.decode()} without a star')
+
+    # Alt-V again, every name carrying one: the marks all come off,
+    # the listing standing as it began
+    out.clear()
+    drive(fd, ALT_V_CAP, out)
+    drew = b''.join(out)
+
+    if b'Unmarked 4 names' not in drew:
+        return fail('Alt-V did not take the marks all off')
+    if b'* away/' in drew:
+        return fail('the marks all off left a star behind')
+
+    # one mark stands alone, Alt-i turning the listing over: the one
+    # unmarks, the three without a mark gain theirs
+    drive(fd, b'\x1b[B', out)   # down to one.txt
+    out.clear()
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked one.txt' not in drew:
+        return fail('the mark the trade starts from did not stand')
+
+    out.clear()
+    drive(fd, ALT_I, out)
+    drew = b''.join(out)
+
+    if b'Inverted: 3 marked' not in drew:
+        return fail('Alt-i did not say how the marks stand turned')
+    if b'* one.txt' in drew:
+        return fail('the marked name did not trade its mark away')
+    for starred in (b'* away/', b'* three.txt', b'* two.txt'):
+        if starred not in drew:
+            return fail(f'Alt-i left {starred.decode()} without a star')
+
+    # Alt-V marks the one the trade left: the singular the bar says
+    out.clear()
+    drive(fd, ALT_V_CAP, out)
+    drew = b''.join(out)
+
+    if b'Marked 1 name' not in drew:
+        return fail('Alt-V did not mark the one name the trade left')
+
+    # a filter standing narrows the listing the mass keys act on:
+    # the three files carry 'txt', away does not, so Alt-V takes the
+    # three marks off and leaves away's standing
+    out.clear()
+    drive(fd, b'txt', out)
+    drive(fd, ALT_V_CAP, out)
+    drew = b''.join(out)
+
+    if b'Unmarked 3 names' not in drew:
+        return fail('Alt-V did not act on the narrowed listing')
+
+    # ESC takes the filter off: away the only mark standing, the bar
+    # saying so
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'1 marked' not in drew:
+        return fail('the mark out of the narrowed listing did not stand')
+
+    # Alt-i over the whole listing, then the copy: the marks the
+    # trade stood feed the round the way the single marks do
+    out.clear()
+    drive(fd, ALT_I, out)
+    drew = b''.join(out)
+
+    if b'Inverted: 3 marked' not in drew:
+        return fail('the whole listing did not stand turned over')
+
+    out.clear()
+    drive(fd, ALT_C, out)
+    drew = b''.join(out)
+
+    if b'Copy 3 marked to:' not in drew:
+        return fail('the marks the inversion stood did not feed the copy')
+
+    drive(fd, b'away', out)
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'Copied 3 names to /tmp/vted-smoke-mass/pile/away' not in drew:
+        return fail('the inverted marks did not copy the three across')
+
+    # ESC cancels the browse and the pile stands as the round left
+    # it: the names the copy took standing where they came from too
+    drive(fd, ESC, out)
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(os.path.join(MASS_TREE, 'start.txt')) as f:
+        if f.read() != 'pile\nfiller one\n':
+            return fail('the mass marks run touched start.txt')
+
+    if sorted(os.listdir(os.path.join(MASS_TREE, 'pile'))) != \
+            ['away', 'one.txt', 'three.txt', 'two.txt']:
+        return fail('the copy did not leave the pile standing')
+
+    if sorted(os.listdir(os.path.join(MASS_TREE, 'pile', 'away'))) != \
+            ['one.txt', 'three.txt', 'two.txt']:
+        return fail('the away did not hold the names the copy took it')
+
+    print('smoke: OK - walked the mass marks of the browse')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -2902,6 +3071,7 @@ def main() -> int:
         or browse_smoke(binary) or fileops_smoke(binary) \
         or copymove_smoke(binary) \
         or count_smoke(binary) or marks_smoke(binary) \
+        or mass_marks_smoke(binary) \
         or prompt_smoke(binary) or match_smoke(binary)
 
 
