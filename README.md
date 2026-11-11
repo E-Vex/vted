@@ -590,7 +590,18 @@ New in 0.3.4:
   once and saying how many go, the round stopping at the first
   name that says no with the bar saying how far it came and why it
   stopped, the marks standing for another try — and a round that
-  took every name across takes the marks with it.
+  took every name across takes the marks with it. Alt-V is the
+  mark key's capital, the bigger mark the way vi's V is the bigger
+  v: every name the listing stands for gains its mark at once — the
+  names the filter narrows to and the hidden gate lets through, no
+  others — the bar saying how many came under the one key, and
+  when every name the listing holds carries one already, the marks
+  all come off again the same way. Alt-i turns the marks the
+  listing holds over, the marked and the unmarked trading places —
+  i for invert, the wrap indent's own key standing only where the
+  text is edited, the way the theme's Alt-s and the bracket
+  color's Alt-c stand — the marks the trade stands feeding the
+  copy and the move the way the single marks do.
   Alt-w says the lines, the words and the bytes of the name under
   the selection — w for word count, the way the shell's wc counts
   them: the lines its newlines make, a last line without its own
