@@ -538,6 +538,15 @@ int ParseArrowKey(void)
         return BrowseMark;
     }
 
+    /* Alt-V marks every name the listing of the browse holds at
+       once, the capital of the mark key the way vi's V is the
+       bigger v — a plain V is a character of the text and stays
+       one, and the key answers only where a listing stands */
+    if (introducer == 'V')
+    {
+        return BrowseMarkAll;
+    }
+
     /* Alt-( turns the electric bracket pairs on and off: the bracket
        itself, spelled with Alt, telling its own kind what to do — a
        plain ( is a character of the text and stays one */

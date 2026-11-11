@@ -642,7 +642,9 @@ static int BrowseDropMark(char marks[][VTED_PATH_NAME_MAX],
    lines, the words and the bytes of the name under the selection
    the way wc counts them — Alt-v turning the mark of the name
    under the selection, the marked names a star before them in the
-   listing and the copy and the move taking them together — and
+   listing and the copy and the move taking them together — Alt-V
+   standing a mark before every name the listing holds at once and
+   taking them all off again when every name carries one — and
    Delete
    taking the name under the selection away once the bar's y says
    so — a directory asked after standing with the d of the tree it
@@ -1600,6 +1602,86 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 snprintf(warn, sizeof(warn), "%s",
                          "The marks are full: the listing holds no "
                          "more names than they do");
+            }
+
+            continue;
+        }
+
+        if (c == BrowseMarkAll && count > 0)
+        {
+            /* Alt-V is the mark key's capital, the bigger mark the
+               way vi's V is the bigger v: every name the listing
+               stands for gains its mark at once — the names the
+               filter narrows to and the hidden gate lets through,
+               no others, the marks belonging to the directory and
+               the keys that mass them acting on the listing — and
+               when every name the listing holds carries one
+               already, the marks all come off again, one key
+               standing and one key taking back the way Alt-v does
+               for a single name */
+            int all_marked = 1; /* every name the listing holds
+                                   stands marked until one says no */
+            int i;
+
+            for (i = 0; i < count; i++)
+            {
+                if (BrowseFindMark(marks, marked_count,
+                                   matches[i].name) < 0)
+                {
+                    all_marked = 0;
+                    break;
+                }
+            }
+
+            if (all_marked)
+            {
+                for (i = 0; i < count; i++)
+                {
+                    BrowseDropMark(marks, &marked_count,
+                                   matches[i].name);
+                }
+
+                snprintf(warn, sizeof(warn), "Unmarked %d %s", count,
+                         count == 1 ? "name" : "names");
+            }
+            else
+            {
+                int added = 0; /* the names that gained a mark: some
+                                  may have carried one already */
+                int full = 0;
+
+                for (i = 0; i < count; i++)
+                {
+                    if (BrowseFindMark(marks, marked_count,
+                                       matches[i].name) >= 0)
+                    {
+                        continue;
+                    }
+
+                    if (marked_count >= VTED_PATH_MATCHES)
+                    {
+                        full = 1;
+                        break;
+                    }
+
+                    snprintf(marks[marked_count],
+                             sizeof(marks[marked_count]), "%s",
+                             matches[i].name);
+                    marked_count++;
+                    added++;
+                }
+
+                if (full)
+                {
+                    snprintf(warn, sizeof(warn), "%s",
+                             "The marks are full: the listing holds "
+                             "no more names than they do");
+                }
+                else
+                {
+                    snprintf(warn, sizeof(warn), "Marked %d %s",
+                             added, added == 1 ? "name" : "names");
+                }
             }
 
             continue;

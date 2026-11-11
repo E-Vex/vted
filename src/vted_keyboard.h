@@ -79,6 +79,9 @@ typedef enum
     BrowseMark,   /* Alt-v: the name under the selection of the
                      browse marked or unmarked, the marked names
                      the copy and the move take together */
+    BrowseMarkAll, /* Alt-V: every name the browse lists marked at
+                      once — the capital of the mark key — the marks
+                      all taken off when every name carries one */
     ElectricBracketsToggle, /* Alt-(: the electric bracket pairs on
                                or off */
     SuspendEditor,   /* Alt-z: hand the terminal back to the shell and
