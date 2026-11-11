@@ -617,7 +617,15 @@ New in 0.3.4:
   its own, answering it with the directory taken along with the
   tree it holds the way rm -r does — the names inside first, the
   empty shell last, a tree the round cannot finish standing as it
-  stood with the bar saying where it stopped. A rename or a delete
+  stood with the bar saying where it stopped. Marks standing make
+  the question a round's: Delete asks after the marked names
+  together, the one question carrying the lot of them — y taking
+  them name by name, a file outright and a directory only when it
+  holds nothing of its own, d taking the trees they hold the way
+  the single ask's d does — the round stopping at the first name
+  that says no with the bar saying how far it came and which
+  stayed with why, the marks standing for another try, and a round
+  that took every name across taking the marks with them. A rename or a delete
   does not chase the name into
   the open buffers: a buffer keeps what it holds, the way the
   shell's mv and rm leave an open editor its own copy. Bytes typed
