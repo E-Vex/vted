@@ -644,7 +644,9 @@ static int BrowseDropMark(char marks[][VTED_PATH_NAME_MAX],
    under the selection, the marked names a star before them in the
    listing and the copy and the move taking them together — Alt-V
    standing a mark before every name the listing holds at once and
-   taking them all off again when every name carries one — and
+   taking them all off again when every name carries one, Alt-i
+   turning the marks the listing holds over, the marked and the
+   unmarked trading places — and
    Delete
    taking the name under the selection away once the bar's y says
    so — a directory asked after standing with the d of the tree it
@@ -1682,6 +1684,57 @@ static int EditorBrowseDirectory(const char *path, char *message,
                     snprintf(warn, sizeof(warn), "Marked %d %s",
                              added, added == 1 ? "name" : "names");
                 }
+            }
+
+            continue;
+        }
+
+        if (c == WrapIndentToggle && count > 0)
+        {
+            /* Alt-i inverts the marks of the listing: the names a
+               star stands before lose it, the names standing
+               without one gain it — the marked and the unmarked
+               trading places the whole listing over, the names the
+               filter narrows to and the hidden gate lets through
+               the only ones the trade walks. The wrap indent's own
+               key standing only where the text is edited, the way
+               the theme's Alt-s and the bracket color's Alt-c
+               stand; a mark the room for cannot be found stands
+               dropped where it was and says so with the rest */
+            int i;
+            int full = 0;
+
+            for (i = 0; i < count; i++)
+            {
+                if (BrowseFindMark(marks, marked_count,
+                                   matches[i].name) >= 0)
+                {
+                    BrowseDropMark(marks, &marked_count,
+                                   matches[i].name);
+                }
+                else if (marked_count < VTED_PATH_MATCHES)
+                {
+                    snprintf(marks[marked_count],
+                             sizeof(marks[marked_count]), "%s",
+                             matches[i].name);
+                    marked_count++;
+                }
+                else
+                {
+                    full = 1;
+                }
+            }
+
+            if (full)
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "The marks are full: the listing holds no "
+                         "more names than they do");
+            }
+            else
+            {
+                snprintf(warn, sizeof(warn), "Inverted: %d marked",
+                         marked_count);
             }
 
             continue;
