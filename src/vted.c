@@ -650,7 +650,10 @@ static int BrowseDropMark(char marks[][VTED_PATH_NAME_MAX],
    Delete
    taking the name under the selection away once the bar's y says
    so — a directory asked after standing with the d of the tree it
-   holds beside the y — the arrows and
+   holds beside the y — the marks standing making the question a
+   round's, y taking every marked name and d the trees they hold,
+   the round stopping at the first name that says no with the
+   marks standing for another try — the arrows and
    the wheel stepping through them, Enter or a left click walking
    into a directory and
    opening a file, Backspace going up a level
@@ -920,13 +923,72 @@ static int EditorBrowseDirectory(const char *path, char *message,
                with its -r, and any other key keeps the name, the
                listing standing either way. The d only stands for
                the tree where the question offered it: a d asked
-               after a file keeps it, the way any other key does */
+               after a file keeps it, the way any other key does.
+               The question the marks stood for is answered by the
+               same keys, the round it names walking the marks name
+               by name */
             int asked_tree = deleting == 2; /* the question named
                                                the tree answer */
+            int asked_round = deleting == 3; /* the question named
+                                                the marked names */
 
             deleting = 0;
 
-            if (asked_tree && (c == 'd' || c == 'D'))
+            if (asked_round && (c == 'y' || c == 'Y' ||
+                                c == 'd' || c == 'D'))
+            {
+                /* the marked round the question named: the marks go
+                   name by name, y taking a file outright and a
+                   directory only when it holds nothing of its own —
+                   the shell's rm without its -r — and d taking a
+                   directory with the tree it holds the way the
+                   single ask's d does, a file going outright either
+                   way. The round stops at the first name that says
+                   no, the bar saying how many came away and which
+                   stayed with why, the marks standing so the round
+                   can be asked again once the way is clear; a round
+                   that took every name across takes the marks with
+                   them, the names gone from the listing and the
+                   marks gone with them */
+                int take_tree = c == 'd' || c == 'D';
+                int wanted = marked_count; /* the names the round
+                                              set out for */
+                int done = 0;
+
+                while (marked_count > 0)
+                {
+                    if ((take_tree ? PathDeleteTree(here, marks[0])
+                                   : PathDeleteName(here,
+                                                    marks[0])) != 0)
+                    {
+                        int saved = errno;
+                        char preview[40];
+
+                        BrowseNamePreview(marks[0], preview,
+                                          (int)sizeof(preview));
+                        snprintf(warn, sizeof(warn),
+                                 "Deleted %d of %d, %s stayed: %s",
+                                 done, wanted, preview,
+                                 saved != 0 ? strerror(saved)
+                                            : "the name did not go "
+                                              "away");
+                        break;
+                    }
+
+                    /* the mark the taken name carried goes with it,
+                       the next name coming up in its place */
+                    BrowseDropMark(marks, &marked_count, marks[0]);
+                    done++;
+                }
+
+                if (wanted > 0 && marked_count == 0)
+                {
+                    snprintf(warn, sizeof(warn), "Deleted %d %s",
+                             done, done == 1 ? "name" : "names");
+                }
+            }
+
+            else if (asked_tree && (c == 'd' || c == 'D'))
             {
                 char preview[40]; /* the name as the bar holds it */
 
@@ -1740,7 +1802,7 @@ static int EditorBrowseDirectory(const char *path, char *message,
             continue;
         }
 
-        if (c == DeleteKey && count > 0)
+        if (c == DeleteKey && (count > 0 || marked_count > 0))
         {
             /* Delete asks after the name under the selection: the
                bar carries the question — the name cut at a
@@ -1750,8 +1812,20 @@ static int EditorBrowseDirectory(const char *path, char *message,
                outright, a directory only when it holds nothing of
                its own — the shell's rm without its -r — unless the
                d the question offers a directory takes the tree it
-               holds, the way rm -r does */
+               holds, the way rm -r does. Marks standing make the
+               question a round's: the marked names asked after
+               together, the one question carrying the lot of them */
             char preview[40];
+
+            if (marked_count > 0)
+            {
+                snprintf(warn, sizeof(warn),
+                         "Delete the %d marked? y takes them, "
+                         "d takes the trees, any other key keeps them",
+                         marked_count);
+                deleting = 3;
+                continue;
+            }
 
             snprintf(asking, sizeof(asking), "%s",
                      matches[selection].name);
