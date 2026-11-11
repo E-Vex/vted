@@ -228,6 +228,7 @@ COUNT_TREE = '/tmp/vted-smoke-count'  # the tree the word count walks in
 PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MARKS_TREE = '/tmp/vted-smoke-marks'  # the tree the marks walk in
 MASS_TREE = '/tmp/vted-smoke-mass'  # the tree the mass marks walk in
+MDEL_TREE = '/tmp/vted-smoke-mdel'  # the tree the marked delete walks in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
 
@@ -2617,6 +2618,129 @@ def mass_marks_smoke(binary):
     return 0
 
 
+def marked_delete_smoke(binary):
+    """the marked delete run: Delete with marks standing asking
+    after the lot of them in the one question — any other key
+    keeping every one, y taking the round name by name and stopping
+    at the first name that says no, the bar saying how far it came
+    and which stayed with why, the marks standing for another try,
+    and d taking the retry with the tree the name holds"""
+    import shutil
+
+    shutil.rmtree(MDEL_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(MDEL_TREE, 'pile', 'stay'))
+
+    with open(os.path.join(MDEL_TREE, 'start.txt'), 'w') as f:
+        f.write('pile\nfiller one\n')
+    with open(os.path.join(MDEL_TREE, 'pile', 'gone.txt'), 'w') as f:
+        f.write('gone\n')
+    with open(os.path.join(MDEL_TREE, 'pile', 'stay', 'inner.txt'),
+              'w') as f:
+        f.write('inner\n')
+
+    pid, fd = spawn(binary, [os.path.join(MDEL_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on "pile" opens the browse of it: gone.txt the first,
+    # stay the second
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'gone.txt' not in drew or b'stay/' not in drew:
+        return fail('the browse of the pile did not stand')
+
+    # two marks stand: the file and the directory that holds
+    # something of its own
+    out.clear()
+    drive(fd, ALT_V, out)       # gone.txt marked
+    drew = b''.join(out)
+
+    if b'Marked gone.txt' not in drew:
+        return fail('the mark on the file did not stand')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down to stay
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked stay' not in drew:
+        return fail('the mark on the directory did not stand')
+
+    # Delete with marks standing asks after the lot of them in the
+    # one question, and any other key keeps every one
+    out.clear()
+    drive(fd, DELETE, out)
+    drew = b''.join(out)
+
+    if b'Delete the 2 marked? y takes them, d takes the trees, ' \
+            b'any other key keeps them' not in drew:
+        return fail('the marked round was not asked after together')
+
+    out.clear()
+    drive(fd, b'n', out)
+    drew = b''.join(out)
+
+    if b'2 marked' not in drew:
+        return fail('the key that kept them did not keep the marks')
+
+    # y takes the round name by name and stops at the first name
+    # that says no: the file goes, the full directory stays, the bar
+    # saying how far the round came and why it stopped
+    out.clear()
+    drive(fd, DELETE, out)
+    drive(fd, b'y', out)
+    drew = b''.join(out)
+
+    if b'Deleted 1 of 2, stay stayed: Directory not empty' not in drew:
+        return fail('the round did not say how far it came and why '
+                    'it stopped')
+
+    # the mark of the name that stayed stands for another try: the
+    # question the next Delete asks says so
+    out.clear()
+    drive(fd, DELETE, out)
+    drew = b''.join(out)
+
+    if b'Delete the 1 marked?' not in drew:
+        return fail('the mark of the name that stayed did not stand')
+
+    # d takes the retry with the tree the name holds, the round
+    # going whole and the marks gone with it
+    out.clear()
+    drive(fd, b'd', out)
+    drew = b''.join(out)
+
+    if b'Deleted 1 name' not in drew:
+        return fail('the retry with the tree did not go whole')
+    if b'stay/' in drew:
+        return fail('the listing still held the tree the d took')
+
+    # ESC cancels the browse and the pile stands empty: the names
+    # the rounds took gone for good
+    drive(fd, ESC, out)
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(os.path.join(MDEL_TREE, 'start.txt')) as f:
+        if f.read() != 'pile\nfiller one\n':
+            return fail('the marked delete run touched start.txt')
+
+    if os.listdir(os.path.join(MDEL_TREE, 'pile')) != []:
+        return fail('the pile did not stand empty of the names the '
+                    'rounds took')
+
+    print('smoke: OK - walked the delete of the marked')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -3071,7 +3195,7 @@ def main() -> int:
         or browse_smoke(binary) or fileops_smoke(binary) \
         or copymove_smoke(binary) \
         or count_smoke(binary) or marks_smoke(binary) \
-        or mass_marks_smoke(binary) \
+        or mass_marks_smoke(binary) or marked_delete_smoke(binary) \
         or prompt_smoke(binary) or match_smoke(binary)
 
 
