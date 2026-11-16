@@ -186,7 +186,9 @@ ALT_C = b'\x1bc'    # Alt-c: the name under the selection copied to
 ALT_M = b'\x1bm'    # Alt-m: the name under the selection moved to
                     # another directory (the viewport middle elsewhere)
 ALT_W = b'\x1bw'    # Alt-w: the lines, the words and the bytes of the
-                    # name under the selection, the way wc counts them
+                    # name under the selection, the way wc counts them —
+                    # the marked names together when marks stand, the
+                    # totals summed the way wc sums a file list
 ALT_V = b'\x1bv'    # Alt-v: the name under the selection of the browse
                     # marked or unmarked, the copy and the move taking
                     # the marked names together
@@ -229,6 +231,8 @@ PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MARKS_TREE = '/tmp/vted-smoke-marks'  # the tree the marks walk in
 MASS_TREE = '/tmp/vted-smoke-mass'  # the tree the mass marks walk in
 MDEL_TREE = '/tmp/vted-smoke-mdel'  # the tree the marked delete walks in
+MCOUNT_TREE = '/tmp/vted-smoke-mcount'  # the tree the marked word
+                                        # count walks in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
 
 
@@ -2618,6 +2622,169 @@ def mass_marks_smoke(binary):
     return 0
 
 
+def marked_count_smoke(binary):
+    """the marked word count run: Alt-w with marks standing counting
+    every marked name into the one total — the lines, the words and
+    the bytes summed across them the way wc sums a list of files —
+    a marked directory saying it stayed out with why while the files
+    around it still come into the total, the marks standing after
+    the round for a count takes nothing away, and Alt-w with no
+    marks standing still counting the name under the selection
+    alone"""
+    import shutil
+
+    shutil.rmtree(MCOUNT_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(MCOUNT_TREE, 'pile', 'hold'))
+
+    with open(os.path.join(MCOUNT_TREE, 'start.txt'), 'w') as f:
+        f.write('pile\nfiller one\n')
+    # one.txt: two lines, three words, fourteen bytes
+    with open(os.path.join(MCOUNT_TREE, 'pile', 'one.txt'), 'w') as f:
+        f.write('one two\nthree\n')
+    # two.txt: one line, two words, eight bytes
+    with open(os.path.join(MCOUNT_TREE, 'pile', 'two.txt'), 'w') as f:
+        f.write('two two\n')
+    # three.txt: a last line without its own newline, three bytes
+    with open(os.path.join(MCOUNT_TREE, 'pile', 'three.txt'), 'w') as f:
+        f.write('end')
+    # a directory among the marks: no file to count, staying out of
+    # the total without stopping the round
+    with open(os.path.join(MCOUNT_TREE, 'pile', 'hold', 'inner.txt'),
+              'w') as f:
+        f.write('inner\n')
+
+    pid, fd = spawn(binary, [os.path.join(MCOUNT_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on "pile" opens the browse of it: hold the first, the
+    # files the alphabet lays after it behind it
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'hold/' not in drew or b'one.txt' not in drew \
+            or b'three.txt' not in drew or b'two.txt' not in drew:
+        return fail('the browse of the pile did not stand')
+
+    # three marks stand: the directory and the three files
+    out.clear()
+    drive(fd, ALT_V, out)       # hold marked
+    drew = b''.join(out)
+
+    if b'Marked hold' not in drew:
+        return fail('the mark on the directory did not stand')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down to one.txt
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked one.txt' not in drew:
+        return fail('the mark on the first file did not stand')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down to three.txt
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked three.txt' not in drew:
+        return fail('the mark on the second file did not stand')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down to two.txt
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Marked two.txt' not in drew:
+        return fail('the mark on the third file did not stand')
+
+    # Alt-w with marks standing counts every marked name into the
+    # one total: the three files sum to three lines, six words and
+    # twenty-five bytes, the directory staying out of the total with
+    # why while the files around it still come in
+    out.clear()
+    drive(fd, ALT_W, out)
+    drew = b''.join(out)
+
+    if b'3 of 4 marked: 3 lines, 6 words, 25 bytes, ' \
+            b'hold stayed: Is a directory' not in drew:
+        return fail('the marked round did not sum the marked names '
+                    'past the directory that stayed out')
+
+    # a count takes nothing away: the marks stand after the round,
+    # the bar saying how many
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # any key clears the totals
+    drew = b''.join(out)
+
+    if b'4 marked' not in drew:
+        return fail('the marks did not stand past the round')
+
+    # the round whole — only the files marked — sums them alone
+    out.clear()
+    drive(fd, ALT_V, out)       # hold unmarked
+    drew = b''.join(out)
+
+    if b'Unmarked hold' not in drew:
+        return fail('the mark on the directory did not come off')
+
+    out.clear()
+    drive(fd, ALT_W, out)
+    drew = b''.join(out)
+
+    if b'3 marked: 3 lines, 6 words, 25 bytes' not in drew:
+        return fail('the whole round did not sum the marked files')
+
+    # a single name still counts alone: no marks standing, Alt-w
+    # says the name under the selection the way it always did. The
+    # three files still carry their marks, so the mass mark adds
+    # only the directory and the mass unmark takes the lot off
+    out.clear()
+    drive(fd, ALT_V_CAP, out)   # the missing name marked at once
+    drew = b''.join(out)
+
+    if b'Marked 1 name' not in drew:
+        return fail('the mass mark did not stand')
+
+    out.clear()
+    drive(fd, ALT_V_CAP, out)   # and all off again
+    drew = b''.join(out)
+
+    if b'Unmarked 4 names' not in drew:
+        return fail('the mass unmark did not stand')
+
+    out.clear()
+    drive(fd, ALT_W, out)       # the selection stands on hold
+    drew = b''.join(out)
+
+    if b'A directory: nothing to count' not in drew:
+        return fail('the single-name count did not say the directory '
+                    'holds nothing to count')
+
+    # ESC cancels the browse and the tree is back as it began
+    drive(fd, ESC, out)
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(os.path.join(MCOUNT_TREE, 'start.txt')) as f:
+        if f.read() != 'pile\nfiller one\n':
+            return fail('the marked count run touched start.txt')
+
+    if sorted(os.listdir(os.path.join(MCOUNT_TREE, 'pile'))) != \
+            ['hold', 'one.txt', 'three.txt', 'two.txt']:
+        return fail('the marked count run left the directory changed')
+
+    print('smoke: OK - walked the word count of the marked')
+    return 0
+
+
 def marked_delete_smoke(binary):
     """the marked delete run: Delete with marks standing asking
     after the lot of them in the one question — any other key
@@ -3195,7 +3362,8 @@ def main() -> int:
         or browse_smoke(binary) or fileops_smoke(binary) \
         or copymove_smoke(binary) \
         or count_smoke(binary) or marks_smoke(binary) \
-        or mass_marks_smoke(binary) or marked_delete_smoke(binary) \
+        or mass_marks_smoke(binary) or marked_count_smoke(binary) \
+        or marked_delete_smoke(binary) \
         or prompt_smoke(binary) or match_smoke(binary)
 
 
