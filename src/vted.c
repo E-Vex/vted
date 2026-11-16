@@ -640,7 +640,9 @@ static int BrowseDropMark(char marks[][VTED_PATH_NAME_MAX],
    selection into another directory the same way, the listing
    losing it — Alt-w saying the
    lines, the words and the bytes of the name under the selection
-   the way wc counts them — Alt-v turning the mark of the name
+   the way wc counts them, the marks standing making the count a
+   round's, the marked names summed into one total the way wc sums
+   a list of files — Alt-v turning the mark of the name
    under the selection, the marked names a star before them in the
    listing and the copy and the move taking them together — Alt-V
    standing a mark before every name the listing holds at once and
@@ -674,7 +676,10 @@ static int EditorBrowseDirectory(const char *path, char *message,
     char lines[BROWSE_LINES][BROWSE_WIDTH];
     const char *shown[BROWSE_LINES];
     char from[VTED_PATH_NAME_MAX]; /* the name a walk up selects */
-    char warn[128]; /* a word the bar holds until the next key */
+    char warn[256]; /* a word the bar holds until the next key, the
+                       round's totals running longer than a single
+                       name's — sized like the bar itself so they
+                       never lose their tail */
     char filter[VTED_PATH_NAME_MAX]; /* the bytes the listing is
                                         narrowed to, carried in the
                                         bar the way a prompt carries
@@ -1585,7 +1590,7 @@ static int EditorBrowseDirectory(const char *path, char *message,
             continue;
         }
 
-        if (c == BrowseCount && count > 0)
+        if (c == BrowseCount && (count > 0 || marked_count > 0))
         {
             /* Alt-w says the lines, the words and the bytes of the
                name under the selection, the way wc counts them: the
@@ -1594,8 +1599,72 @@ static int EditorBrowseDirectory(const char *path, char *message,
                of bytes between the blanks make, and the bytes
                themselves, the bar carrying the counts until the
                next key. A directory is no file to count, and a name
-               that cannot be read says why */
-            if (matches[selection].is_dir)
+               that cannot be read says why. Marks standing make the
+               count a round's, the way wc takes a list of files and
+               sums them: every marked name comes into one total of
+               lines, words and bytes, the ones the round cannot read
+               walked past — the total standing for the names that
+               answered, the way wc keeps its sum past a file that
+               says no — the bar saying how many names came in, the
+               first one that stayed out and why, and the marks
+               standing still, a count taking nothing away */
+            if (marked_count > 0)
+            {
+                vted_path_counts_t counts;
+                long long lines = 0; /* the totals the round walks
+                                        the marked names into */
+                long long words = 0;
+                long long bytes = 0;
+                int came = 0; /* the names that answered the round */
+                char stayed[40] = ""; /* the first name that stayed
+                                         out, held for the bar */
+                char why[64] = ""; /* the reason it stayed out */
+                int i;
+
+                for (i = 0; i < marked_count; i++)
+                {
+                    if (PathCountName(here, marks[i], &counts) != 0)
+                    {
+                        int saved = errno;
+
+                        if (stayed[0] == '\0')
+                        {
+                            BrowseNamePreview(marks[i], stayed,
+                                              (int)sizeof(stayed));
+                            snprintf(why, sizeof(why), "%s",
+                                     saved != 0 ? strerror(saved)
+                                                : "the name did not "
+                                                  "answer");
+                        }
+
+                        continue; /* the round walks past the name
+                                     that says no, the way wc keeps
+                                     its sum past a file that does */
+                    }
+
+                    lines += counts.lines;
+                    words += counts.words;
+                    bytes += counts.bytes;
+                    came++;
+                }
+
+                if (stayed[0] == '\0')
+                {
+                    snprintf(warn, sizeof(warn),
+                             "%d marked: %lld lines, %lld words, "
+                             "%lld bytes",
+                             marked_count, lines, words, bytes);
+                }
+                else
+                {
+                    snprintf(warn, sizeof(warn),
+                             "%d of %d marked: %lld lines, %lld words, "
+                             "%lld bytes, %s stayed: %s",
+                             came, marked_count, lines, words, bytes,
+                             stayed, why);
+                }
+            }
+            else if (matches[selection].is_dir)
             {
                 snprintf(warn, sizeof(warn), "%s",
                          "A directory: nothing to count");
