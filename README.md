@@ -609,6 +609,13 @@ New in 0.3.4:
   between the blanks make, and the bytes themselves — the bar
   carrying the counts until the next key, a directory saying it
   holds nothing to count and a name that cannot be read saying why.
+  Marks standing make the count a round's, the way wc takes a list
+  of files and sums them: every marked name comes into one total of
+  lines, words and bytes, the ones the round cannot read — a
+  directory among them — walked past with the bar saying how many
+  came in and the first that stayed out with why, the total
+  standing for the names that answered; the marks stand after the
+  round, a count taking nothing away.
   Delete takes the name under the selection away, the bar asking
   first — y deleting, any other key keeping — a file going
   outright and a directory only when it holds nothing of its own,
