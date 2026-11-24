@@ -648,8 +648,10 @@ static int BrowseDropMark(char marks[][VTED_PATH_NAME_MAX],
    standing a mark before every name the listing holds at once and
    taking them all off again when every name carries one, Alt-i
    turning the marks the listing holds over, the marked and the
-   unmarked trading places — and
-   Delete
+   unmarked trading places — Alt-l limiting the listing to the
+   marked names, l for limit the way mutt limits an index, the same
+   key taking the limit off again with the listing standing whole —
+   and Delete
    taking the name under the selection away once the bar's y says
    so — a directory asked after standing with the d of the tree it
    holds beside the y — the marks standing making the question a
@@ -696,6 +698,10 @@ static int EditorBrowseDirectory(const char *path, char *message,
                                           the walk leaving them
                                           behind when it goes */
     int marked_count = 0; /* how many names the marks stand for */
+    int marked_only = 0; /* the Alt-l limit: the listing stands the
+                            marked names only while it stands, the
+                            sort, the filter and the hidden gate
+                            still answering behind it */
     int deleting = 0; /* the bar is asking after the name in
                          asking: 1 asks after a file or an empty
                          directory, y taking it away — 2 asks
@@ -772,6 +778,29 @@ static int EditorBrowseDirectory(const char *path, char *message,
             snprintf(message, message_size,
                      "Cannot read the directory: %s", strerror(errno));
             return 0;
+        }
+
+        /* the Alt-l limit standing, the listing holds the marked
+           names only — the sort, the filter and the hidden gate
+           still answering behind it, the limit the listing's own
+           question asked together with them */
+        if (marked_only && count > 0)
+        {
+            int kept = 0; /* the room the marked names keep their
+                             places in, one behind the other the way
+                             they stood */
+            int i;
+
+            for (i = 0; i < count; i++)
+            {
+                if (BrowseFindMark(marks, marked_count,
+                                   matches[i].name) >= 0)
+                {
+                    matches[kept++] = matches[i];
+                }
+            }
+
+            count = kept;
         }
 
         /* the listing above names the one the walk up came from, so
@@ -1866,6 +1895,57 @@ static int EditorBrowseDirectory(const char *path, char *message,
             {
                 snprintf(warn, sizeof(warn), "Inverted: %d marked",
                          marked_count);
+            }
+
+            continue;
+        }
+
+        if (c == ViewportBottom)
+        {
+            /* Alt-l limits the listing to the marked names: l for
+               limit, the way mutt limits an index — the viewport's
+               own bottom key standing only where the text is edited,
+               the way the middle key stands for the move. The limit
+               turns on only while marks stand: the names the marks
+               name the only ones the listing holds, laid in the
+               standing order and narrowed by the standing filter and
+               hidden gate, the name the selection stands on standing
+               selected through the relisting when the limited listing
+               still holds it. The same key takes the limit off again,
+               the listing standing whole; and the keys that change
+               the marks change the listing with them — a name
+               unmarked dropping out of it, the mass keys walking the
+               names the limit holds */
+            if (marked_only)
+            {
+                if (count > 0)
+                {
+                    snprintf(from, sizeof(from), "%s",
+                             matches[selection].name);
+                }
+
+                marked_only = 0;
+                snprintf(warn, sizeof(warn), "%s",
+                         "The whole listing stands again");
+            }
+            else if (marked_count == 0)
+            {
+                snprintf(warn, sizeof(warn), "%s",
+                         "No names are marked: Alt-v stands a mark "
+                         "before a name, Alt-V before them all");
+            }
+            else
+            {
+                if (count > 0)
+                {
+                    snprintf(from, sizeof(from), "%s",
+                             matches[selection].name);
+                }
+
+                marked_only = 1;
+                snprintf(warn, sizeof(warn),
+                         "Limited to the %d marked %s", marked_count,
+                         marked_count == 1 ? "name" : "names");
             }
 
             continue;
