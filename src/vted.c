@@ -1076,8 +1076,9 @@ static int EditorBrowseDirectory(const char *path, char *message,
             /* a filter standing comes off first — the listing stands
                whole again, the name the selection stands on standing
                through the relisting — the way ESC takes the
-               completion's menu down with the prompt standing, and
-               only then leaves the editor where it was */
+               completion's menu down with the prompt standing; the
+               limit standing comes off next the same way, and only
+               then does ESC leave the editor where it was */
             if (filter_len > 0)
             {
                 if (count > 0)
@@ -1088,6 +1089,21 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
                 filter_len = 0;
                 filter[0] = '\0';
+                continue;
+            }
+
+            /* the limit standing comes off with the listing whole
+               again behind it, the name the selection stands on
+               standing through the relisting */
+            if (marked_only)
+            {
+                if (count > 0)
+                {
+                    snprintf(from, sizeof(from), "%s",
+                             matches[selection].name);
+                }
+
+                marked_only = 0;
                 continue;
             }
 
@@ -1111,6 +1127,22 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
                 filter_len = Utf8PrevBoundary(filter, filter_len);
                 filter[filter_len] = '\0';
+                continue;
+            }
+
+            /* the limit standing comes off next, the listing whole
+               again behind it — and Backspace goes up a level only
+               when none stands, the way it goes up only when no
+               filter does */
+            if (marked_only)
+            {
+                if (count > 0)
+                {
+                    snprintf(from, sizeof(from), "%s",
+                             matches[selection].name);
+                }
+
+                marked_only = 0;
                 continue;
             }
 
