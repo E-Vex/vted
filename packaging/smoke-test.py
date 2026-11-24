@@ -198,6 +198,9 @@ ALT_V_CAP = b'\x1bV'  # Alt-V: every name the browse lists marked at
 ALT_I = b'\x1bi'    # Alt-i: the marks of the browse turned over, the
                     # marked and the unmarked trading places (the wrap
                     # indent elsewhere)
+ALT_L = b'\x1bl'    # Alt-l: the listing of the browse limited to the
+                    # marked names, the same key taking the limit off
+                    # again (the viewport bottom elsewhere)
 DELETE = b'\x1b[3~'  # Delete: the name under the selection taken away
 ALT_LPAREN = b'\x1b('  # Alt-(: the electric bracket pairs on or off
 ALT_PERCENT = b'\x1b%'  # Alt-%: the jump to the lit partner
@@ -231,6 +234,7 @@ PROMPT_TREE = '/tmp/vted-smoke-prompt'  # the tree the prompt's Alt-o opens in
 MARKS_TREE = '/tmp/vted-smoke-marks'  # the tree the marks walk in
 MASS_TREE = '/tmp/vted-smoke-mass'  # the tree the mass marks walk in
 MDEL_TREE = '/tmp/vted-smoke-mdel'  # the tree the marked delete walks in
+LIMIT_TREE = '/tmp/vted-smoke-limit'  # the tree the limit walk walks in
 MCOUNT_TREE = '/tmp/vted-smoke-mcount'  # the tree the marked word
                                         # count walks in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
@@ -2908,6 +2912,197 @@ def marked_delete_smoke(binary):
     return 0
 
 
+def limit_smoke(binary):
+    """the limit run: Alt-l narrowing the listing of the browse to
+    the marked names — the sort, the filter and the hidden gate
+    answering behind it — the same key taking the limit off again
+    with the listing standing whole, a name unmarked dropping out of
+    the limited listing, the filter narrowing inside the limit,
+    Backspace taking the limit off before it goes up a level, and
+    the mass keys walking the names the limit holds"""
+    import shutil
+
+    shutil.rmtree(LIMIT_TREE, ignore_errors=True)
+    os.makedirs(os.path.join(LIMIT_TREE, 'sub', 'away'))
+
+    with open(os.path.join(LIMIT_TREE, 'start.txt'), 'w') as f:
+        f.write('sub\n')
+    with open(os.path.join(LIMIT_TREE, 'sub', 'one.txt'), 'w') as f:
+        f.write('one\n')
+    with open(os.path.join(LIMIT_TREE, 'sub', 'three.txt'), 'w') as f:
+        f.write('three\n')
+    with open(os.path.join(LIMIT_TREE, 'sub', 'two.txt'), 'w') as f:
+        f.write('two\n')
+
+    pid, fd = spawn(binary, [os.path.join(LIMIT_TREE, 'start.txt')])
+    out = []
+    time.sleep(0.3)
+
+    # Alt-o on "sub" opens the browse of it: away first, the names
+    # the alphabet lays after it behind it
+    drive(fd, ALT_O, out)
+    drew = b''.join(out)
+
+    if b'away/' not in drew or b'one.txt' not in drew \
+            or b'three.txt' not in drew or b'two.txt' not in drew:
+        return fail('the browse of the sub directory did not stand')
+
+    # two marks stand: one.txt and three.txt
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down to one.txt
+    drive(fd, ALT_V, out)       # marked
+    drive(fd, b'\x1b[B', out)   # down to three.txt
+    drive(fd, ALT_V, out)       # marked
+    drew = b''.join(out)
+
+    if b'Marked one.txt' not in drew or b'Marked three.txt' not in drew:
+        return fail('the two marks did not stand')
+
+    # Alt-l limits the listing to the marked names: the stars the
+    # only lines the listing holds, the unmarked names gone from it
+    out.clear()
+    drive(fd, ALT_L, out)
+    drew = b''.join(out)
+
+    if b'Limited to the 2 marked names' not in drew:
+        return fail('the limit did not say the marked names it stands')
+    if b'* one.txt' not in drew or b'* three.txt' not in drew:
+        return fail('the limited listing did not stand the marked names')
+    if b'away/' in drew or b'two.txt' in drew:
+        return fail('the limited listing held an unmarked name')
+
+    # a key past the warn: the standing bar carrying the limit
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # down wraps to one.txt
+    drew = b''.join(out)
+
+    if b'(marked only): 2 marked' not in drew:
+        return fail('the bar did not say the limit while it stands')
+
+    # Alt-v unmarks one.txt: the name drops out of the limited
+    # listing with its mark, three.txt standing alone in it
+    out.clear()
+    drive(fd, ALT_V, out)
+    drew = b''.join(out)
+
+    if b'Unmarked one.txt' not in drew:
+        return fail('Alt-v did not unmark the name under the selection')
+    if b'* one.txt' in drew:
+        return fail('the unmarked name did not drop out of the listing')
+    if b'* three.txt' not in drew:
+        return fail('three.txt did not stand alone in the limit')
+
+    # the filter narrows inside the limit: the names that carry its
+    # bytes among the marked ones stay standing, the bar carrying
+    # both narrowings
+    out.clear()
+    drive(fd, b't', out)
+    drew = b''.join(out)
+
+    if b"(filter 't', marked only)" not in drew:
+        return fail('the bar did not carry the filter beside the limit')
+    if b'* three.txt' not in drew:
+        return fail('the filter did not keep three.txt standing')
+
+    out.clear()
+    drive(fd, b'w', out)        # 'tw': no marked name carries it
+    drew = b''.join(out)
+
+    if b"(filter 'tw', marked only): no name carries it" not in drew:
+        return fail('the filter nothing carries did not say so in the '
+                    'limit')
+
+    # Backspace gives the filter its bytes back, an emptied one
+    # leaving the limit standing, and takes the limit off before it
+    # goes up a level
+    out.clear()
+    drive(fd, BACKSPACE, out)   # the filter back to 't'
+    drew = b''.join(out)
+
+    if b"(filter 't', marked only)" not in drew:
+        return fail('the filter did not give its byte back')
+
+    out.clear()
+    drive(fd, BACKSPACE, out)   # the filter empties: the limit stands
+    drew = b''.join(out)
+
+    if b'(marked only): 1 marked' not in drew:
+        return fail('the emptied filter did not leave the limit standing')
+
+    out.clear()
+    drive(fd, BACKSPACE, out)   # the limit comes off
+    drew = b''.join(out)
+
+    if b'away/' not in drew or b'one.txt' not in drew \
+            or b'two.txt' not in drew:
+        return fail('Backspace did not take the limit off whole')
+    if b'Browse /tmp/vted-smoke-limit/sub' not in drew:
+        return fail('Backspace took the limit off by going up a level')
+
+    # the mass keys walk the names the limit holds: every name it
+    # holds carries its mark, so the mark key's capital takes them
+    # all off and the limit holds nothing
+    out.clear()
+    drive(fd, ALT_L, out)       # the limit on again: three.txt alone
+    drew = b''.join(out)
+
+    if b'Limited to the 1 marked name' not in drew:
+        return fail('the limit did not stand the one mark')
+
+    out.clear()
+    drive(fd, ALT_V_CAP, out)
+    drew = b''.join(out)
+
+    if b'Unmarked 1 name' not in drew:
+        return fail('Alt-V did not take the marks the limit holds off')
+
+    out.clear()
+    drive(fd, b'\x1b[B', out)   # a key past the warn: the empty limit
+    drew = b''.join(out)
+
+    if b'(marked only): no names are marked' not in drew:
+        return fail('the empty limit did not say no names are marked')
+
+    # the same key takes the limit off again, and with no marks
+    # standing it says so instead of standing an empty listing
+    out.clear()
+    drive(fd, ALT_L, out)
+    drew = b''.join(out)
+
+    if b'The whole listing stands again' not in drew:
+        return fail('the limit did not come off')
+    if b'away/' not in drew or b'two.txt' not in drew:
+        return fail('the whole listing did not stand again')
+
+    out.clear()
+    drive(fd, ALT_L, out)       # no marks stand: the key says so
+    drew = b''.join(out)
+
+    if b'No names are marked' not in drew:
+        return fail('the limit did not say no names are marked')
+
+    # ESC leaves the editor where it was, the tree as it began
+    drive(fd, ESC, out)
+    drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    if sorted(os.listdir(os.path.join(LIMIT_TREE, 'sub'))) != \
+            ['away', 'one.txt', 'three.txt', 'two.txt']:
+        return fail('the sub directory did not stand as it began')
+
+    with open(os.path.join(LIMIT_TREE, 'start.txt')) as f:
+        if f.read() != 'sub\n':
+            return fail('the limit run touched start.txt')
+
+    print('smoke: OK - walked the limit of the marked names')
+    return 0
+
+
 def prompt_smoke(binary):
     """the prompt run: a search whose query names a file with a tail,
     Alt-o opening it with the cursor landing on the spot the tail
@@ -3364,6 +3559,7 @@ def main() -> int:
         or count_smoke(binary) or marks_smoke(binary) \
         or mass_marks_smoke(binary) or marked_count_smoke(binary) \
         or marked_delete_smoke(binary) \
+        or limit_smoke(binary) \
         or prompt_smoke(binary) or match_smoke(binary)
 
 
