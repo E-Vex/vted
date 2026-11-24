@@ -3494,6 +3494,53 @@ static void EditorCloseBuffer(void)
 #define QUIT_CONFIRMATIONS 3
 #define CLOSE_CONFIRMATIONS 3
 
+/* lays the buffers the filter leaves standing into matched, their
+   real indices in their own order: a buffer stays standing while the
+   name the list draws for it carries the filter's bytes somewhere in
+   it — the way the browse's filter asks after the names the
+   directory holds — and an empty filter leaves every buffer
+   standing. Returns how many it laid */
+static int PickerLayMatches(const char *filter, int *matched)
+{
+    int count = BuffersCount();
+    int laid = 0;
+    int i;
+
+    for (i = 0; i < count; i++)
+    {
+        const char *name = BuffersName(i);
+
+        if (filter[0] != '\0' &&
+            strstr(name != NULL ? name : "[No Name]", filter) == NULL)
+        {
+            continue; /* carries the filter nowhere in it */
+        }
+
+        matched[laid++] = i;
+    }
+
+    return laid;
+}
+
+/* keeps the selection standing on a match: the buffer it stood on
+   when it still stands, the first one when it does not, and none at
+   all when the filter left nothing standing */
+static void PickerSnapSelection(int *selection, const int *matched,
+                                int match_count)
+{
+    int i;
+
+    for (i = 0; i < match_count; i++)
+    {
+        if (matched[i] == *selection)
+        {
+            return; /* still standing: it stays selected */
+        }
+    }
+
+    *selection = match_count > 0 ? matched[0] : -1;
+}
+
 /* picks one of the open buffers from a list: the arrows and the wheel
    move through them, a left click takes the buffer drawn under it,
    Enter takes the one under the selection, Ctrl-E closes the one
@@ -3503,6 +3550,8 @@ static void EditorPickBuffer(void)
 {
     char lines[PICKER_LINES][PICKER_WIDTH];
     const char *shown_lines[PICKER_LINES];
+    int *matched; /* the buffers the listing holds, by index */
+    int match_count;
     int count = BuffersCount();
     int selection = BuffersCurrent();
     int started_at = selection;
@@ -3516,13 +3565,33 @@ static void EditorPickBuffer(void)
         return;
     }
 
+    matched = malloc(sizeof(int) * (size_t)count);
+
+    if (matched == NULL)
+    {
+        KillApp("malloc");
+    }
+
+    match_count = PickerLayMatches("", matched);
+    PickerSnapSelection(&selection, matched, match_count);
+
     while (1)
     {
         /* a window of the list that follows the selection, so many
            open buffers stay reachable without a huge menu */
-        int shown = count;
+        int shown = match_count;
         int first;
+        int at = -1; /* the selection's place among the matches */
         int i;
+
+        for (i = 0; i < match_count; i++)
+        {
+            if (matched[i] == selection)
+            {
+                at = i;
+                break;
+            }
+        }
 
         if (shown > PICKER_LINES)
         {
@@ -3537,28 +3606,39 @@ static void EditorPickBuffer(void)
             shown = 1;
         }
 
-        first = selection - shown / 2;
+        first = at - shown / 2;
         if (first < 0)
         {
             first = 0;
         }
-        if (first > count - shown)
+        if (first > match_count - shown)
         {
-            first = count - shown;
+            first = match_count - shown;
+        }
+        if (first < 0)
+        {
+            first = 0; /* fewer matches than the window takes */
         }
 
-        for (i = 0; i < shown; i++)
+        if (match_count > 0)
         {
-            const char *name = BuffersName(first + i);
+            for (i = 0; i < shown; i++)
+            {
+                const char *name = BuffersName(matched[first + i]);
 
-            snprintf(lines[i], sizeof(lines[i]), "%2d %s %.80s",
-                     first + i + 1,
-                     BuffersDirty(first + i) ? "+" : " ",
-                     name != NULL ? name : "[No Name]");
-            shown_lines[i] = lines[i];
+                snprintf(lines[i], sizeof(lines[i]), "%2d %s %.80s",
+                         matched[first + i] + 1,
+                         BuffersDirty(matched[first + i]) ? "+" : " ",
+                         name != NULL ? name : "[No Name]");
+                shown_lines[i] = lines[i];
+            }
+
+            ScreenShowMenu(shown_lines, shown, at - first);
         }
-
-        ScreenShowMenu(shown_lines, shown, selection - first);
+        else
+        {
+            ScreenShowMenu(NULL, 0, 0); /* nothing stands to draw */
+        }
 
         /* the hint, or the warning a dirty buffer gave for its close */
         if (close_warning > 0)
@@ -3607,6 +3687,11 @@ static void EditorPickBuffer(void)
 
         if (c == '\r' || c == '\n')
         {
+            if (match_count < 1)
+            {
+                continue; /* nothing stands to take */
+            }
+
             break;
         }
 
@@ -3615,6 +3700,11 @@ static void EditorPickBuffer(void)
             /* close the buffer under the selection without leaving
                the list: unsaved changes hold the close back the way
                they hold one back outside */
+            if (match_count < 1)
+            {
+                continue; /* nothing stands under the selection */
+            }
+
             if (BuffersDirty(selection) != 0 && close_confirmations > 0)
             {
                 close_warning = close_confirmations;
@@ -3645,6 +3735,11 @@ static void EditorPickBuffer(void)
             {
                 selection = count - 1; /* wrap to the last one */
             }
+
+            /* the matches lay again behind the close, the selection
+               snapping onto what still stands */
+            match_count = PickerLayMatches("", matched);
+            PickerSnapSelection(&selection, matched, match_count);
 
             if (count < 2)
             {
@@ -3683,9 +3778,9 @@ static void EditorPickBuffer(void)
             {
                 int line = ScreenMenuLineAt(MouseLastY());
 
-                if (line >= 0)
+                if (line >= 0 && line < shown)
                 {
-                    selection = first + line;
+                    selection = matched[first + line];
                     break;
                 }
             }
@@ -3699,32 +3794,34 @@ static void EditorPickBuffer(void)
            text stops at both ends */
         if (c == MouseWheelUp || c == MouseWheelDown)
         {
-            if (c == MouseWheelUp && selection > 0)
+            if (c == MouseWheelUp && at > 0)
             {
-                selection--;
+                selection = matched[at - 1];
             }
 
-            if (c == MouseWheelDown && selection < count - 1)
+            if (c == MouseWheelDown && at < match_count - 1)
             {
-                selection++;
+                selection = matched[at + 1];
             }
 
             continue;
         }
 
-        if (c == ArrowUp)
+        if (c == ArrowUp && match_count > 0)
         {
-            selection = selection > 0 ? selection - 1 : count - 1;
+            selection = matched[at > 0 ? at - 1 : match_count - 1];
         }
-        else if (c == ArrowDown)
+        else if (c == ArrowDown && match_count > 0)
         {
-            selection = selection < count - 1 ? selection + 1 : 0;
+            selection = matched[at < match_count - 1 ? at + 1 : 0];
         }
     }
 
     /* the lines were only borrowed, and the rows under the menu need
        their own paint back */
     ScreenShowMenu(NULL, 0, 0);
+
+    free(matched);
 
     BuffersSwitch(selection);
 
