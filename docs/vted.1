@@ -31,7 +31,16 @@ without the wrap, a left click takes the buffer drawn under it,
 Enter takes the one under the selection, Ctrl\-E closes it without
 leaving the list (unsaved changes ask for three more presses first)
 and ESC stays on the
-buffer that was live. Ctrl\-E closes
+buffer that was live. Bytes typed while the list stands narrow it,
+the way the goto prompt carries its answer: the filter spells itself
+out in the message bar, the buffers whose names carry its bytes
+anywhere in them staying standing with the one the selection stands
+on standing selected through each relisting when the narrowed list
+still holds it; Backspace gives the filter a byte back, an emptied
+one leaving the list whole again, ESC takes the filter off with the
+list standing whole before it stays on the buffer that was live, and
+a filter no buffer carries says so with the list drawing nothing.
+Ctrl\-E closes
 the buffer being edited; unsaved changes require three additional
 confirmations first, and closing the last buffer starts a fresh empty
 one. Unsaved changes in any buffer hold a quit back.

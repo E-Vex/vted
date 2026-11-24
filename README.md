@@ -403,7 +403,8 @@ selection    |
   prompt with the bar saying what opened, a name that opens no
   file saying so while the prompt stands |
 | Ctrl-E          | close the buffer being edited                    |
-| Ctrl-B          | pick a buffer from a list of what is open        |
+| Ctrl-B          | pick a buffer from a list of what is open, bytes
+  typed into it narrowing the list to the names that carry them |
 | Alt-, / Alt-.   | step through the open buffers (wraps around)     |
 | Alt-1 .. Alt-9  | jump to the buffer with that number               |
 | Ctrl-G          | go to a line number, a line with a ":column"
@@ -449,7 +450,16 @@ the wheel steps the selection the way they do without the wrap, a
 left click takes the buffer drawn under it, Enter takes the one
 under the selection, Ctrl-E closes it without leaving the list
 (unsaved changes ask for three more presses first) and ESC stays
-where you were.
+where you were. Bytes typed while the list stands narrow it, the
+way the goto prompt carries its answer: the filter spells itself
+out in the bar as it is typed, and the buffers whose names carry
+its bytes anywhere in them stay standing, the buffer the selection
+stands on standing selected through each relisting when the
+narrowed list still holds it. Backspace gives the filter a byte
+back — an emptied one leaving the list whole again — and ESC takes
+the filter off with the list standing whole before it stays where
+you were; a filter no buffer carries says so with the list drawing
+nothing.
 Alt-, and Alt-. step through them and Alt-1 to Alt-9 jump to one by
 number, while the status bar shows which one is being edited
 ("2/3, Ln 5/120, Col 12"). Ctrl-E closes the buffer being edited:
@@ -459,6 +469,19 @@ does, and closing the last buffer starts a fresh empty one.
 ## Features
 
 New in 0.3.4:
+
+- Buffer picker filtering: bytes typed while the Ctrl-B list stands
+  narrow it to the buffers whose names carry them anywhere in them —
+  not only at their heads — the way the browse's filter asks after
+  the names the directory holds. The filter spells itself out in the
+  bar as it is typed, the buffer the selection stands on standing
+  selected through each relisting when the narrowed list still holds
+  it, Backspace giving the filter a byte back the way a prompt's
+  backspace does, and ESC taking the filter off with the list
+  standing whole before it puts the buffer that was live back. A
+  filter no buffer carries says so with the list drawing nothing,
+  and Ctrl-E closes the one under the selection with the narrowing
+  standing, the matches laying again behind the close.
 
 - Quote matching: a quote the cursor sits on lights up the far end
   of the span it holds with the same light the bracket match lights
