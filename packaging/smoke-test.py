@@ -154,8 +154,18 @@
 # with the bar counting the spot, the cursor resting past the closer
 # still lighting the opener, and an escaped quote finding no partner
 # at all — Alt-% saying so in the bar.
+#
+# A picker run walks the Ctrl-B buffer list the way a hand would:
+# bytes typed into it narrowing the list to the buffers whose names
+# carry them anywhere — the filter carried in the bar, Backspace
+# editing it — a take from the narrowed list landing on the buffer it
+# named, a filter no buffer carries told so, ESC taking the filter
+# off with the list whole before it puts the live buffer back, and
+# Ctrl-E closing the one under the selection with the narrowing
+# standing, the neighbor the close leaves live landing after it.
 import os
 import pty
+import re
 import select
 import struct
 import sys
@@ -171,6 +181,9 @@ CTRL_R = b'\x12'
 CTRL_T = b'\x14'
 CTRL_O = b'\x0f'    # Ctrl-O: the open prompt
 CTRL_G = b'\x07'    # Ctrl-G: the goto prompt
+CTRL_B = b'\x02'    # Ctrl-B: the buffer picker
+CTRL_E = b'\x05'    # Ctrl-E: close the buffer under the picker's
+                    # selection, or the one being edited
 CTRL_Z = b'\x1a'
 BACKSPACE = b'\x7f'
 ENTER = b'\r'
@@ -238,6 +251,9 @@ LIMIT_TREE = '/tmp/vted-smoke-limit'  # the tree the limit walk walks in
 MCOUNT_TREE = '/tmp/vted-smoke-mcount'  # the tree the marked word
                                         # count walks in
 MATCH = '/tmp/vted-smoke-match.txt'  # the buffer the partners light in
+PICK_ALPHA = '/tmp/vted-smoke-pick-alpha.txt'  # the buffers the picker
+PICK_BETA = '/tmp/vted-smoke-pick-beta.txt'    # narrows between
+PICK_NOTES = '/tmp/vted-smoke-pick-notes.txt'
 
 
 def spawn(binary, args):
@@ -294,6 +310,23 @@ def wait_exit(pid, fd, timeout=10):
 def fail(message):
     print(f'smoke: FAIL - {message}', file=sys.stderr)
     return 1
+
+
+# a line the picker's menu draws: a plain or inverted reset, then the
+# number, the dirty marker and the name ("%2d %s %s" lays them)
+MENU_LINE = re.compile(rb'(?:\x1b\[7m|\x1b\[m) ?\d{1,2}   ')
+
+
+def last_frame(drew):
+    """the frame the drawn bytes end with: the picker repaints on its
+    idle ticks, so only the frame the keys end with tells its state"""
+    frames = drew.split(b'\x1b[?25l')
+    return frames[-1] if frames else b''
+
+
+def menu_lines(drew):
+    """how many menu lines the last frame drew"""
+    return len(MENU_LINE.findall(last_frame(drew)))
 
 
 def quit_smoke(binary):
@@ -3536,6 +3569,176 @@ def match_smoke(binary):
     return 0
 
 
+def picker_smoke(binary):
+    """the picker run: Ctrl-B walked with bytes typed into it — the
+    list narrowing to the buffers whose names carry them anywhere,
+    the filter carried in the bar, Backspace editing it, a take from
+    the narrowed list, a filter no buffer carries told so, ESC taking
+    the filter off with the list whole before it puts the live buffer
+    back, and Ctrl-E closing the one under the selection with the
+    narrowing standing"""
+    for path, text in ((PICK_ALPHA, 'alpha\n'), (PICK_BETA, 'beta\n'),
+                       (PICK_NOTES, 'notes\n')):
+        with open(path, 'w') as f:
+            f.write(text)
+
+    pid, fd = spawn(binary, [PICK_ALPHA, PICK_BETA, PICK_NOTES])
+    out = []
+    time.sleep(0.3)
+
+    # Ctrl-B lists every buffer, the live one standing selected
+    drive(fd, CTRL_B, out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 3:
+        return fail(f'the picker drew {menu_lines(drew)} lines, not 3')
+    if b'pick-alpha' not in drew or b'pick-beta' not in drew \
+            or b'pick-notes' not in drew:
+        return fail('the picker did not list every buffer name')
+    if b"(filter '" in drew:
+        return fail('the bar carried a filter before one was typed')
+
+    # the bytes typed narrow the list: an 'a' leaves alpha and beta
+    # standing, notes gone — the bar carrying the filter itself
+    out.clear()
+    drive(fd, b'a', out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 2:
+        return fail(f"an 'a' left {menu_lines(drew)} lines standing, not 2")
+    if b"(filter 'a')" not in drew:
+        return fail('the bar did not carry the typed filter')
+    if b'pick-notes' in last_frame(drew):
+        return fail('a name the filter narrows out still stood')
+
+    # one more byte narrows to the one buffer that carries them both
+    out.clear()
+    drive(fd, b'l', out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 1 or b'pick-alpha' not in drew:
+        return fail("an 'al' did not narrow the list to alpha alone")
+
+    # Backspace edits the filter, the list standing wider again
+    out.clear()
+    drive(fd, BACKSPACE, out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 2 or b"(filter 'a')" not in drew:
+        return fail('Backspace did not give the filter its byte back')
+
+    out.clear()
+    drive(fd, BACKSPACE, out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 3:
+        return fail('an emptied filter did not stand the list whole again')
+
+    # a take from the narrowed list lands on the buffer it named:
+    # 'bet' leaves beta standing alone and Enter switches to it
+    for byte in b'bet':
+        out.clear()
+        drive(fd, bytes([byte]), out)
+
+    if menu_lines(b''.join(out)) != 1:
+        return fail("a 'bet' did not narrow the list to beta alone")
+
+    out.clear()
+    drive(fd, ENTER, out)
+    drew = b''.join(out)
+
+    if b'pick-beta.txt (buffer 2 of 3)' not in drew:
+        return fail('Enter did not land on the filtered buffer')
+
+    # a filter no buffer carries says so, the list drawing nothing
+    out.clear()
+    drive(fd, CTRL_B, out)
+    for byte in b'zzz':
+        out.clear()
+        drive(fd, bytes([byte]), out)
+    drew = b''.join(out)
+
+    if b'no buffer carries it' not in drew:
+        return fail('a filter nothing carries was not told so in the bar')
+    if menu_lines(drew) != 0:
+        return fail('the empty narrowing still drew a menu line')
+
+    # ESC takes the filter off first, the list standing whole again,
+    # and only then puts the buffer that was live back
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 3 or b'pick-alpha' not in drew:
+        return fail('ESC did not take the filter off with the list whole')
+
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'pick-beta.txt (buffer 2 of 3)' not in drew:
+        return fail('ESC did not put the buffer that was live back')
+
+    # Ctrl-E closes the buffer under the selection with the narrowing
+    # standing: 'bet' leaves beta alone, one press closes it (nothing
+    # unsaved), and the narrowing — carrying no buffer now — says so
+    # while the list stays up
+    out.clear()
+    drive(fd, CTRL_B, out)
+    for byte in b'bet':
+        out.clear()
+        drive(fd, bytes([byte]), out)
+
+    out.clear()
+    drive(fd, CTRL_E, out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 0:
+        return fail('Ctrl-E left the narrowed list drawing a closed buffer')
+    if b'no buffer carries it' not in drew:
+        return fail('the narrowing left holding nothing was not told so')
+
+    # ESC takes the filter off, the two buffers left standing whole —
+    # and the second ESC lands on the buffer that is live now: the
+    # notes that took the closed one's place
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if menu_lines(drew) != 2 or b'pick-alpha' not in drew \
+            or b'pick-notes' not in drew:
+        return fail('the list did not stand whole after the close')
+
+    out.clear()
+    drive(fd, ESC, out)
+    drew = b''.join(out)
+
+    if b'pick-notes.txt (buffer 2 of 2)' not in drew:
+        return fail('ESC did not land on the neighbor the close left live')
+
+    for _ in range(3):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    with open(PICK_ALPHA) as f:
+        if f.read() != 'alpha\n':
+            return fail('the picker run did not leave alpha as written')
+    with open(PICK_BETA) as f:
+        if f.read() != 'beta\n':
+            return fail('the picker run did not leave beta as written')
+    with open(PICK_NOTES) as f:
+        if f.read() != 'notes\n':
+            return fail('the picker run did not leave notes as written')
+
+    print('smoke: OK - walked the Ctrl-B picker narrowing to the typed bytes')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -3560,7 +3763,8 @@ def main() -> int:
         or mass_marks_smoke(binary) or marked_count_smoke(binary) \
         or marked_delete_smoke(binary) \
         or limit_smoke(binary) \
-        or prompt_smoke(binary) or match_smoke(binary)
+        or prompt_smoke(binary) or match_smoke(binary) \
+        or picker_smoke(binary)
 
 
 if __name__ == '__main__':
