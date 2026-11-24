@@ -1191,8 +1191,11 @@ static int EditorBrowseDirectory(const char *path, char *message,
             }
 
             /* the marks stay behind with the directory walked out
-               of: the listing above answers none of them */
+               of: the listing above answers none of them — the limit
+               coming off with them, a listing that stood the marked
+               names only standing none at all up there */
             marked_count = 0;
+            marked_only = 0;
 
             continue;
         }
@@ -1357,9 +1360,12 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 snprintf(from, sizeof(from), "%s", name);
 
                 /* the listing stands whole so the name it gained
-                   shows, the way a walk in lands on a whole listing */
+                   shows, the way a walk in lands on a whole listing
+                   — the limit off with the filter, a name that
+                   carries no mark standing outside it */
                 filter_len = 0;
                 filter[0] = '\0';
+                marked_only = 0;
             }
 
             continue;
@@ -1445,9 +1451,11 @@ static int EditorBrowseDirectory(const char *path, char *message,
 
                 /* the listing stands whole so the name under its new
                    name shows, the way a walk in lands on a whole
-                   listing */
+                   listing — the limit off with the filter, the way
+                   the create leaves it */
                 filter_len = 0;
                 filter[0] = '\0';
+                marked_only = 0;
             }
 
             continue;
@@ -2086,12 +2094,14 @@ static int EditorBrowseDirectory(const char *path, char *message,
                    lands on stands whole, its own narrowing its own
                    round — and the marks stay behind with the
                    directory they name, the one it lands on holding
-                   none of them */
+                   none of them, the limit coming off with them for
+                   the same reason */
                 memcpy(here, into, strlen(into) + 1);
                 selection = 0;
                 filter_len = 0;
                 filter[0] = '\0';
                 marked_count = 0;
+                marked_only = 0;
                 continue;
             }
 
