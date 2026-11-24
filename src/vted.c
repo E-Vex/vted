@@ -897,7 +897,7 @@ static int EditorBrowseDirectory(const char *path, char *message,
             /* the filter's own text, the limit standing beside it in
                the same breath */
             const char *with_limit = marked_only
-                ? ", the marked only" : "";
+                ? ", marked only" : "";
 
             if (count == 0)
             {
@@ -924,19 +924,19 @@ static int EditorBrowseDirectory(const char *path, char *message,
                 {
                     /* the marks stand but the hidden gate holds
                        their names back */
-                    SetStatusMessage("Browse %.*s (the marked only): %d marked, none showing; a dot takes the hidden in; Alt-l or ESC takes the limit off",
+                    SetStatusMessage("Browse %.*s (marked only): %d marked, none showing; a dot takes the hidden in; Alt-l or ESC takes the limit off",
                                      BrowseShownLen(here), here,
                                      marked_count);
                 }
                 else
                 {
-                    SetStatusMessage("Browse %.*s (the marked only): no names are marked; Alt-l or ESC takes the limit off",
+                    SetStatusMessage("Browse %.*s (marked only): no names are marked; Alt-l or ESC takes the limit off",
                                      BrowseShownLen(here), here);
                 }
             }
             else
             {
-                SetStatusMessage("Browse %.*s (the marked only): %d marked, Alt-v unmarks one, Alt-c copies them, Alt-m moves them; Alt-l or ESC takes the limit off",
+                SetStatusMessage("Browse %.*s (marked only): %d marked, Alt-v unmarks one, Alt-c copies them, Alt-m moves them; Alt-l or ESC takes the limit off",
                                  BrowseShownLen(here), here,
                                  marked_count);
             }
