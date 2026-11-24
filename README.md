@@ -602,6 +602,26 @@ New in 0.3.4:
   text is edited, the way the theme's Alt-s and the bracket
   color's Alt-c stand — the marks the trade stands feeding the
   copy and the move the way the single marks do.
+  Alt-l limits the listing to the marked names — l for limit,
+  the way mutt limits an index, the viewport's own bottom key
+  standing only where the text is edited, the way the middle key
+  stands for the move — the names the marks name the only ones
+  the listing holds, the sort, the filter and the hidden gate
+  still answering behind it, the name the selection stands on
+  standing selected through the relisting, and the same key
+  taking the limit off again with the listing standing whole.
+  The limit turns on only while marks stand: none standing, the
+  key says so and the listing stays as it was. The keys that
+  change the marks change the listing with them — a name
+  unmarked dropping out of it, a name marked staying outside it,
+  the mass keys walking the names the limit holds — and a limit
+  that holds nothing to show says so, the hidden gate holding a
+  marked name back among the reasons. ESC and Backspace take the
+  limit off before they leave the editor and go up a level, the
+  way they take the filter off, a filter standing narrowing
+  inside the limit, the two asked together; and the walk in and
+  up, the create and the rename land the listing whole again,
+  the limit coming off with the filter and the marks.
   Alt-w says the lines, the words and the bytes of the name under
   the selection — w for word count, the way the shell's wc counts
   them: the lines its newlines make, a last line without its own
