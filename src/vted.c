@@ -883,24 +883,62 @@ static int EditorBrowseDirectory(const char *path, char *message,
         /* the hint, or what a walk that could not happen says, or an
            empty directory saying so — the filter carried in the bar
            the way a prompt carries its answer, so the narrowing
-           stands spelled out while it narrows, and the marks saying
-           how many stand when any do, the listing carrying their
-           stars itself while a filter narrows it */
+           stands spelled out while it narrows, the limit saying
+           itself in the bar the same way — the two narrowings asked
+           together when both stand — and the marks saying how many
+           stand when any do, the listing carrying their stars itself
+           while a filter narrows it */
         if (warn[0] != '\0')
         {
             SetStatusMessage("%s", warn);
         }
         else if (filter_len > 0)
         {
+            /* the filter's own text, the limit standing beside it in
+               the same breath */
+            const char *with_limit = marked_only
+                ? ", the marked only" : "";
+
             if (count == 0)
             {
-                SetStatusMessage("Browse %.*s (filter '%s'): no name carries it; Backspace edits the filter, ESC takes it off",
-                                 BrowseShownLen(here), here, filter);
+                SetStatusMessage("Browse %.*s (filter '%s'%s): no name carries it; Backspace edits the filter, ESC takes it off",
+                                 BrowseShownLen(here), here, filter,
+                                 with_limit);
             }
             else
             {
-                SetStatusMessage("Browse %.*s (filter '%s'): arrows move, Enter or a click takes, Backspace edits the filter, ESC takes it off",
-                                 BrowseShownLen(here), here, filter);
+                SetStatusMessage("Browse %.*s (filter '%s'%s): arrows move, Enter or a click takes, Backspace edits the filter, ESC takes it off",
+                                 BrowseShownLen(here), here, filter,
+                                 with_limit);
+            }
+        }
+        else if (marked_only)
+        {
+            /* the limit's own text: every name it holds carries a
+               star, so Alt-v can only unmark one — the name dropping
+               out of the listing with its mark — and the mass keys
+               walk the names the limit holds */
+            if (count == 0)
+            {
+                if (marked_count > 0)
+                {
+                    /* the marks stand but the hidden gate holds
+                       their names back */
+                    SetStatusMessage("Browse %.*s (the marked only): %d marked, none showing; a dot takes the hidden in; Alt-l or ESC takes the limit off",
+                                     BrowseShownLen(here), here,
+                                     marked_count);
+                }
+                else
+                {
+                    SetStatusMessage("Browse %.*s (the marked only): no names are marked; Alt-l or ESC takes the limit off",
+                                     BrowseShownLen(here), here);
+                }
+            }
+            else
+            {
+                SetStatusMessage("Browse %.*s (the marked only): %d marked, Alt-v unmarks one, Alt-c copies them, Alt-m moves them; Alt-l or ESC takes the limit off",
+                                 BrowseShownLen(here), here,
+                                 marked_count);
             }
         }
         else if (count == 0)
