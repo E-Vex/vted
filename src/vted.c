@@ -3547,8 +3547,8 @@ static void PickerSnapSelection(int *selection, const int *matched,
    move through them, a left click takes the buffer drawn under it,
    Enter takes the one under the selection, Ctrl-E closes the one
    under it without leaving the list, the bytes typed while it stands
-   narrow it to the buffers whose names carry them, and ESC puts the
-   buffer that was live back */
+   narrow it to the buffers whose names carry them, and ESC takes the
+   narrowing off before it puts the buffer that was live back */
 static void EditorPickBuffer(void)
 {
     char lines[PICKER_LINES][PICKER_WIDTH];
@@ -3650,11 +3650,17 @@ static void EditorPickBuffer(void)
         /* the hint, or the warning a dirty buffer gave for its close,
            the filter carried in the bar the way the browse carries
            its own — so the narrowing stands spelled out while it
-           narrows */
+           narrows, and a narrowing nothing answers says so the way
+           the browse's own does */
         if (close_warning > 0)
         {
             SetStatusMessage("WARNING! Unsaved changes. Press Ctrl-E %d more times to close.",
                              close_warning);
+        }
+        else if (filter_len > 0 && match_count == 0)
+        {
+            SetStatusMessage("Switch buffer (filter '%s'): no buffer carries it; Backspace edits the filter, ESC takes it off",
+                             filter);
         }
         else if (filter_len > 0)
         {
@@ -3692,6 +3698,20 @@ static void EditorPickBuffer(void)
 
         if (c == 27) /* ESC: the buffer that was live stays live */
         {
+            /* a filter standing comes off first — the list standing
+               whole again, the buffer the selection stands on
+               standing through the relisting — the way ESC takes the
+               browse's filter off with the listing standing; only
+               then does ESC put the buffer that was live back */
+            if (filter_len > 0)
+            {
+                filter_len = 0;
+                filter[0] = '\0';
+                match_count = PickerLayMatches(filter, matched);
+                PickerSnapSelection(&selection, matched, match_count);
+                continue;
+            }
+
             /* the one the picker started on may have been closed since
                (or slid to another slot): what is live now stays */
             selection = started_at >= 0 && started_at < count
