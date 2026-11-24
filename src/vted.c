@@ -3475,10 +3475,12 @@ static void EditorCloseBuffer(void)
     }
 }
 
-/* the most lines the buffer picker shows, and the room one line of it
-   takes: a number, a modified marker and a path */
+/* the most lines the buffer picker shows, the room one line of it
+   takes: a number, a modified marker and a path, and the most bytes
+   the filter it is narrowed by carries */
 #define PICKER_LINES 16
 #define PICKER_WIDTH 96
+#define PICKER_FILTER_MAX 128
 
 /* the most words the completion menu offers, the most lines of them
    it shows, the room one of its words takes, and the room one of
@@ -3544,14 +3546,17 @@ static void PickerSnapSelection(int *selection, const int *matched,
 /* picks one of the open buffers from a list: the arrows and the wheel
    move through them, a left click takes the buffer drawn under it,
    Enter takes the one under the selection, Ctrl-E closes the one
-   under it without leaving the list, and ESC puts the buffer that was
-   live back */
+   under it without leaving the list, the bytes typed while it stands
+   narrow it to the buffers whose names carry them, and ESC puts the
+   buffer that was live back */
 static void EditorPickBuffer(void)
 {
     char lines[PICKER_LINES][PICKER_WIDTH];
     const char *shown_lines[PICKER_LINES];
     int *matched; /* the buffers the listing holds, by index */
     int match_count;
+    char filter[PICKER_FILTER_MAX]; /* the bytes the list narrows by */
+    int filter_len = 0;
     int count = BuffersCount();
     int selection = BuffersCurrent();
     int started_at = selection;
@@ -3565,6 +3570,8 @@ static void EditorPickBuffer(void)
         return;
     }
 
+    filter[0] = '\0';
+
     matched = malloc(sizeof(int) * (size_t)count);
 
     if (matched == NULL)
@@ -3572,7 +3579,7 @@ static void EditorPickBuffer(void)
         KillApp("malloc");
     }
 
-    match_count = PickerLayMatches("", matched);
+    match_count = PickerLayMatches(filter, matched);
     PickerSnapSelection(&selection, matched, match_count);
 
     while (1)
@@ -3640,11 +3647,19 @@ static void EditorPickBuffer(void)
             ScreenShowMenu(NULL, 0, 0); /* nothing stands to draw */
         }
 
-        /* the hint, or the warning a dirty buffer gave for its close */
+        /* the hint, or the warning a dirty buffer gave for its close,
+           the filter carried in the bar the way the browse carries
+           its own — so the narrowing stands spelled out while it
+           narrows */
         if (close_warning > 0)
         {
             SetStatusMessage("WARNING! Unsaved changes. Press Ctrl-E %d more times to close.",
                              close_warning);
+        }
+        else if (filter_len > 0)
+        {
+            SetStatusMessage("Switch buffer (filter '%s'): arrows move, Enter or a click picks, Backspace edits the filter, ESC takes it off",
+                             filter);
         }
         else
         {
@@ -3738,7 +3753,7 @@ static void EditorPickBuffer(void)
 
             /* the matches lay again behind the close, the selection
                snapping onto what still stands */
-            match_count = PickerLayMatches("", matched);
+            match_count = PickerLayMatches(filter, matched);
             PickerSnapSelection(&selection, matched, match_count);
 
             if (count < 2)
@@ -3814,6 +3829,34 @@ static void EditorPickBuffer(void)
         else if (c == ArrowDown && match_count > 0)
         {
             selection = matched[at < match_count - 1 ? at + 1 : 0];
+        }
+        else if (c == 127 && filter_len > 0)
+        {
+            /* the filter gives a byte back the way a prompt's
+               backspace does — one whole character, a continuation
+               byte walking back to the head of its own — the buffer
+               the selection stands on standing selected through the
+               relisting when the widened list still holds it; an
+               empty one leaves the list standing whole */
+            filter_len = Utf8PrevBoundary(filter, filter_len);
+            filter[filter_len] = '\0';
+            match_count = PickerLayMatches(filter, matched);
+            PickerSnapSelection(&selection, matched, match_count);
+        }
+        else if (((c >= 32 && c <= 126) || (c >= 128 && c <= 255)) &&
+                 filter_len < (int)sizeof(filter) - 1)
+        {
+            /* the bytes typed while the list stands narrow it, the
+               way the goto prompt carries its answer: the names that
+               carry them anywhere in them stay standing — the same
+               question the browse's filter asks of the names the
+               directory holds — and the buffer the selection stands
+               on stands selected through the relisting when the
+               narrowed list still holds it */
+            filter[filter_len++] = (char)c;
+            filter[filter_len] = '\0';
+            match_count = PickerLayMatches(filter, matched);
+            PickerSnapSelection(&selection, matched, match_count);
         }
     }
 
