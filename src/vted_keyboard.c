@@ -509,10 +509,13 @@ int ParseArrowKey(void)
         return BrowseCreate;
     }
 
-    /* Alt-r moves the name under the selection of the browse to
-       another name in the same directory: r for rename, the way the
-       shell's mv renames — a plain r is a character of the text and
-       stays one, and the key answers only where a listing stands */
+    /* Alt-r answers two ways, the way the other letters the browse
+       borrowed answer: r for rename where a listing stands, moving
+       the name under the selection to another name in the same
+       directory, and r for reload where the text is edited, reading
+       the file of the buffer being edited again. A plain r is a
+       character of the text and stays one; the editor core hands
+       the key to whichever of the two is standing */
     if (introducer == 'r')
     {
         return BrowseRename;

@@ -72,7 +72,8 @@ typedef enum
                      lists, the listing standing again */
     BrowseRename, /* Alt-r: the name under the selection of the
                      browse moved to another name in the same
-                     directory */
+                     directory — where the text is edited, the same
+                     key reads the buffer's file again (ReloadFile) */
     BrowseCount,  /* Alt-w: the lines, the words and the bytes of
                      the name under the selection of the browse,
                      the way wc counts them */
@@ -82,6 +83,9 @@ typedef enum
     BrowseMarkAll, /* Alt-V: every name the browse lists marked at
                       once — the capital of the mark key — the marks
                       all taken off when every name carries one */
+    ReloadFile, /* Alt-r: the file of the buffer being edited read
+                   again, the r of reload — where a browse listing
+                   stands, the same key renames instead (BrowseRename) */
     ElectricBracketsToggle, /* Alt-(: the electric bracket pairs on
                                or off */
     SuspendEditor,   /* Alt-z: hand the terminal back to the shell and
