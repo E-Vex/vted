@@ -5144,6 +5144,60 @@ static void FreeEditorState(void)
     FreeBuffer();
 }
 
+/* the watch on the file of the buffer being edited: once a second
+   the idle tick asks the file module whether the file still stands
+   as the buffer saw it, and a change another hand made is said in
+   the bar — where the editor has been editing blind to it, the way
+   the shell's own jobs never say a word. The say stands until the
+   next key, the bar the way every word stands there; a buffer with
+   unsaved changes of its own keeps its say too, for the change is
+   worth the word either way */
+#define FILE_WATCH_INTERVAL_MS 1000
+
+static long file_watch_last_ms = -1; /* when the watch last asked, the
+                                        monotonic clock NowMs() reads */
+static int file_watch_said = 0;      /* the watch already said its say:
+                                        the bar is not rewritten every
+                                        tick over a word already there */
+
+static void EditorWatchFile(void)
+{
+    long now = NowMs();
+
+    if (file_watch_last_ms >= 0 &&
+        now - file_watch_last_ms < FILE_WATCH_INTERVAL_MS)
+    {
+        return; /* the second has not come around yet */
+    }
+
+    file_watch_last_ms = now;
+
+    if (file_watch_said)
+    {
+        return; /* the say stands until the next key takes it off */
+    }
+
+    int changed = FileCheckChanged();
+
+    if (changed == 0)
+    {
+        return;
+    }
+
+    if (changed == 1)
+    {
+        SetStatusMessage("%s changed on disk — Alt-r reads it again",
+                         vted_buffer.filename);
+    }
+    else
+    {
+        SetStatusMessage("%s is gone from disk — Alt-r says why a read again fails",
+                         vted_buffer.filename);
+    }
+
+    file_watch_said = 1;
+}
+
 int main(int argc, char *argv[])
 {
     int quit_confirmations = QUIT_CONFIRMATIONS;
@@ -5297,9 +5351,18 @@ int main(int argc, char *argv[])
                 break;
             }
 
+            /* the file of the buffer being edited is watched here,
+               on the tick: a change another hand made says itself in
+               the bar, once */
+            EditorWatchFile();
+
             RefreshScreen();
             continue;
         }
+
+        /* a key takes the watch's say off the bar, so a change that
+           comes after it says itself again */
+        file_watch_said = 0;
 
         if (c_in == CTRL_KEY('q') || c_in == CTRL_KEY('Q'))
         {
