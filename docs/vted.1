@@ -567,6 +567,23 @@ raw, so the shell reports a stopped job and B fg brings it back
 with the screen drawn whole again. A SIGTSTP that comes from
 outside (B kill \-TSTP) lands the same way, on the next turn of
 the loop, from inside a prompt or not
+.TP
+.B Alt\-r
+read the file of the buffer being edited again, the r of reload.
+The editor watches the file, once a second on its idle tick, and a
+change another hand made — a checkout, a build, another editor —
+says itself in the bar with the key that reads it again; a file
+taken away says so too. The read brings the new text in whole, the
+cursor keeping its line and column, clamped to the text that came
+in, and the undo history goes with the text it walked, for it
+described a text that is gone. Unsaved changes hold the read back
+the way they hold a quit back — the two texts cannot be merged,
+and the one on disk is one Ctrl\-S away from being the older one —
+and a read that fails (the file gone, or not a file any more)
+leaves the editor exactly as it stood, the bar saying why. The
+browse's own Alt\-r (a rename) stands only where a listing stands,
+the way the theme's Alt\-s and the bracket color's Alt\-c stand
+only where the text is edited
 .SH TEXT HANDLING
 The cursor moves and deletes by whole UTF\-8 characters, never into
 the middle of a multibyte sequence. Wide characters (CJK, emoji) take

@@ -443,6 +443,14 @@ selection    |
   the editor stops the way Ctrl-Z used to — `fg`
   brings it back, the screen whole again. A SIGTSTP
   from outside (kill -TSTP) lands the same way  |
+| Alt-r           | read the file of the buffer being edited again:
+  the text another hand changed on disk comes in
+  whole, the cursor keeping its line and column, the
+  undo history going with the text it walked. Held
+  back while unsaved changes stand, the way a quit
+  is. The bar says so when the watch sees the file
+  changed underneath — and the browse's own Alt-r
+  (a rename) stands only where a listing stands |
 
 With several buffers open, Ctrl-B lists them with their numbers and
 names (a `+` marks unsaved changes): the arrows wrap around the list,
@@ -469,6 +477,24 @@ does, and closing the last buffer starts a fresh empty one.
 ## Features
 
 New in 0.3.4:
+
+- File change watch and reload: the editor watches the file of the
+  buffer being edited, once a second on its idle tick, and a change
+  another hand made — a git checkout, a build, another editor —
+  says itself in the bar the way the shell's own jobs never do: the
+  file's name, "changed on disk", and the key that reads it again.
+  A file taken away says so too. Alt-r reads the file again: the
+  new text comes in whole, the cursor keeps its line and column —
+  clamped to the text that came in — and the undo history goes with
+  the text it walked, for it described a text that is gone. The
+  read again is held back while unsaved changes stand, the way a
+  quit is held back: the two texts cannot be merged, and the one on
+  disk is one Ctrl-S away from being the older one. A read that
+  fails — the file gone, or not a file any more — leaves the
+  editor exactly as it stood, the bar saying why. The browse's own
+  Alt-r (a rename) stands only where a listing stands, the way the
+  theme's Alt-s and the bracket color's Alt-c stand only where the
+  text is edited
 
 - Buffer picker filtering: bytes typed while the Ctrl-B list stands
   narrow it to the buffers whose names carry them anywhere in them —
