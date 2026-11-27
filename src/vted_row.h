@@ -382,6 +382,10 @@ void BufferCountMatches(const char *query, int query_len,
 void FreeRow(vted_row_t *row);
 void FreeBuffer(void);
 
+/* gives back the text of a buffer that is not the live one, without
+   touching the globals */
+void BufferFreeText(vted_buffer_t *text);
+
 /* sets the tab stop in cells used by RowCharWidth(); VTED_TAB_STOP by
    default, clamped to at least one */
 void RowSetTabWidth(int width);

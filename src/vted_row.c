@@ -1786,18 +1786,33 @@ void FreeRow(vted_row_t *row)
 
 void FreeBuffer(void)
 {
-    int row_index;
-
-    for (row_index = 0; row_index < vted_buffer.num_rows; row_index++)
-    {
-        FreeRow(&vted_buffer.rows[row_index]);
-    }
-
-    free(vted_buffer.rows);
-
-    free(vted_buffer.filename);
+    BufferFreeText(&vted_buffer);
 
     InitBuffer();
+}
+
+/* gives back the text of a buffer that is not the live one — a
+   reload's hold-aside, say — without touching the globals. The
+   buffer is left empty the way InitBuffer leaves the live one, so
+   a second free of it is safe */
+void BufferFreeText(vted_buffer_t *text)
+{
+    int row_index;
+
+    for (row_index = 0; row_index < text->num_rows; row_index++)
+    {
+        FreeRow(&text->rows[row_index]);
+    }
+
+    free(text->rows);
+    free(text->filename);
+
+    text->rows = NULL;
+    text->num_rows = 0;
+    text->filename = NULL;
+    text->dirty = 0;
+    text->file_mtime = 0;
+    text->file_size = 0;
 }
 
 /* the three bracket pairs the match works on */

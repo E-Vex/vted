@@ -492,3 +492,95 @@ int SaveFile(void)
 
     return 0;
 }
+
+/* the moment of a struct stat as one number the watch can compare:
+   the seconds and the nanoseconds together, so two changes inside
+   one second still say which came last */
+static long long StatMtime(const struct stat *info)
+{
+    return (long long)info->st_mtim.tv_sec * 1000000000LL
+           + (long long)info->st_mtim.tv_nsec;
+}
+
+int FileCheckChanged(void)
+{
+    if (vted_buffer.filename == NULL || vted_buffer.file_mtime == 0)
+    {
+        /* an unnamed buffer has nothing on disk to watch, and a
+           buffer whose moment was never taken says nothing either */
+        return 0;
+    }
+
+    struct stat info;
+
+    if (stat(vted_buffer.filename, &info) == -1)
+    {
+        /* the file is gone — taken away, or renamed over. The bar
+           says so; a save lays it whole again */
+        return 2;
+    }
+
+    if (!S_ISREG(info.st_mode))
+    {
+        /* whatever stands there now is not a file any more */
+        return 2;
+    }
+
+    if (StatMtime(&info) != vted_buffer.file_mtime ||
+        (long long)info.st_size != vted_buffer.file_size)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+int FileReload(void)
+{
+    if (vted_buffer.filename == NULL)
+    {
+        return -1; /* unnamed buffer has nothing to read again */
+    }
+
+    /* the text the buffer holds is set aside, not given back: the
+       file is read into the globals first, and only a read that
+       came back whole lets the old text go. A read that fails —
+       the file is gone, or is not a file any more, or memory ran
+       out — puts the editor back exactly as it stood, the way a
+       failed open brings the old buffer back */
+    vted_buffer_t held = vted_buffer;
+    char *filename = strdup(vted_buffer.filename);
+    struct stat info;
+    int existed;
+
+    if (filename == NULL)
+    {
+        return -1;
+    }
+
+    /* a file taken away is not the new-file case OpenFile answers
+       with an empty buffer: the reload of a gone file fails, so
+       the editor keeps the text it holds */
+    existed = stat(filename, &info) == 0;
+
+    InitBuffer();
+
+    if (!existed || OpenFile(filename) == -1)
+    {
+        int saved_errno = existed ? errno : ENOENT;
+
+        /* whatever the failed read left behind belongs to no one */
+        FreeBuffer();
+        vted_buffer = held;
+        free(filename);
+        errno = saved_errno;
+        return -1;
+    }
+
+    /* the new file stands in the globals: the old text goes, and
+       the fresh snapshot recorded by the open rides it */
+    BufferFreeText(&held);
+    free(filename);
+
+    return 0;
+}
