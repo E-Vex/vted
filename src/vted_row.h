@@ -49,6 +49,13 @@ typedef struct
        ending is written out only then, so a file with no trailing
        newline keeps having none */
     int final_newline;
+
+    /* the moment and the size the file had when it was last read or
+       written: the watch compares them against the file on disk, so
+       it can say the file changed underneath the buffer. Zero when
+       the buffer has no file of its own */
+    long long file_mtime;
+    long long file_size;
 } vted_buffer_t;
 
 extern vted_buffer_t vted_buffer;

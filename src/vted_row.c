@@ -56,6 +56,8 @@ void InitBuffer(void)
     vted_buffer.filename = NULL;
     vted_buffer.dirty = 0;
     vted_buffer.final_newline = 1;
+    vted_buffer.file_mtime = 0;
+    vted_buffer.file_size = 0;
 
     /* a new buffer has no colors worked out yet */
     SyntaxInvalidate(0);

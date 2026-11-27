@@ -1,4 +1,5 @@
-/* getline() and strdup() are POSIX, not ISO C11 */
+/* getline(), strdup() and the nanosecond field of struct stat are
+   POSIX, not ISO C11 */
 #define _POSIX_C_SOURCE 200809L
 /*===============================*/
 #include <stdio.h>
@@ -158,6 +159,14 @@ int OpenFile(const char *filename)
     }
 
     free(content);
+
+    /* the moment and the size the file had as it was read: the watch
+       compares them against the file later, so it can say the file
+       changed underneath the buffer */
+    vted_buffer.file_mtime = (long long)info.st_mtim.tv_sec
+                             * 1000000000LL
+                             + (long long)info.st_mtim.tv_nsec;
+    vted_buffer.file_size = file_size;
 
     return 0;
 }
@@ -454,6 +463,30 @@ int SaveFile(void)
     }
 
     free(temp_path);
+
+    /* the watch reads the file's own moment and size back: a stat of
+       it here would race a writer that changed it between the rename
+       and the look, telling of a change that was not one */
+    {
+        struct stat info;
+
+        if (stat(vted_buffer.filename, &info) == 0)
+        {
+            vted_buffer.file_mtime = (long long)info.st_mtim.tv_sec
+                                     * 1000000000LL
+                                     + (long long)info.st_mtim.tv_nsec;
+            vted_buffer.file_size = (long long)info.st_size;
+        }
+        else
+        {
+            /* the name says the file is there — the rename just put
+               it there — so a stat that fails says nothing about the
+               file; the watch keeps quiet rather than warn of a
+               change it cannot vouch for */
+            vted_buffer.file_mtime = 0;
+            vted_buffer.file_size = 0;
+        }
+    }
 
     SyncParentDirectory(vted_buffer.filename);
 
