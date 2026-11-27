@@ -207,6 +207,95 @@ static void TestMissingAndSpecialFiles(void)
     CHECK_INT(OpenFile("/tmp"), -1);
 }
 
+static void TestWatchSaysAChange(void)
+{
+    /* the watch asks the file module whether the file still stands
+       as the buffer saw it: a load takes the file's moment and
+       size, another hand's write says itself, and the buffer's own
+       save lays the file back as the buffer sees it */
+    Load("one\n", 4);
+
+    /* the snapshot of the load is in place, so nothing changed yet */
+    CHECK_INT(FileCheckChanged(), 0);
+
+    /* another hand writes more bytes in: the size alone tells the
+       change even inside the mtime's own second */
+    WriteFile(test_path, "one and two\n", 12);
+    CHECK_INT(FileCheckChanged(), 1);
+
+    /* a save of the loaded text lays the file back as the buffer
+       sees it — the watch goes quiet, the buffer's own write is
+       not another hand's */
+    Load("one and two\n", 12);
+    CHECK_INT(SaveFile(), 0);
+    vted_buffer.dirty = 0;
+    CHECK_INT(FileCheckChanged(), 0);
+}
+
+static void TestWatchSaysTheFileIsGone(void)
+{
+    Load("one\n", 4);
+    unlink(test_path);
+    CHECK_INT(FileCheckChanged(), 2);
+
+    /* the watch of an unnamed buffer never says anything: there is
+       no file behind it */
+    FreeBuffer();
+    CHECK_INT(FileCheckChanged(), 0);
+}
+
+static void TestReloadBringsTheNewText(void)
+{
+    Load("alpha\n", 6);
+    WriteFile(test_path, "beta\n", 5);
+
+    CHECK_INT(FileReload(), 0);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "beta");
+    CHECK_INT(vted_buffer.dirty, 0);
+
+    /* the fresh snapshot rides the reloaded text: the watch is
+       quiet about the file it just read */
+    CHECK_INT(FileCheckChanged(), 0);
+}
+
+static void TestReloadKeepsTheName(void)
+{
+    Load("alpha\n", 6);
+    WriteFile(test_path, "beta\n", 5);
+
+    CHECK_INT(FileReload(), 0);
+    CHECK_STR(vted_buffer.filename, test_path);
+}
+
+static void TestReloadOfAGoneFileHoldsTheText(void)
+{
+    /* the file taken away under the buffer: the read again fails
+       and the editor keeps the text it holds, the name too */
+    Load("alpha\n", 6);
+    unlink(test_path);
+
+    CHECK_INT(FileReload(), -1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "alpha");
+    CHECK_STR(vted_buffer.filename, test_path);
+}
+
+static void TestReloadOfAFailedReadHoldsTheText(void)
+{
+    /* a name that cannot be read — a directory, say — fails the
+       read again, and the hold-aside puts the text back the way
+       it stood, the unreadable name included */
+    Load("alpha\n", 6);
+    free(vted_buffer.filename);
+    vted_buffer.filename = strdup("/tmp");
+
+    CHECK_INT(FileReload(), -1);
+    CHECK_INT(vted_buffer.num_rows, 1);
+    CHECK_STR(vted_buffer.rows[0].chars, "alpha");
+    CHECK_STR(vted_buffer.filename, "/tmp");
+}
+
 static void TestSaveKeepsTheMode(void)
 {
     struct stat info;
@@ -401,6 +490,12 @@ int main(void)
     TestBinaryFileRoundTrip();
     TestSaveWritesRowEndings();
     TestMissingAndSpecialFiles();
+    TestWatchSaysAChange();
+    TestWatchSaysTheFileIsGone();
+    TestReloadBringsTheNewText();
+    TestReloadKeepsTheName();
+    TestReloadOfAGoneFileHoldsTheText();
+    TestReloadOfAFailedReadHoldsTheText();
     TestSaveKeepsTheMode();
     TestSaveNewFileGetsTheUsualMode();
     TestFailedSaveKeepsTheOriginal();
