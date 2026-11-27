@@ -3244,6 +3244,73 @@ static void EditorSave(void)
     SetStatusMessage("Saved %s", vted_buffer.filename);
 }
 
+/* Alt-r reads the file of the buffer being edited again: the text
+   another hand changed on disk comes in whole, the way the watch
+   said it changed. The cursor lands on the same line and column it
+   stood on, clamped to the text that came in; the undo history is
+   given back, for it walked a text that is gone; the selection, a
+   highlighted search and the bracket light go the way a buffer
+   switch takes them. Unsaved changes hold the reload back the way
+   they hold a quit back — the two texts cannot be merged, and the
+   one on disk is one Ctrl-S away from being the older one */
+static void EditorReloadFile(void)
+{
+    if (vted_buffer.filename == NULL)
+    {
+        SetStatusMessage("An unnamed buffer has no file to read again");
+        return;
+    }
+
+    if (vted_buffer.dirty != 0)
+    {
+        SetStatusMessage("Unsaved changes. Save them (Ctrl-S) or undo them "
+                         "(Ctrl-Z) before reading the file again");
+        return;
+    }
+
+    int held_y = vted_editor_config.cursor_y;
+    int held_x = vted_editor_config.cursor_x;
+
+    if (FileReload() == -1)
+    {
+        int saved_errno = errno;
+
+        SetStatusMessage("Could not read %s again: %s",
+                         vted_buffer.filename, strerror(saved_errno));
+        return;
+    }
+
+    /* nothing of the old text is asked to follow it: the selection
+       and the lights a switch clears go here too */
+    EditClearSelection();
+    ScreenSetSelection(-1, 0, -1, 0);
+    ScreenSetSearchQuery(NULL, 0);
+    vted_editor_config.match_row = -1;
+    vted_editor_config.match_len = 0;
+    ScreenSetBracketMatch(-1, 0);
+    UndoReset();
+    ScreenMarkAllDirty();
+    SyntaxSelectForFile(vted_buffer.filename);
+
+    /* the cursor stands where it stood, clamped to the new text */
+    if (held_y >= vted_buffer.num_rows)
+    {
+        held_y = vted_buffer.num_rows > 0 ? vted_buffer.num_rows - 1 : 0;
+    }
+
+    if (held_x > vted_buffer.rows[held_y].size)
+    {
+        held_x = vted_buffer.rows[held_y].size;
+    }
+
+    vted_editor_config.cursor_y = held_y;
+    vted_editor_config.cursor_x = held_x;
+    vted_editor_config.preferred_rx = -1;
+    UpdateScroll();
+
+    SetStatusMessage("Read %s again", vted_buffer.filename);
+}
+
 static void EditorOpenFile(void)
 {
     char *path = EditorPromptPath("Open: ", NULL);
@@ -5513,12 +5580,23 @@ int main(int argc, char *argv[])
             }
             else if (c_in == ElectricBracketsToggle)
             {
-                /* Alt-( turns the electric bracket pairs on and off:
+                /* Alt-( turns the electric bracket pairs on or off:
                    a plain ( is a character of the text and stays one */
                 vted_editor_config.electric_brackets = !vted_editor_config.electric_brackets;
 
                 SetStatusMessage("Electric brackets %s",
                                  vted_editor_config.electric_brackets ? "on" : "off");
+            }
+            else if (c_in == BrowseRename)
+            {
+                /* Alt-r reads the file of the buffer being edited
+                   again — the r of reload. The browse's own Alt-r (a
+                   rename) stands only where a listing stands: the
+                   browse runs its own key loop, so this branch of
+                   the main loop sees the key only while the text is
+                   being edited, the way the theme's Alt-s and the
+                   bracket color's Alt-c stand only here */
+                EditorReloadFile();
             }
             else if (c_in == BracketColorPrompt)
             {

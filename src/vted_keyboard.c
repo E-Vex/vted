@@ -514,8 +514,9 @@ int ParseArrowKey(void)
        the name under the selection to another name in the same
        directory, and r for reload where the text is edited, reading
        the file of the buffer being edited again. A plain r is a
-       character of the text and stays one; the editor core hands
-       the key to whichever of the two is standing */
+       character of the text and stays one; the browse runs its own
+       key loop, so the editor core sees the key only while the text
+       is being edited and hands it to the reload there */
     if (introducer == 'r')
     {
         return BrowseRename;
