@@ -194,6 +194,9 @@ ALT_O = b'\x1bo'    # Alt-o: the file the cursor sits on
 ALT_S = b'\x1bs'    # Alt-s: the sort of the browse (the theme elsewhere)
 ALT_A = b'\x1ba'    # Alt-a: a name made in the directory the browse lists
 ALT_R = b'\x1br'    # Alt-r: the name under the selection moved to another
+                    # name in the same directory, where a listing stands;
+                    # where the text is edited, the file of the buffer
+                    # being edited read again
 ALT_C = b'\x1bc'    # Alt-c: the name under the selection copied to
                     # another directory (the bracket color elsewhere)
 ALT_M = b'\x1bm'    # Alt-m: the name under the selection moved to
@@ -3739,6 +3742,93 @@ def picker_smoke(binary):
     return 0
 
 
+# A reload run walks the watch and the read again the way a hand
+# would: another hand changing the file under the editor, the bar
+# saying so within its second, Alt-r reading the file again with the
+# new text standing and the old gone, the watch quiet about the file
+# it just read, and unsaved changes holding the read again back the
+# way they hold a quit back.
+
+RELOAD = '/tmp/vted-smoke-reload.txt'  # the buffer the reload reads
+
+
+def reload_smoke(binary):
+    """the reload run: the file changed on disk while the editor held
+    it open, the bar saying so, Alt-r reading it again — the new text
+    standing, the old gone, the watch quiet after — and unsaved
+    changes holding the read again back"""
+    with open(RELOAD, 'w') as f:
+        f.write('alpha\n')
+
+    pid, fd = spawn(binary, [RELOAD])
+    out = []
+    time.sleep(0.3)
+
+    # another hand changes the file under the editor
+    with open(RELOAD, 'w') as f:
+        f.write('beta\n')
+
+    # the watch asks on the idle tick, once a second: a second and a
+    # half is past its ask
+    drive(fd, b'', out, pause=1.5)
+    drew = b''.join(out)
+
+    if b'changed on disk' not in drew:
+        return fail('the bar never said the file changed on disk')
+
+    # Alt-r reads the file again: the new text stands, the old is gone
+    out.clear()
+    drive(fd, ALT_R, out)
+    drew = b''.join(out)
+
+    if b'beta' not in drew:
+        return fail('the read again did not bring the new text in')
+    if b'alpha' in last_frame(drew):
+        return fail('the old text still stood after the read again')
+    if b'Read' not in drew or b'again' not in drew:
+        return fail('the bar did not say the read again')
+
+    # the watch is quiet about the file it just read: two seconds of
+    # idle, no new say
+    out.clear()
+    drive(fd, b'', out, pause=2.0)
+    drew = b''.join(out)
+
+    if b'changed on disk' in drew:
+        return fail('the watch spoke again about the file it just read')
+
+    # a typed letter makes the buffer dirty; the file changed again
+    # outside; the read again is held back — the two texts cannot be
+    # merged, and the one on disk is one Ctrl-S away from being the
+    # older one
+    out.clear()
+    drive(fd, b'X', out)
+    with open(RELOAD, 'w') as f:
+        f.write('gamma\n')
+    drive(fd, b'', out, pause=1.5)
+
+    out.clear()
+    drive(fd, ALT_R, out)
+    drew = b''.join(out)
+
+    if b'Unsaved changes' not in drew:
+        return fail('unsaved changes did not hold the read again back')
+    if b'gamma' in last_frame(drew):
+        return fail('the dirty buffer was read again anyway')
+
+    for _ in range(4):
+        drive(fd, CTRL_Q, out, pause=0.1)
+
+    status = wait_exit(pid, fd)
+    if status is None:
+        return fail('the editor did not quit within 10s')
+    if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+        return fail(f'exit status {status:#x}')
+
+    print('smoke: OK - walked the watch and the read again')
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f'usage: {sys.argv[0]} <path-to-vted>', file=sys.stderr)
@@ -3764,7 +3854,8 @@ def main() -> int:
         or marked_delete_smoke(binary) \
         or limit_smoke(binary) \
         or prompt_smoke(binary) or match_smoke(binary) \
-        or picker_smoke(binary)
+        or picker_smoke(binary) \
+        or reload_smoke(binary)
 
 
 if __name__ == '__main__':
